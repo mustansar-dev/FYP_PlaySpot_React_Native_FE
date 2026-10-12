@@ -1,0 +1,53 @@
+# Project planning material kept local, outside the app source.
+PLAYSPOT_CODEX_PROMPTS.md
+PLAYSPOT_WEEK_PLAN.md
+Lecture11.pdf
+
+# Node and npm.
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# React Native / Metro output.
+.metro-health-check*
+*.jsbundle
+coverage/
+
+# Android Gradle, native build, and generated artifacts.
+.gradle/
+**/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/app/.cxx/
+**/.cxx/
+android/local.properties
+*.apk
+*.aab
+*.hprof
+*.iml
+
+# Signing keys. Keep only the standard debug key required by this template.
+*.keystore
+*.jks
+!debug.keystore
+
+# Local secrets and machine-specific tooling.
+.env
+.env.*
+!.env.example
+.vscode/mcp.json
+
+# Editor and operating-system files.
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# iOS build output if an iOS project is added later.
+ios/Pods/
+ios/build/
+DerivedData/
+*.xcuserstate
