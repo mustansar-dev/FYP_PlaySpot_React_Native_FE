@@ -1,0 +1,47 @@
+{
+  "name": "playspot-pk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PlaySpot PK local React Native demo",
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "start": "react-native start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "3.1.1",
+    "@react-navigation/native": "7.3.18",
+    "@react-navigation/native-stack": "7.18.10",
+    "@reduxjs/toolkit": "2.8.2",
+    "crypto-js": "4.2.0",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-image-picker": "8.2.1",
+    "react-native-safe-area-context": "5.9.1",
+    "react-native-screens": "4.27.0",
+    "react-redux": "9.3.0",
+    "redux": "5.0.1"
+  },
+  "devDependencies": {
+    "@babel/core": "7.29.7",
+    "@babel/preset-env": "7.29.7",
+    "@babel/runtime": "7.29.7",
+    "@react-native-community/cli": "20.1.0",
+    "@react-native-community/cli-platform-android": "20.1.0",
+    "@react-native/babel-preset": "0.86.2",
+    "@react-native/jest-preset": "0.86.2",
+    "@react-native/metro-config": "0.86.2",
+    "@testing-library/react-native": "14.0.1",
+    "jest": "29.7.0"
+  },
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "jest": {
+    "preset": "react-native",
+    "transformIgnorePatterns": [
+      "node_modules/(?!(react-native|@react-native|@react-navigation|@testing-library|react-native-safe-area-context|react-native-screens|react-freeze|use-latest-callback|nanoid|@react-native-async-storage)/)"
+    ]
+  }
+}
