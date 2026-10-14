@@ -687,7 +687,7 @@ export default function VendorRegistrationScreen({ navigation }) {
   const renderMediaStep = () => (
     <>
       <Text style={[styles.helper, { color: colors.inkSoft, marginBottom: 14 }]}>
-        Add at least one venue photo to register. A video is optional.
+        Add optional venue photos or video. You can continue without media.
       </Text>
       <View style={styles.mediaActions}>
         <AppButton
@@ -731,7 +731,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         <View style={[styles.mediaPlaceholder, { backgroundColor: colors.limePale, borderRadius: radius.lg }]}>
           <Text style={styles.mediaPlaceholderIcon}>▧</Text>
           <Text style={[styles.mediaPlaceholderTitle, { color: colors.ink }]}>No photos selected</Text>
-          <Text style={[styles.helper, { color: colors.inkSoft }]}>Choose at least one photo to continue.</Text>
+          <Text style={[styles.helper, { color: colors.inkSoft }]}>A local illustration will be shown when no photo is selected.</Text>
         </View>
       )}
       {draft.videoUri ? (

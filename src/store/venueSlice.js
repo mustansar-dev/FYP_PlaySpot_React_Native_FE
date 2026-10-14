@@ -56,6 +56,9 @@ const venueSlice = createSlice({
         venue.updatedAt = new Date().toISOString();
       }
     },
+    reviewAdded(state, action) {
+      state.reviews.unshift(action.payload);
+    },
     venueStorageNoticeSet(state, action) {
       state.storageNotice = action.payload;
     },
@@ -65,6 +68,7 @@ const venueSlice = createSlice({
 export const {
   venueCreated,
   venuePublicationChanged,
+  reviewAdded,
   venueStorageNoticeSet,
   venueUpdated,
   venuesHydrated,

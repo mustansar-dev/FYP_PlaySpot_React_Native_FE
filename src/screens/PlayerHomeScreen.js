@@ -1,122 +1,86 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
+import ChoiceChips from '../components/ChoiceChips';
+import VenueCard from '../components/VenueCard';
 import { useTheme } from '../context/ThemeContext';
 import { endSession } from '../services/authRepository';
 import { sessionEnded } from '../store/authSlice';
+import { filterAndSortVenues } from '../utils/venueDiscovery';
 
-export default function PlayerHomeScreen() {
+const LAHORE = { latitude: 31.5204, longitude: 74.3587, label: 'Lahore' };
+const SPORTS = ['All', 'Futsal', 'Football', 'Cricket', 'Padel', 'Badminton'];
+
+export default function PlayerHomeScreen({ navigation }) {
   const dispatch = useDispatch();
-  const { currentUser, storageNotice } = useSelector(state => state.auth);
   const { colors, radius } = useTheme();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
+  const { currentUser } = useSelector(state => state.auth);
+  const { venues, grounds, reviews } = useSelector(state => state.venues);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const featured = useMemo(() => filterAndSortVenues({ venues: venues.filter(item => item.published), grounds, reviews, origin: LAHORE }).slice(0, 5), [venues, grounds, reviews]);
+  const openSearch = sport => navigation.navigate('VenueSearch', { sport: sport || 'All' });
   const logout = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await endSession();
-      dispatch(sessionEnded());
-    } catch (requestError) {
-      setError(requestError.message || 'Could not clear the local demo session.');
-    } finally {
-      setLoading(false);
-    }
+    setLoggingOut(true);
+    try { await endSession(); dispatch(sessionEnded()); }
+    finally { setLoggingOut(false); }
   };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.brandRow}>
-          <View style={[styles.brandMark, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
-            <Text style={[styles.brandBall, { color: colors.primary }]}>●</Text>
-          </View>
-          <Text style={[styles.brand, { color: colors.ink }]}>PlaySpot <Text style={{ color: colors.primary }}>PK</Text></Text>
-          <View style={[styles.roleBadge, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}>
-            <Text style={[styles.roleBadgeText, { color: colors.primaryDark }]}>PLAYER</Text>
-          </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.topRow}>
+          <View><Text style={[styles.brand, { color: colors.primary }]}>PlaySpot</Text><Text style={[styles.location, { color: colors.inkSoft }]}>⌖  Lahore · demo area</Text></View>
+          <View style={[styles.avatar, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}><Text style={[styles.avatarText, { color: colors.primary }]}>{currentUser?.name?.[0]?.toUpperCase() || 'P'}</Text></View>
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Search sports venues" testID="player-home-search" onPress={() => openSearch('All')} style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+          <Text style={{ color: colors.inkSoft, fontSize: 17 }}>⌕</Text><Text style={[styles.searchText, { color: colors.inkSoft }]}>Search sport, venue or area</Text><Text style={[styles.searchIcon, { color: colors.primary }]}>⚲</Text>
+        </Pressable>
 
         <View style={[styles.hero, { backgroundColor: colors.navy, borderRadius: radius.lg }]}>
-          <Text style={[styles.eyebrow, { color: colors.lime }]}>YOUR PLAYER PROFILE</Text>
-          <Text style={styles.title}>Welcome, {currentUser?.name || 'Player'}.</Text>
-          <Text style={styles.subtitle}>Your local PlaySpot player account is ready.</Text>
+          <Text style={[styles.heroEyebrow, { color: colors.lime }]}>READY WHEN YOU ARE</Text>
+          <Text style={styles.heroTitle}>Find your next{ '\n' }place to play.</Text>
+          <Text style={styles.heroCopy}>Explore local demo venues around Lahore and plan a game with your crew.</Text>
+          <AppButton title="Explore venues" testID="player-explore-venues" onPress={() => openSearch('All')} style={styles.heroButton} textStyle={{ color: colors.navy }} />
         </View>
 
-        {storageNotice ? (
-          <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
-            <Text style={[styles.noticeText, { color: colors.ink }]}>{storageNotice}</Text>
-          </View>
-        ) : null}
+        <View style={styles.sectionHead}><Text style={[styles.sectionTitle, { color: colors.ink }]}>Play your sport</Text><Pressable onPress={() => openSearch('All')}><Text style={[styles.link, { color: colors.primary }]}>See all</Text></Pressable></View>
+        <ChoiceChips options={SPORTS} selected="All" onSelect={value => openSearch(value)} testID="home-sport" />
 
-        <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
-          <Text style={[styles.sectionLabel, { color: colors.inkSoft }]}>ACCOUNT DETAILS</Text>
-          <Text style={[styles.name, { color: colors.ink }]}>{currentUser?.name}</Text>
-          <Text style={[styles.detail, { color: colors.inkSoft }]}>{currentUser?.email}</Text>
-          <Text style={[styles.detail, { color: colors.inkSoft }]}>{currentUser?.phone}</Text>
-          <View style={styles.sportsWrap}>
-            {(currentUser?.preferredSports || []).map(sport => (
-              <View key={sport} style={[styles.sportChip, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}>
-                <Text style={[styles.sportChipText, { color: colors.primaryDark }]}>{sport}</Text>
-              </View>
-            ))}
-          </View>
+        <View style={styles.sectionHead}><Text style={[styles.sectionTitle, { color: colors.ink }]}>Near Lahore</Text><Pressable accessibilityRole="button" onPress={() => navigation.navigate('VenueMap')}><Text style={[styles.link, { color: colors.primary }]}>Map view</Text></Pressable></View>
+        <FlatList data={featured} horizontal showsHorizontalScrollIndicator={false} keyExtractor={item => item.id} renderItem={({ item }) => <VenueCard venue={item} compact onPress={() => navigation.navigate('VenueDetails', { venueId: item.id })} />} ListEmptyComponent={<Text style={[styles.empty, { color: colors.inkSoft }]}>No published demo venues yet.</Text>} />
+
+        <View style={styles.sectionHead}><Text style={[styles.sectionTitle, { color: colors.ink }]}>More ways to play</Text></View>
+        <View style={styles.shortcutRow}>
+          <Shortcut title="Game rooms" copy="Find players nearby" icon="◉" colors={colors} radius={radius} />
+          <Shortcut title="Tournaments" copy="Compete locally" icon="♜" colors={colors} radius={radius} />
         </View>
-
-        <View style={[styles.nextCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
-          <Text style={[styles.nextEyebrow, { color: colors.primary }]}>DAY 1 COMPLETE</Text>
-          <Text style={[styles.nextTitle, { color: colors.ink }]}>Your account is saved locally</Text>
-          <Text style={[styles.nextCopy, { color: colors.inkSoft }]}>
-            Venue discovery and booking screens are outside today’s auth setup. Your profile and role will be restored when you reopen this demo.
-          </Text>
-        </View>
-
-        {error ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
-        <AppButton
-          title="Log out of demo account"
-          testID="player-logout"
-          variant="secondary"
-          onPress={logout}
-          loading={loading}
-          disabled={loading}
-          style={styles.logout}
-        />
-        <Text style={[styles.footer, { color: colors.inkSoft }]}>Local frontend demo · no server authenticated this account</Text>
+        <Text style={[styles.disclaimer, { color: colors.inkSoft }]}>Venue details, locations and reviews are fictional local demo data.</Text>
+        <AppButton title="Log out of demo account" testID="player-logout" variant="secondary" onPress={logout} loading={loggingOut} disabled={loggingOut} style={styles.logout} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function Shortcut({ title, copy, icon, colors, radius }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${title}, feature not in this demo build`} style={[styles.shortcut, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.shortcutIcon, { color: colors.primary }]}>{icon}</Text><Text style={[styles.shortcutTitle, { color: colors.ink }]}>{title}</Text><Text style={[styles.shortcutCopy, { color: colors.inkSoft }]}>{copy}</Text><Text style={[styles.coming, { color: colors.primary }]}>Coming soon</Text></Pressable>;
+}
+
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { padding: 22, paddingTop: 10, paddingBottom: 28 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  brandMark: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
-  brandBall: { fontSize: 17, fontWeight: '900' },
-  brand: { fontSize: 18, fontWeight: '900', letterSpacing: -0.3 },
-  roleBadge: { marginLeft: 'auto', paddingHorizontal: 11, paddingVertical: 7 },
-  roleBadgeText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  hero: { padding: 21, marginBottom: 14 },
-  eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  title: { color: '#FFFFFF', fontSize: 27, lineHeight: 34, fontWeight: '900', marginTop: 8 },
-  subtitle: { color: '#CBD9CF', fontSize: 13, lineHeight: 20, marginTop: 5 },
-  notice: { padding: 12, marginBottom: 14 },
-  noticeText: { fontSize: 12, lineHeight: 18 },
-  profileCard: { borderWidth: 1, padding: 17, marginBottom: 14 },
-  sectionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  name: { fontSize: 18, fontWeight: '800', marginTop: 10 },
-  detail: { fontSize: 12, marginTop: 5 },
-  sportsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 },
-  sportChip: { paddingHorizontal: 10, paddingVertical: 6 },
-  sportChipText: { fontSize: 10, fontWeight: '800' },
-  nextCard: { borderWidth: 1, padding: 17, marginBottom: 18 },
-  nextEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  nextTitle: { fontSize: 16, fontWeight: '800', marginTop: 8 },
-  nextCopy: { fontSize: 12, lineHeight: 19, marginTop: 6 },
-  error: { fontSize: 12, marginBottom: 10 },
-  logout: { marginTop: 2 },
-  footer: { textAlign: 'center', fontSize: 10, lineHeight: 15, marginTop: 12 },
+  safe: { flex: 1 }, content: { padding: 20, paddingTop: 8, paddingBottom: 32 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 17 },
+  brand: { fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }, location: { fontSize: 11, marginTop: 2 },
+  avatar: { width: 39, height: 39, alignItems: 'center', justifyContent: 'center' }, avatarText: { fontWeight: '900', fontSize: 16 },
+  search: { height: 52, borderWidth: 1, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 17 },
+  searchText: { fontSize: 13, flex: 1 }, searchIcon: { fontSize: 18, fontWeight: '700' },
+  hero: { padding: 20, marginBottom: 21 }, heroEyebrow: { fontSize: 9, letterSpacing: 1.5, fontWeight: '900' },
+  heroTitle: { color: '#FFFFFF', fontSize: 27, lineHeight: 32, fontWeight: '900', marginTop: 7 }, heroCopy: { color: '#D8E0EA', fontSize: 12, lineHeight: 18, marginTop: 8, maxWidth: 275 },
+  heroButton: { alignSelf: 'flex-start', marginTop: 14, minHeight: 42, backgroundColor: '#E6F5ED' },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3, marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontWeight: '900' }, link: { fontSize: 12, fontWeight: '800' }, empty: { padding: 16 },
+  shortcutRow: { flexDirection: 'row', gap: 10 }, shortcut: { flex: 1, minHeight: 142, borderWidth: 1, padding: 14 }, shortcutIcon: { fontSize: 20, marginBottom: 8 },
+  shortcutTitle: { fontSize: 14, fontWeight: '800' }, shortcutCopy: { fontSize: 11, marginTop: 3 }, coming: { fontSize: 10, fontWeight: '800', marginTop: 12 },
+  disclaimer: { textAlign: 'center', fontSize: 10, marginTop: 22 },
+  logout: { marginTop: 14 },
 });

@@ -9,6 +9,11 @@ import { useSelector } from 'react-redux';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import LoginScreen from '../screens/LoginScreen';
 import PlayerHomeScreen from '../screens/PlayerHomeScreen';
+import VenueSearchScreen from '../screens/VenueSearchScreen';
+import VenueMapScreen from '../screens/VenueMapScreen';
+import VenueDetailsScreen from '../screens/VenueDetailsScreen';
+import VenueReviewsScreen from '../screens/VenueReviewsScreen';
+import AddReviewScreen from '../screens/AddReviewScreen';
 import PlayerRegistrationScreen from '../screens/PlayerRegistrationScreen';
 import RegistrationSuccessScreen from '../screens/RegistrationSuccessScreen';
 import RoleSelectionScreen from '../screens/RoleSelectionScreen';
@@ -51,7 +56,14 @@ export default function RootNavigator() {
         {!hydrated || !venuesHydrated ? (
           <Stack.Screen name="Boot" component={BootScreen} />
         ) : currentUser?.role === 'player' ? (
-          <Stack.Screen name="PlayerHome" component={PlayerHomeScreen} />
+          <>
+            <Stack.Screen name="PlayerHome" component={PlayerHomeScreen} />
+            <Stack.Screen name="VenueSearch" component={VenueSearchScreen} />
+            <Stack.Screen name="VenueMap" component={VenueMapScreen} />
+            <Stack.Screen name="VenueDetails" component={VenueDetailsScreen} />
+            <Stack.Screen name="VenueReviews" component={VenueReviewsScreen} />
+            <Stack.Screen name="AddReview" component={AddReviewScreen} />
+          </>
         ) : currentUser?.role === 'vendor' ? (
           <>
             <Stack.Screen name="VendorDashboard" component={VendorDashboardScreen} />

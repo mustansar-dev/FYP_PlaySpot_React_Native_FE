@@ -136,3 +136,22 @@ The earlier baseline entry above described the repository before the user pointe
 
 - **Concept:** Sample vendor records may show an approval-like state for demonstration.
 - **Choice and scope:** Seeded records use `demo-approved`; newly registered vendors use `pending-demo`. Both are local labels only. No verification service or identity review exists.
+
+## Day 3 update — 14 October 2026
+
+### 13. Player discovery map and device location
+
+- **Concept:** Show venue locations, a player location, and nearby ordering in player discovery.
+- **Why needed:** The Wednesday plan requests venue search, approximate distance, map markers, and a usable location-denied fallback.
+- **Current-stack fit:** The repository has no map renderer or device location package, no map API key, and no documented map service. The venue fixture data already has approximate latitude/longitude and the app can render a local schematic using React Native Views.
+- **Options considered:** Add a native maps SDK and location module (which would introduce native build/configuration and possibly a map API key/service); use online map tiles; or provide a native in-app schematic with manually selectable Lahore fallback centers.
+- **Choice and scope:** Use an offline schematic map with selectable Lahore/Gulberg/DHA/Johar Town centers, a manual-location current-position marker, and venue markers at approximate fixture coordinates. The UI states clearly that GPS and external map tiles are not connected. No dependency, permission prompt, network map, or API key is added.
+- **Verification:** Distance calculations use a pure haversine helper and are covered with known fixture and sorting/filter tests. Manual fallback area selection and marker-to-details navigation are available in the app.
+- **Limitations:** This does not request or read device location and cannot show a real permission-denied OS state. Map geometry is illustrative and fixture coordinates are approximate. A later implementation of GPS/map tiles requires a compatible native package and, depending on provider, API configuration.
+
+### 14. Figma design export and shared theme
+
+- **Concept:** Keep new player discovery screens visually consistent with the supplied design.
+- **Reference:** The root `figma_design` export has nearby venue, search/filter, and venue-detail layouts. Its key tokens are green `#1A8F57`, background `#F6F8FA`, white cards, slate text `#141A24` / `#667080`, border `#E0E6ED`, and orange `#F29429` rating accents.
+- **Choice and scope:** Map the export's green/neutral/orange palette into the existing shared `src/theme/tokens.js` names, preserving the app's existing theme/context architecture. New screens follow the export's search field, chips, venue cards, and detail summary patterns.
+- **Limitations:** `figma_design` is a textual layout/style export; it does not include linked bitmap venue photos or map tiles. Existing code-drawn venue art remains the offline fallback.

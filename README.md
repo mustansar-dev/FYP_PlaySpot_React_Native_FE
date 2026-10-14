@@ -29,6 +29,23 @@ Discovery, maps, booking, matchmaking, vendor operations, and the later-week scr
 
 The app still has no map, GPS permission flow, player discovery screen, booking service, backend verification, or remote media upload. Coordinates are optional; when omitted, the manually entered address and area remain the location fallback. `demo-approved` and `pending-demo` describe local fixture/onboarding state only.
 
+## Day 3 status: player discovery, venue details and reviews
+
+- Player Home now includes sport shortcuts, a local search entry, nearby published venues, map entry, and room/tournament shortcuts. There is no booking data in the current store, so an upcoming booking card is omitted until that flow exists.
+- Venue Search filters the persisted published venues by text, sport, maximum hourly price, minimum review rating, approximate distance from the selected Lahore center, indoor/outdoor type, and nearest/rating/price sort. Empty results include reset actions.
+- Venue Details reads current venue, ground, inventory and review records from Redux. It shows venue photos when local URIs exist and uses the existing offline `VenueArtwork` otherwise. Review aggregates are calculated from the actual review list.
+- Players can submit a 1–5 star rating and an 8-character minimum comment. Reviews update Redux and are written by the existing `playspot-pk.venue-data.v1` persistence listener.
+- Venue Map is an offline schematic with approximate demo markers and manually selectable Lahore, Gulberg, DHA and Johar Town map centers. It does not use GPS, native map tiles or a map API key; the UI labels this clearly. Distances use a pure haversine helper.
+- The shared theme now follows the supplied `figma_design` export's green, pale gray, white, slate and orange tokens. The exported nearby/search/details layouts informed the screen hierarchy and card/filter styling.
+
+Booking, GPS/map-provider integration, chat, rooms and tournaments remain future work. The venue booking CTA explains that booking is not connected yet instead of creating a fake reservation.
+
+### Day 3 checks
+
+- `npm.cmd test -- --runInBand` — passed: 5 suites / 20 tests. Coverage includes haversine distance and ordering, changed search filters and empty/reset states, marker selection and details navigation, manual location fallback, review submission and AsyncStorage round-trip, plus the existing vendor registration/edit/reload flow.
+- `node_modules\.bin\react-native.cmd bundle --platform android --dev false --entry-file index.js --bundle-output "%TEMP%\playspot-day3.bundle" --assets-dest "%TEMP%\playspot-day3-assets"` — passed; wrote the Android JavaScript bundle and copied 19 assets.
+- `git diff --check` — passed. No Android device/OS location permission flow was exercised. This build has no GPS provider, so location-denied behavior is covered through the clearly labeled manual-location fallback; there is no OS permission prompt to deny.
+
 ## Setup and run
 
 Requirements from the lab6 baseline: Node.js `>=22.11`, npm, JDK 17, Android SDK/platform tools, and an Android emulator or connected device.

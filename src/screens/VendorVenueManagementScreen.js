@@ -151,10 +151,6 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       setError(coordsError);
       return;
     }
-    if (!draft.photoUris.some(uri => typeof uri === 'string' && uri.trim())) {
-      setError('Add at least one venue photo before saving.');
-      return;
-    }
     if (draft.parkingAvailable && (!Number.isInteger(Number(draft.parkingSpaces)) || Number(draft.parkingSpaces) < 0)) {
       setError('Parking spaces must be a whole number of zero or more.');
       return;
@@ -286,7 +282,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
           ))}
 
           <Text style={[styles.sectionTitle, { color: colors.ink }]}>Venue photos and video</Text>
-          <Text style={[styles.hint, { color: colors.inkSoft }]}>At least one photo is required to save. A venue video is optional.</Text>
+          <Text style={[styles.hint, { color: colors.inkSoft }]}>Photos and video are optional. A local illustration is used when no photo is selected.</Text>
           <AppButton title={pickerBusy ? 'Opening gallery…' : 'Choose venue photos'} variant="secondary" testID="manage-pick-photos" onPress={pickPhotos} disabled={pickerBusy} loading={pickerBusy} style={styles.addButton} />
           {draft.photoUris.length > 0 ? (
             <View style={styles.photoGrid}>
@@ -299,7 +295,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
                 </View>
               ))}
             </View>
-          ) : <Text style={[styles.error, { color: colors.error }]}>Select at least one photo before saving.</Text>}
+          ) : <Text style={[styles.hint, { color: colors.inkSoft }]}>No photos selected; the player discovery screens use a local illustration.</Text>}
           <AppButton title="Choose optional venue video" variant="secondary" testID="manage-pick-video" onPress={pickVideo} disabled={pickerBusy} loading={pickerBusy} style={styles.addButton} />
           {draft.videoUri ? (
             <View style={[styles.videoCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>

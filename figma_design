@@ -1,0 +1,9310 @@
+/* 01 Home — Nearby Venues */
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FA;
+border-radius: 28px;
+
+
+/* PlaySpot */
+
+position: absolute;
+width: 150px;
+height: 35.1px;
+left: 24px;
+top: 22px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 26px;
+line-height: 31px;
+
+color: #1A8F57;
+
+
+
+/* Lahore ⌄ */
+
+position: absolute;
+width: 120px;
+height: 20px;
+left: 24px;
+top: 55px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* ● */
+
+position: absolute;
+width: 25px;
+height: 24.3px;
+left: 334px;
+top: 28px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* ⚙ */
+
+position: absolute;
+width: 25px;
+height: 24.3px;
+left: 360px;
+top: 28px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 52px;
+left: 20px;
+top: 88px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* ⌕ */
+
+position: absolute;
+width: 25px;
+height: 27px;
+left: 36px;
+top: 103px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 20px;
+line-height: 24px;
+
+color: #667080;
+
+
+
+/* Search sport, venue or area */
+
+position: absolute;
+width: 260px;
+height: 20px;
+left: 65px;
+top: 105px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 14px;
+line-height: 17px;
+
+color: #667080;
+
+
+
+/* Sports */
+
+position: absolute;
+width: 200px;
+height: 24.3px;
+left: 20px;
+top: 164px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 64px;
+height: 64px;
+left: 20px;
+top: 194px;
+
+background: #1A8F57;
+border-radius: 14px;
+
+
+/* ⚽ */
+
+position: absolute;
+width: 64px;
+height: 29.7px;
+left: 20px;
+top: 204px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 22px;
+line-height: 27px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Futsal */
+
+position: absolute;
+width: 72px;
+height: 20px;
+left: 16px;
+top: 234px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 9px;
+line-height: 11px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 64px;
+height: 64px;
+left: 92px;
+top: 194px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* 🏏 */
+
+position: absolute;
+width: 64px;
+height: 29.7px;
+left: 92px;
+top: 204px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 22px;
+line-height: 27px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Cricket */
+
+position: absolute;
+width: 72px;
+height: 20px;
+left: 88px;
+top: 234px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 9px;
+line-height: 11px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 64px;
+height: 64px;
+left: 164px;
+top: 194px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* ◉ */
+
+position: absolute;
+width: 64px;
+height: 29.7px;
+left: 164px;
+top: 204px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 22px;
+line-height: 27px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Badminton */
+
+position: absolute;
+width: 72px;
+height: 20px;
+left: 160px;
+top: 234px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 9px;
+line-height: 11px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 64px;
+height: 64px;
+left: 236px;
+top: 194px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* ● */
+
+position: absolute;
+width: 64px;
+height: 29.7px;
+left: 236px;
+top: 204px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 22px;
+line-height: 27px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Padel */
+
+position: absolute;
+width: 72px;
+height: 20px;
+left: 232px;
+top: 234px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 9px;
+line-height: 11px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 64px;
+height: 64px;
+left: 308px;
+top: 194px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* ◈ */
+
+position: absolute;
+width: 64px;
+height: 29.7px;
+left: 308px;
+top: 204px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 22px;
+line-height: 27px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Basketball */
+
+position: absolute;
+width: 72px;
+height: 20px;
+left: 304px;
+top: 234px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 9px;
+line-height: 11px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Nearby venues */
+
+position: absolute;
+width: 220px;
+height: 24.3px;
+left: 20px;
+top: 286px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 125px;
+left: 20px;
+top: 316px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 92px;
+height: 101px;
+left: 32px;
+top: 328px;
+
+background: #E6F5ED;
+border-radius: 12px;
+
+
+/* FUTSAL */
+
+position: absolute;
+width: 92px;
+height: 20.25px;
+left: 32px;
+top: 367px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Arena Sports Complex */
+
+position: absolute;
+width: 205px;
+height: 22.95px;
+left: 138px;
+top: 332px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 17px;
+line-height: 21px;
+
+color: #141A24;
+
+
+
+/* ★ 4.8 1.2 km */
+
+position: absolute;
+width: 180px;
+height: 20px;
+left: 138px;
+top: 359px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #F29429;
+
+
+
+/* Rs. 3,500 / hour */
+
+position: absolute;
+width: 180px;
+height: 20px;
+left: 138px;
+top: 385px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* Available today */
+
+position: absolute;
+width: 180px;
+height: 20px;
+left: 138px;
+top: 409px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* › */
+
+position: absolute;
+width: 18px;
+height: 33.75px;
+left: 342px;
+top: 378px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 125px;
+left: 20px;
+top: 455px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 92px;
+height: 101px;
+left: 32px;
+top: 467px;
+
+background: #EDF0FA;
+border-radius: 12px;
+
+
+/* PADEL */
+
+position: absolute;
+width: 92px;
+height: 20.25px;
+left: 32px;
+top: 505px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #0E1A2E;
+
+
+
+/* DHA Padel Club */
+
+position: absolute;
+width: 205px;
+height: 22.95px;
+left: 138px;
+top: 471px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 17px;
+line-height: 21px;
+
+color: #141A24;
+
+
+
+/* ★ 4.6 2.8 km */
+
+position: absolute;
+width: 180px;
+height: 20px;
+left: 138px;
+top: 498px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #F29429;
+
+
+
+/* Rs. 4,000 / hour */
+
+position: absolute;
+width: 180px;
+height: 20px;
+left: 138px;
+top: 524px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* 8 slots available */
+
+position: absolute;
+width: 180px;
+height: 20px;
+left: 138px;
+top: 548px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* › */
+
+position: absolute;
+width: 18px;
+height: 33.75px;
+left: 342px;
+top: 510px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* ⌂ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 0px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Home */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 0px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* ⌕ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 78px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Search */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 78px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⚽ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 156px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Games */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 156px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ▣ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 234px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Bookings */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 234px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ● */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 312px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Profile */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 312px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Vendor portal shortcut */
+
+position: absolute;
+width: 120px;
+height: 18px;
+left: 244px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #1A8F57;
+
+
+
+/* 02 Search & Filters */
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FA;
+border-radius: 28px;
+
+
+/* Find a venue */
+
+position: absolute;
+width: 270px;
+height: 33.75px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #141A24;
+
+
+
+/* Search by sport, location and availability */
+
+position: absolute;
+width: 330px;
+height: 20px;
+left: 24px;
+top: 58px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 52px;
+left: 20px;
+top: 91px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* ⌕ */
+
+position: absolute;
+width: 25px;
+height: 27px;
+left: 36px;
+top: 106px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 20px;
+line-height: 24px;
+
+color: #667080;
+
+
+
+/* Futsal */
+
+position: absolute;
+width: 260px;
+height: 20px;
+left: 65px;
+top: 108px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* × */
+
+position: absolute;
+width: 20px;
+height: 24.3px;
+left: 338px;
+top: 106px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Location */
+
+position: absolute;
+width: 160px;
+height: 20px;
+left: 20px;
+top: 166px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 48px;
+left: 20px;
+top: 190px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* ⌖ Within 5 km of current location */
+
+position: absolute;
+width: 310px;
+height: 20px;
+left: 34px;
+top: 205px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* Date */
+
+position: absolute;
+width: 160px;
+height: 20px;
+left: 20px;
+top: 260px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 48px;
+left: 20px;
+top: 284px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* Sat, 10 Oct */
+
+position: absolute;
+width: 135px;
+height: 20px;
+left: 34px;
+top: 299px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* Time */
+
+position: absolute;
+width: 160px;
+height: 20px;
+left: 205px;
+top: 260px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 48px;
+left: 205px;
+top: 284px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* 7:00 – 10:00 PM */
+
+position: absolute;
+width: 140px;
+height: 20px;
+left: 219px;
+top: 299px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* Budget */
+
+position: absolute;
+width: 160px;
+height: 20px;
+left: 20px;
+top: 354px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* Rs. 1,000 – 5,000 / hr */
+
+position: absolute;
+width: 165px;
+height: 20px;
+left: 205px;
+top: 354px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+text-align: right;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 334px;
+height: 4px;
+left: 28px;
+top: 385px;
+
+background: #E0E6ED;
+border-radius: 2px;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 14px;
+height: 16px;
+left: 88px;
+top: 379px;
+
+background: #1A8F57;
+border-radius: 8px;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 14px;
+height: 16px;
+left: 282px;
+top: 379px;
+
+background: #1A8F57;
+border-radius: 8px;
+
+
+/* Facilities */
+
+position: absolute;
+width: 180px;
+height: 20px;
+left: 20px;
+top: 428px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 14px;
+line-height: 17px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 38px;
+left: 20px;
+top: 456px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* ✓ Parking */
+
+position: absolute;
+width: 140px;
+height: 20px;
+left: 32px;
+top: 467px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 38px;
+left: 200px;
+top: 456px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* ✓ Changing room */
+
+position: absolute;
+width: 140px;
+height: 20px;
+left: 212px;
+top: 467px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 38px;
+left: 20px;
+top: 504px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Lighting */
+
+position: absolute;
+width: 140px;
+height: 20px;
+left: 32px;
+top: 515px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 38px;
+left: 200px;
+top: 504px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* AC */
+
+position: absolute;
+width: 140px;
+height: 20px;
+left: 212px;
+top: 515px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 350px;
+height: 52px;
+left: 20px;
+top: 576px;
+
+background: #1A8F57;
+border-radius: 14px;
+
+
+/* Show 18 available venues */
+
+position: absolute;
+width: 350px;
+height: 20.25px;
+left: 20px;
+top: 591px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* ⌂ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 0px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Home */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 0px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⌕ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 78px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Search */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 78px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* ⚽ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 156px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Games */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 156px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ▣ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 234px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Bookings */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 234px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ● */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 312px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Profile */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 312px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* 03 Venue Details */
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FA;
+border-radius: 28px;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 390px;
+height: 220px;
+left: 0px;
+top: 0px;
+
+background: #E6F5ED;
+
+
+/* ‹ */
+
+position: absolute;
+width: 35px;
+height: 37.8px;
+left: 20px;
+top: 28px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 28px;
+line-height: 34px;
+
+color: #FFFFFF;
+
+
+
+/* ♡ */
+
+position: absolute;
+width: 30px;
+height: 32.4px;
+left: 340px;
+top: 28px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 24px;
+line-height: 29px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* ARENA */
+
+position: absolute;
+width: 320px;
+height: 37.8px;
+left: 113px;
+top: 66px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 28px;
+line-height: 34px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* SPORTS COMPLEX */
+
+position: absolute;
+width: 320px;
+height: 20px;
+left: 114px;
+top: 98px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 13px;
+line-height: 16px;
+text-align: center;
+
+color: #0E1A2E;
+
+
+
+/* Arena Sports Complex */
+
+position: absolute;
+width: 270px;
+height: 33.75px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #141A24;
+
+
+
+/* DHA Phase 6 • 1.2 km away */
+
+position: absolute;
+width: 330px;
+height: 20px;
+left: 28px;
+top: 81px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* ★ 4.8 • 126 reviews */
+
+position: absolute;
+width: 200px;
+height: 20px;
+left: 24px;
+top: 98px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 13px;
+line-height: 16px;
+
+color: #F29429;
+
+
+
+/* Rs. 3,500 / hour */
+
+position: absolute;
+width: 200px;
+height: 22.95px;
+left: 24px;
+top: 126px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 17px;
+line-height: 21px;
+
+color: #141A24;
+
+
+
+/* Futsal • 2 courts • Indoor */
+
+position: absolute;
+width: 300px;
+height: 20px;
+left: 24px;
+top: 153px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Facilities */
+
+position: absolute;
+width: 200px;
+height: 21.6px;
+left: 24px;
+top: 198px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 34px;
+left: 20px;
+top: 226px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 9px;
+
+
+/* Parking */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 20px;
+top: 236px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 34px;
+left: 108px;
+top: 226px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 9px;
+
+
+/* Changing */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 108px;
+top: 236px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 34px;
+left: 196px;
+top: 226px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 9px;
+
+
+/* Floodlights */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 196px;
+top: 236px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 34px;
+left: 284px;
+top: 226px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 9px;
+
+
+/* Café */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 284px;
+top: 236px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Choose a date */
+
+position: absolute;
+width: 200px;
+height: 22.95px;
+left: 24px;
+top: 286px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 17px;
+line-height: 21px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 78px;
+height: 52px;
+left: 20px;
+top: 316px;
+
+background: #1A8F57;
+border-radius: 12px;
+
+
+/* 10 Oct */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 20px;
+top: 335px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 52px;
+left: 108px;
+top: 316px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* 11 Oct */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 108px;
+top: 335px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 52px;
+left: 196px;
+top: 316px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* 12 Oct */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 196px;
+top: 335px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 78px;
+height: 52px;
+left: 284px;
+top: 316px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* 13 Oct */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 284px;
+top: 335px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Available slots */
+
+position: absolute;
+width: 200px;
+height: 22.95px;
+left: 24px;
+top: 395px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 17px;
+line-height: 21px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 42px;
+left: 20px;
+top: 428px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 11px;
+
+
+/* 06:00 PM */
+
+position: absolute;
+width: 165px;
+height: 20px;
+left: 20px;
+top: 441px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 165px;
+height: 42px;
+left: 200px;
+top: 428px;
+
+background: #1A8F57;
+border-radius: 11px;
+
+
+/* 07:00 PM */
+
+position: absolute;
+width: 165px;
+height: 20px;
+left: 200px;
+top: 441px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 42px;
+left: 20px;
+top: 482px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 11px;
+
+
+/* 08:00 PM */
+
+position: absolute;
+width: 165px;
+height: 20px;
+left: 20px;
+top: 495px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 42px;
+left: 200px;
+top: 482px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 11px;
+
+
+/* 09:00 PM */
+
+position: absolute;
+width: 165px;
+height: 20px;
+left: 200px;
+top: 495px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 350px;
+height: 52px;
+left: 20px;
+top: 590px;
+
+background: #1A8F57;
+border-radius: 14px;
+
+
+/* Book 7:00 – 8:00 PM */
+
+position: absolute;
+width: 350px;
+height: 20.25px;
+left: 20px;
+top: 605px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* ⌂ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 0px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Home */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 0px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⌕ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 78px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Search */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 78px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* ⚽ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 156px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Games */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 156px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ▣ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 234px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Bookings */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 234px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ● */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 312px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Profile */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 312px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* 04 Booking Confirmation */
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FA;
+border-radius: 28px;
+
+
+/* Confirm booking */
+
+position: absolute;
+width: 270px;
+height: 33.75px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #141A24;
+
+
+
+/* Review your reservation before confirming */
+
+position: absolute;
+width: 330px;
+height: 20px;
+left: 24px;
+top: 58px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 165px;
+left: 20px;
+top: 95px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Arena Sports Complex */
+
+position: absolute;
+width: 280px;
+height: 25.65px;
+left: 38px;
+top: 118px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 19px;
+line-height: 23px;
+
+color: #141A24;
+
+
+
+/* Futsal Court 1 */
+
+position: absolute;
+width: 280px;
+height: 20px;
+left: 38px;
+top: 151px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 13px;
+line-height: 16px;
+
+color: #667080;
+
+
+
+/* Saturday, 10 October 2026 */
+
+position: absolute;
+width: 280px;
+height: 20px;
+left: 38px;
+top: 179px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* 7:00 PM – 8:00 PM */
+
+position: absolute;
+width: 280px;
+height: 20.25px;
+left: 38px;
+top: 204px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 15px;
+line-height: 18px;
+
+color: #1A8F57;
+
+
+
+/* Rs. 3,500 */
+
+position: absolute;
+width: 77px;
+height: 20px;
+left: 279px;
+top: 224px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 15px;
+line-height: 18px;
+text-align: right;
+
+color: #141A24;
+
+
+
+/* Payment */
+
+position: absolute;
+width: 200px;
+height: 22.95px;
+left: 20px;
+top: 292px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 17px;
+line-height: 21px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 58px;
+left: 20px;
+top: 322px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* ◉ Pay at venue */
+
+position: absolute;
+width: 220px;
+height: 20px;
+left: 36px;
+top: 341px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* Change */
+
+position: absolute;
+width: 55px;
+height: 20px;
+left: 286px;
+top: 341px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+text-align: right;
+
+color: #1A8F57;
+
+
+
+/* Booking policy */
+
+position: absolute;
+width: 200px;
+height: 22.95px;
+left: 20px;
+top: 408px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 17px;
+line-height: 21px;
+
+color: #141A24;
+
+
+
+/* Free cancellation up to 4 hours before the slot. */
+
+position: absolute;
+width: 345px;
+height: 20px;
+left: 20px;
+top: 437px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* After that, the venue cancellation policy applies. */
+
+position: absolute;
+width: 345px;
+height: 20px;
+left: 20px;
+top: 458px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 350px;
+height: 52px;
+left: 20px;
+top: 510px;
+
+background: #1A8F57;
+border-radius: 14px;
+
+
+/* Confirm booking */
+
+position: absolute;
+width: 350px;
+height: 20.25px;
+left: 20px;
+top: 525px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 52px;
+left: 20px;
+top: 576px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Back */
+
+position: absolute;
+width: 350px;
+height: 20.25px;
+left: 20px;
+top: 591px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* ⌂ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 0px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Home */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 0px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⌕ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 78px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Search */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 78px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⚽ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 156px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Games */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 156px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ▣ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 234px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Bookings */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 234px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* ● */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 312px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Profile */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 312px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* 05 Player Matchmaking */
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FA;
+border-radius: 28px;
+
+
+/* Find players */
+
+position: absolute;
+width: 270px;
+height: 33.75px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #141A24;
+
+
+
+/* Join a game or create your own match */
+
+position: absolute;
+width: 330px;
+height: 20px;
+left: 24px;
+top: 58px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 350px;
+height: 92px;
+left: 20px;
+top: 92px;
+
+background: #1A8F57;
+border-radius: 16px;
+
+
+/* ⚽ Futsal • Tonight 8:00 PM */
+
+position: absolute;
+width: 310px;
+height: 21.6px;
+left: 38px;
+top: 112px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #FFFFFF;
+
+
+
+/* Arena Sports Complex • 3 spots needed */
+
+position: absolute;
+width: 310px;
+height: 20px;
+left: 38px;
+top: 141px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #E6FFF0;
+
+
+
+/* Rs. 875 / player */
+
+position: absolute;
+width: 200px;
+height: 20px;
+left: 38px;
+top: 160px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 12px;
+line-height: 15px;
+
+color: #FFFFFF;
+
+
+
+/* Open games */
+
+position: absolute;
+width: 200px;
+height: 24.3px;
+left: 20px;
+top: 214px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 116px;
+left: 20px;
+top: 246px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* DHA Futsal Squad */
+
+position: absolute;
+width: 230px;
+height: 21.6px;
+left: 36px;
+top: 266px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #141A24;
+
+
+
+/* Intermediate • 5/8 players */
+
+position: absolute;
+width: 240px;
+height: 20px;
+left: 36px;
+top: 293px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* 1.8 km away • ★ 4.9 organizer */
+
+position: absolute;
+width: 250px;
+height: 20px;
+left: 36px;
+top: 318px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 64px;
+height: 34px;
+left: 286px;
+top: 284px;
+
+background: #1A8F57;
+border-radius: 9px;
+
+
+/* JOIN */
+
+position: absolute;
+width: 64px;
+height: 20px;
+left: 286px;
+top: 294px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 116px;
+left: 20px;
+top: 376px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Saturday Badminton */
+
+position: absolute;
+width: 230px;
+height: 21.6px;
+left: 36px;
+top: 396px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #141A24;
+
+
+
+/* Beginner • 3/4 players */
+
+position: absolute;
+width: 240px;
+height: 20px;
+left: 36px;
+top: 423px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* 2.4 km away • ★ 4.7 organizer */
+
+position: absolute;
+width: 250px;
+height: 20px;
+left: 36px;
+top: 448px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 64px;
+height: 34px;
+left: 286px;
+top: 414px;
+
+background: #1A8F57;
+border-radius: 9px;
+
+
+/* JOIN */
+
+position: absolute;
+width: 64px;
+height: 20px;
+left: 286px;
+top: 424px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 12px;
+line-height: 15px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Need more players? */
+
+position: absolute;
+width: 200px;
+height: 24.3px;
+left: 20px;
+top: 534px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+
+color: #141A24;
+
+
+
+/* Rectangle */
+
+position: absolute;
+width: 350px;
+height: 52px;
+left: 20px;
+top: 564px;
+
+background: #1A8F57;
+border-radius: 14px;
+
+
+/* Create a game */
+
+position: absolute;
+width: 350px;
+height: 20.25px;
+left: 20px;
+top: 579px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #FFFFFF;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* ⌂ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 0px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Home */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 0px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⌕ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 78px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Search */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 78px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⚽ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 156px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Games */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 156px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* ▣ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 234px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Bookings */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 234px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ● */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 312px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Profile */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 312px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Leaderboard shortcut */
+
+position: absolute;
+width: 120px;
+height: 18px;
+left: 244px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #1A8F57;
+
+
+
+/* 06 My Bookings */
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FA;
+border-radius: 28px;
+
+
+/* My bookings */
+
+position: absolute;
+width: 270px;
+height: 33.75px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #141A24;
+
+
+
+/* Upcoming and completed reservations */
+
+position: absolute;
+width: 330px;
+height: 20px;
+left: 24px;
+top: 58px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Upcoming */
+
+position: absolute;
+width: 160px;
+height: 21.6px;
+left: 20px;
+top: 100px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 135px;
+left: 20px;
+top: 130px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Arena Sports Complex */
+
+position: absolute;
+width: 270px;
+height: 21.6px;
+left: 36px;
+top: 151px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #141A24;
+
+
+
+/* Futsal Court 1 */
+
+position: absolute;
+width: 270px;
+height: 20px;
+left: 36px;
+top: 180px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Sat, 10 Oct • 7:00 – 8:00 PM */
+
+position: absolute;
+width: 290px;
+height: 20px;
+left: 36px;
+top: 207px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* CONFIRMED */
+
+position: absolute;
+width: 100px;
+height: 20px;
+left: 36px;
+top: 234px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #1A8F57;
+
+
+
+/* Rs. 3,500 */
+
+position: absolute;
+width: 70px;
+height: 20px;
+left: 270px;
+top: 230px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+text-align: right;
+
+color: #141A24;
+
+
+
+/* Past */
+
+position: absolute;
+width: 160px;
+height: 21.6px;
+left: 20px;
+top: 302px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 120px;
+left: 20px;
+top: 330px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* DHA Padel Club */
+
+position: absolute;
+width: 270px;
+height: 21.6px;
+left: 36px;
+top: 351px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #141A24;
+
+
+
+/* Wed, 7 Oct • 8:00 – 9:00 PM */
+
+position: absolute;
+width: 290px;
+height: 20px;
+left: 36px;
+top: 380px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Completed */
+
+position: absolute;
+width: 100px;
+height: 20px;
+left: 36px;
+top: 407px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #667080;
+
+
+
+/* ★ Rate venue */
+
+position: absolute;
+width: 70px;
+height: 20px;
+left: 270px;
+top: 400px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 600;
+font-size: 11px;
+line-height: 13px;
+text-align: right;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* ⌂ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 0px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Home */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 0px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⌕ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 78px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Search */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 78px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⚽ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 156px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Games */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 156px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ▣ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 234px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Bookings */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 234px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* ● */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 312px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Profile */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 312px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Split payment shortcut */
+
+position: absolute;
+width: 300px;
+height: 20px;
+left: 24px;
+top: 470px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* 07 Profile */
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FA;
+border-radius: 28px;
+
+
+/* Profile */
+
+position: absolute;
+width: 270px;
+height: 33.75px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #141A24;
+
+
+
+/* Manage your account and preferences */
+
+position: absolute;
+width: 330px;
+height: 20px;
+left: 24px;
+top: 58px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 112px;
+left: 20px;
+top: 94px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 18px;
+
+
+/* Rectangle */
+
+position: absolute;
+width: 76px;
+height: 76px;
+left: 38px;
+top: 112px;
+
+background: #E6F5ED;
+border-radius: 38px;
+
+
+/* IS */
+
+position: absolute;
+width: 76px;
+height: 37.8px;
+left: 38px;
+top: 134px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 28px;
+line-height: 34px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Ibrahim Sattar */
+
+position: absolute;
+width: 210px;
+height: 24.3px;
+left: 132px;
+top: 122px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+
+color: #141A24;
+
+
+
+/* Player • Lahore */
+
+position: absolute;
+width: 210px;
+height: 20px;
+left: 132px;
+top: 151px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+
+color: #667080;
+
+
+
+/* ★ 4.9 reliability */
+
+position: absolute;
+width: 210px;
+height: 20px;
+left: 132px;
+top: 173px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 12px;
+line-height: 15px;
+
+color: #1A8F57;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 45px;
+left: 20px;
+top: 236px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* My sports */
+
+position: absolute;
+width: 260px;
+height: 20px;
+left: 38px;
+top: 250px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* › */
+
+position: absolute;
+width: 18px;
+height: 27px;
+left: 338px;
+top: 247px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 20px;
+line-height: 24px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 45px;
+left: 20px;
+top: 291px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Saved venues */
+
+position: absolute;
+width: 260px;
+height: 20px;
+left: 38px;
+top: 305px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* › */
+
+position: absolute;
+width: 18px;
+height: 27px;
+left: 338px;
+top: 302px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 20px;
+line-height: 24px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 45px;
+left: 20px;
+top: 346px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Notifications */
+
+position: absolute;
+width: 260px;
+height: 20px;
+left: 38px;
+top: 360px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* › */
+
+position: absolute;
+width: 18px;
+height: 27px;
+left: 338px;
+top: 357px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 20px;
+line-height: 24px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 45px;
+left: 20px;
+top: 401px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Help & support */
+
+position: absolute;
+width: 260px;
+height: 20px;
+left: 38px;
+top: 415px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* › */
+
+position: absolute;
+width: 18px;
+height: 27px;
+left: 338px;
+top: 412px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 20px;
+line-height: 24px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 45px;
+left: 20px;
+top: 456px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Log out */
+
+position: absolute;
+width: 260px;
+height: 20px;
+left: 38px;
+top: 470px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 13px;
+line-height: 16px;
+
+color: #141A24;
+
+
+
+/* › */
+
+position: absolute;
+width: 18px;
+height: 27px;
+left: 338px;
+top: 467px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 20px;
+line-height: 24px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Rectangle */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* ⌂ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 0px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Home */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 0px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⌕ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 78px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Search */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 78px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ⚽ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 156px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Games */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 156px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ▣ */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 234px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* Bookings */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 234px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #667080;
+
+
+
+/* ● */
+
+position: absolute;
+width: 78px;
+height: 24.3px;
+left: 312px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Profile */
+
+position: absolute;
+width: 78px;
+height: 20px;
+left: 312px;
+top: 813px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 500;
+font-size: 10px;
+line-height: 12px;
+text-align: center;
+
+color: #1A8F57;
+
+
+
+/* Switch role shortcut */
+
+position: absolute;
+width: 300px;
+height: 20px;
+left: 24px;
+top: 525px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* 08 Role Selection */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Player role card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 120px;
+left: 20px;
+top: 125px;
+
+background: #E6F5EB;
+border: 1px solid #1A8F57;
+border-radius: 16px;
+
+
+/* Player icon */
+
+position: absolute;
+width: 42px;
+height: 25px;
+left: 38px;
+top: 145px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #1A8F57;
+
+
+
+/* Player role title */
+
+position: absolute;
+width: 250px;
+height: 19px;
+left: 90px;
+top: 145px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Player role detail */
+
+position: absolute;
+width: 250px;
+height: 26px;
+left: 90px;
+top: 174px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Vendor role card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 120px;
+left: 20px;
+top: 263px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 16px;
+
+
+/* Vendor icon */
+
+position: absolute;
+width: 42px;
+height: 30px;
+left: 38px;
+top: 283px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #1A8F57;
+
+
+
+/* Vendor role title */
+
+position: absolute;
+width: 250px;
+height: 19px;
+left: 90px;
+top: 283px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Vendor role detail */
+
+position: absolute;
+width: 250px;
+height: 26px;
+left: 90px;
+top: 312px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Continue as Player button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 420px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 12px;
+
+
+/* Continue as Player label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 432px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Continue as Vendor button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 478px;
+
+background: #0F2640;
+border: 1px solid #0F2640;
+border-radius: 12px;
+
+
+/* Continue as Vendor label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 490px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Role note */
+
+position: absolute;
+width: 330px;
+height: 12px;
+left: 24px;
+top: 542px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* 09 Vendor Dashboard */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Booking KPI */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 166px;
+height: 92px;
+left: 20px;
+top: 112px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Bookings label */
+
+position: absolute;
+width: 130px;
+height: 12px;
+left: 34px;
+top: 125px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Bookings number */
+
+position: absolute;
+width: 130px;
+height: 30px;
+left: 34px;
+top: 148px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #0F2640;
+
+
+
+/* Bookings growth */
+
+position: absolute;
+width: 145px;
+height: 11px;
+left: 34px;
+top: 180px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Revenue KPI */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 166px;
+height: 92px;
+left: 204px;
+top: 112px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Revenue label */
+
+position: absolute;
+width: 130px;
+height: 12px;
+left: 218px;
+top: 125px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Revenue number */
+
+position: absolute;
+width: 140px;
+height: 27px;
+left: 218px;
+top: 148px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 22px;
+line-height: 27px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Revenue growth */
+
+position: absolute;
+width: 145px;
+height: 10px;
+left: 218px;
+top: 180px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 8px;
+line-height: 10px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Quick actions */
+
+position: absolute;
+width: 260px;
+height: 19px;
+left: 20px;
+top: 226px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Today bookings card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 258px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Today bookings title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 271px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Today bookings detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 300px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Today bookings status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 272px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Equipment card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 362px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Equipment title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 375px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Equipment detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 404px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Equipment status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 376px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Analytics card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 466px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Analytics title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 479px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Analytics detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 508px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Analytics status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 480px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Open analytics button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 590px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 12px;
+
+
+/* Open analytics label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 602px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Bottom nav */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* Nav Home */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 5px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Search */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 83px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Games */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 161px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Bookings */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 239px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Profile */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 317px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+
+color: #1A8F57;
+
+
+
+/* 10 Equipment & Supplies */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Search supplies label */
+
+position: absolute;
+width: 330px;
+height: 13px;
+left: 24px;
+top: 110px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Search supplies field */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 132px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Search supplies value */
+
+position: absolute;
+width: 320px;
+height: 13px;
+left: 34px;
+top: 144px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Football card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 174px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Football title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 187px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Football detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 216px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Football status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 188px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Rackets card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 278px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Rackets title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 291px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Rackets detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 320px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Rackets status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 292px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Shuttlecocks card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 382px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Shuttlecocks title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 395px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Shuttlecocks detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 424px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Shuttlecocks status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 396px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Bibs card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 486px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Bibs title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 499px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Bibs detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 528px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Bibs status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 500px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Add equipment item button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 620px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 12px;
+
+
+/* Add equipment item label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 632px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Bottom nav */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* Nav Home */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 5px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Search */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 83px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Games */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 161px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Bookings */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 239px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Profile */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 317px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+
+color: #1A8F57;
+
+
+
+/* 11 Vendor Analytics */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Month selector */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 108px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Month */
+
+position: absolute;
+width: 300px;
+height: 13px;
+left: 34px;
+top: 120px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Bookings metric */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 105px;
+left: 20px;
+top: 164px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Bookings metric label */
+
+position: absolute;
+width: 200px;
+height: 12px;
+left: 36px;
+top: 178px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Bookings metric value */
+
+position: absolute;
+width: 120px;
+height: 31px;
+left: 36px;
+top: 199px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 26px;
+line-height: 31px;
+
+color: #0F2640;
+
+
+
+/* Bookings metric growth */
+
+position: absolute;
+width: 310px;
+height: 13px;
+left: 36px;
+top: 238px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* Revenue metric */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 91px;
+left: 20px;
+top: 281px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Revenue label */
+
+position: absolute;
+width: 200px;
+height: 12px;
+left: 36px;
+top: 294px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Revenue value */
+
+position: absolute;
+width: 240px;
+height: 27px;
+left: 36px;
+top: 316px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 22px;
+line-height: 27px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Revenue growth */
+
+position: absolute;
+width: 300px;
+height: 12px;
+left: 36px;
+top: 345px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #1A8F57;
+
+
+
+/* Occupancy heading */
+
+position: absolute;
+width: 260px;
+height: 19px;
+left: 20px;
+top: 395px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Day Mon */
+
+position: absolute;
+width: 42px;
+height: 11px;
+left: 23px;
+top: 520px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Bar bg Mon */
+
+position: absolute;
+width: 22px;
+height: 67px;
+left: 31px;
+top: 442px;
+
+background: #E0EBE6;
+border-radius: 5px;
+
+
+/* Bar Mon */
+
+position: absolute;
+width: 22px;
+height: 36.85px;
+left: 31px;
+top: 472.15px;
+
+background: #1A8F57;
+border-radius: 5px;
+
+
+/* Day Tue */
+
+position: absolute;
+width: 42px;
+height: 11px;
+left: 72px;
+top: 520px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Bar bg Tue */
+
+position: absolute;
+width: 22px;
+height: 67px;
+left: 80px;
+top: 442px;
+
+background: #E0EBE6;
+border-radius: 5px;
+
+
+/* Bar Tue */
+
+position: absolute;
+width: 22px;
+height: 45.56px;
+left: 80px;
+top: 463.44px;
+
+background: #1A8F57;
+border-radius: 5px;
+
+
+/* Day Wed */
+
+position: absolute;
+width: 42px;
+height: 11px;
+left: 121px;
+top: 520px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Bar bg Wed */
+
+position: absolute;
+width: 22px;
+height: 67px;
+left: 129px;
+top: 442px;
+
+background: #E0EBE6;
+border-radius: 5px;
+
+
+/* Bar Wed */
+
+position: absolute;
+width: 22px;
+height: 28.14px;
+left: 129px;
+top: 480.86px;
+
+background: #1A8F57;
+border-radius: 5px;
+
+
+/* Day Thu */
+
+position: absolute;
+width: 42px;
+height: 11px;
+left: 170px;
+top: 520px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Bar bg Thu */
+
+position: absolute;
+width: 22px;
+height: 67px;
+left: 178px;
+top: 442px;
+
+background: #E0EBE6;
+border-radius: 5px;
+
+
+/* Bar Thu */
+
+position: absolute;
+width: 22px;
+height: 48.24px;
+left: 178px;
+top: 460.76px;
+
+background: #1A8F57;
+border-radius: 5px;
+
+
+/* Day Fri */
+
+position: absolute;
+width: 42px;
+height: 11px;
+left: 219px;
+top: 520px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Bar bg Fri */
+
+position: absolute;
+width: 22px;
+height: 67px;
+left: 227px;
+top: 442px;
+
+background: #E0EBE6;
+border-radius: 5px;
+
+
+/* Bar Fri */
+
+position: absolute;
+width: 22px;
+height: 56.28px;
+left: 227px;
+top: 452.72px;
+
+background: #1A8F57;
+border-radius: 5px;
+
+
+/* Day Sat */
+
+position: absolute;
+width: 42px;
+height: 11px;
+left: 268px;
+top: 520px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Bar bg Sat */
+
+position: absolute;
+width: 22px;
+height: 67px;
+left: 276px;
+top: 442px;
+
+background: #E0EBE6;
+border-radius: 5px;
+
+
+/* Bar Sat */
+
+position: absolute;
+width: 22px;
+height: 63.65px;
+left: 276px;
+top: 445.35px;
+
+background: #1A8F57;
+border-radius: 5px;
+
+
+/* Day Sun */
+
+position: absolute;
+width: 42px;
+height: 11px;
+left: 317px;
+top: 520px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Bar bg Sun */
+
+position: absolute;
+width: 22px;
+height: 67px;
+left: 325px;
+top: 442px;
+
+background: #E0EBE6;
+border-radius: 5px;
+
+
+/* Bar Sun */
+
+position: absolute;
+width: 22px;
+height: 51.59px;
+left: 325px;
+top: 457.41px;
+
+background: #1A8F57;
+border-radius: 5px;
+
+
+/* Insights card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 560px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Insights title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 573px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Insights detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 602px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Insights status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 574px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Bottom nav */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* Nav Home */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 5px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Search */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 83px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Games */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 161px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Bookings */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 239px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Profile */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 317px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+
+color: #1A8F57;
+
+
+
+/* 12 In-App Chat */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Chat header */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 56px;
+left: 20px;
+top: 108px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Chat partner */
+
+position: absolute;
+width: 270px;
+height: 17px;
+left: 34px;
+top: 120px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Chat status */
+
+position: absolute;
+width: 270px;
+height: 11px;
+left: 34px;
+top: 141px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Incoming bubble */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 250px;
+height: 58px;
+left: 24px;
+top: 184px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Incoming message */
+
+position: absolute;
+width: 220px;
+height: 13px;
+left: 38px;
+top: 196px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Outgoing bubble */
+
+position: absolute;
+width: 250px;
+height: 58px;
+left: 116px;
+top: 260px;
+
+background: #E6F5EB;
+border-radius: 14px;
+
+
+/* Outgoing message */
+
+position: absolute;
+width: 220px;
+height: 13px;
+left: 130px;
+top: 272px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Incoming bubble 2 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 270px;
+height: 58px;
+left: 24px;
+top: 336px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Incoming message 2 */
+
+position: absolute;
+width: 240px;
+height: 13px;
+left: 38px;
+top: 348px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Chat time */
+
+position: absolute;
+width: 130px;
+height: 11px;
+left: 130px;
+top: 420px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Message input */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 286px;
+height: 46px;
+left: 20px;
+top: 696px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 22px;
+
+
+/* Message placeholder */
+
+position: absolute;
+width: 250px;
+height: 13px;
+left: 36px;
+top: 709px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Send button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 54px;
+height: 46px;
+left: 316px;
+top: 696px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 22px;
+
+
+/* Send arrow */
+
+position: absolute;
+width: 54px;
+height: 22px;
+left: 332px;
+top: 708px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 18px;
+line-height: 22px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Chat note */
+
+position: absolute;
+width: 340px;
+height: 11px;
+left: 24px;
+top: 750px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* 13 Public & Private Rooms */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Room tabs */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 108px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Public tab */
+
+position: absolute;
+width: 140px;
+height: 13px;
+left: 34px;
+top: 120px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* Private tab */
+
+position: absolute;
+width: 140px;
+height: 13px;
+left: 206px;
+top: 120px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Futsal public card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 164px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Futsal public title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 177px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Futsal public detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 206px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Futsal public status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 178px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Badminton public card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 268px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Badminton public title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 281px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Badminton public detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 310px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Badminton public status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 282px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Private room card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 372px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Private room title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 385px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Private room detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 414px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Private room status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 386px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Create room heading */
+
+position: absolute;
+width: 260px;
+height: 19px;
+left: 20px;
+top: 484px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Room name label */
+
+position: absolute;
+width: 330px;
+height: 13px;
+left: 24px;
+top: 516px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Room name field */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 538px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Room name value */
+
+position: absolute;
+width: 320px;
+height: 13px;
+left: 34px;
+top: 550px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Visibility */
+
+position: absolute;
+width: 200px;
+height: 13px;
+left: 24px;
+top: 586px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Public visibility */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 36px;
+left: 20px;
+top: 610px;
+
+background: #E6F5EB;
+border: 1px solid #1A8F57;
+border-radius: 10px;
+
+
+/* Public visibility text */
+
+position: absolute;
+width: 130px;
+height: 13px;
+left: 36px;
+top: 619px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #1A8F57;
+
+
+
+/* Private visibility */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 36px;
+left: 200px;
+top: 610px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Private visibility text */
+
+position: absolute;
+width: 145px;
+height: 12px;
+left: 210px;
+top: 619px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Create room button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 690px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 12px;
+
+
+/* Create room label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 702px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* 14 Split Payment */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Booking summary */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 102px;
+left: 20px;
+top: 110px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Split venue */
+
+position: absolute;
+width: 300px;
+height: 18px;
+left: 34px;
+top: 123px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 15px;
+line-height: 18px;
+
+color: #0F2640;
+
+
+
+/* Split time */
+
+position: absolute;
+width: 300px;
+height: 12px;
+left: 34px;
+top: 152px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Split total */
+
+position: absolute;
+width: 300px;
+height: 15px;
+left: 34px;
+top: 178px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 12px;
+line-height: 15px;
+/* identical to box height */
+
+color: #171F2B;
+
+
+
+/* Contribution summary */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 100px;
+left: 20px;
+top: 228px;
+
+background: #E6F5EB;
+border: 1px solid #1A8F57;
+border-radius: 14px;
+
+
+/* Contribution label */
+
+position: absolute;
+width: 280px;
+height: 12px;
+left: 36px;
+top: 241px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Contribution value */
+
+position: absolute;
+width: 200px;
+height: 30px;
+left: 36px;
+top: 263px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 25px;
+line-height: 30px;
+
+color: #1A8F57;
+
+
+
+/* Contribution note */
+
+position: absolute;
+width: 280px;
+height: 12px;
+left: 36px;
+top: 297px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Players heading */
+
+position: absolute;
+width: 250px;
+height: 19px;
+left: 20px;
+top: 352px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Payer Ibrahim */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 40px;
+left: 20px;
+top: 385px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Payer name Ibrahim */
+
+position: absolute;
+width: 190px;
+height: 13px;
+left: 34px;
+top: 396px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Payer status Ibrahim */
+
+position: absolute;
+width: 100px;
+height: 12px;
+left: 254px;
+top: 396px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #1A8F57;
+
+
+
+/* Payer Mustansar */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 40px;
+left: 20px;
+top: 433px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Payer name Mustansar */
+
+position: absolute;
+width: 190px;
+height: 13px;
+left: 34px;
+top: 444px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Payer status Mustansar */
+
+position: absolute;
+width: 100px;
+height: 12px;
+left: 254px;
+top: 444px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #1A8F57;
+
+
+
+/* Payer Hasham */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 40px;
+left: 20px;
+top: 481px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Payer name Hasham */
+
+position: absolute;
+width: 190px;
+height: 13px;
+left: 34px;
+top: 492px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Payer status Hasham */
+
+position: absolute;
+width: 100px;
+height: 12px;
+left: 254px;
+top: 492px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #F29629;
+
+
+
+/* Payer Player 4 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 40px;
+left: 20px;
+top: 529px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Payer name Player 4 */
+
+position: absolute;
+width: 190px;
+height: 13px;
+left: 34px;
+top: 540px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Payer status Player 4 */
+
+position: absolute;
+width: 100px;
+height: 12px;
+left: 254px;
+top: 540px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #F29629;
+
+
+
+/* Send payment reminders button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 602px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 12px;
+
+
+/* Send payment reminders label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 614px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Payment disclaimer */
+
+position: absolute;
+width: 340px;
+height: 11px;
+left: 24px;
+top: 664px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* 15 Tournaments & Leaderboard */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Featured tournament */
+
+position: absolute;
+width: 350px;
+height: 126px;
+left: 20px;
+top: 108px;
+
+background: #0F2640;
+border-radius: 16px;
+
+
+/* Tournament tag */
+
+position: absolute;
+width: 280px;
+height: 11px;
+left: 36px;
+top: 122px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #BFE8D1;
+
+
+
+/* Tournament title */
+
+position: absolute;
+width: 300px;
+height: 23px;
+left: 36px;
+top: 147px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 19px;
+line-height: 23px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Tournament details */
+
+position: absolute;
+width: 315px;
+height: 12px;
+left: 36px;
+top: 181px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #FFFFFF;
+
+
+
+/* Tournament action */
+
+position: absolute;
+width: 200px;
+height: 12px;
+left: 36px;
+top: 207px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #BFE8D1;
+
+
+
+/* Leaderboard heading */
+
+position: absolute;
+width: 280px;
+height: 19px;
+left: 20px;
+top: 253px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Rank row 1 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 286px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Rank 1 */
+
+position: absolute;
+width: 28px;
+height: 16px;
+left: 34px;
+top: 297px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #F29629;
+
+
+
+/* Leaderboard player Adeel Khan */
+
+position: absolute;
+width: 190px;
+height: 12px;
+left: 72px;
+top: 298px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #171F2B;
+
+
+
+/* Points Adeel Khan */
+
+position: absolute;
+width: 92px;
+height: 11px;
+left: 262px;
+top: 298px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Rank row 2 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 336px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Rank 2 */
+
+position: absolute;
+width: 28px;
+height: 16px;
+left: 34px;
+top: 347px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Leaderboard player Ibrahim Sattar */
+
+position: absolute;
+width: 190px;
+height: 12px;
+left: 72px;
+top: 348px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #171F2B;
+
+
+
+/* Points Ibrahim Sattar */
+
+position: absolute;
+width: 92px;
+height: 11px;
+left: 262px;
+top: 348px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Rank row 3 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 386px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Rank 3 */
+
+position: absolute;
+width: 28px;
+height: 16px;
+left: 34px;
+top: 397px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Leaderboard player Mustansar */
+
+position: absolute;
+width: 190px;
+height: 12px;
+left: 72px;
+top: 398px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #171F2B;
+
+
+
+/* Points Mustansar */
+
+position: absolute;
+width: 92px;
+height: 11px;
+left: 262px;
+top: 398px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Rank row 4 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 436px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Rank 4 */
+
+position: absolute;
+width: 28px;
+height: 16px;
+left: 34px;
+top: 447px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Leaderboard player Hasham */
+
+position: absolute;
+width: 190px;
+height: 12px;
+left: 72px;
+top: 448px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #171F2B;
+
+
+
+/* Points Hasham */
+
+position: absolute;
+width: 92px;
+height: 11px;
+left: 262px;
+top: 448px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Rank row 5 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 42px;
+left: 20px;
+top: 486px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Rank 5 */
+
+position: absolute;
+width: 28px;
+height: 16px;
+left: 34px;
+top: 497px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Leaderboard player Sara Ahmed */
+
+position: absolute;
+width: 190px;
+height: 12px;
+left: 72px;
+top: 498px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #171F2B;
+
+
+
+/* Points Sara Ahmed */
+
+position: absolute;
+width: 92px;
+height: 11px;
+left: 262px;
+top: 498px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #636E7D;
+
+
+
+/* Browse tournaments button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 570px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 12px;
+
+
+/* Browse tournaments label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 582px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Bottom nav */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* Nav Home */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 5px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Search */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 83px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Games */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 161px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+
+color: #1A8F57;
+
+
+
+/* Nav Bookings */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 239px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Profile */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 317px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* 16 Vendor Booking Manager */
+
+box-sizing: border-box;
+
+position: relative;
+width: 390px;
+height: 844px;
+
+background: #F6F8FB;
+border: 1px solid #E0E6ED;
+border-radius: 24px;
+
+
+/* Title */
+
+position: absolute;
+width: 342px;
+height: 28px;
+left: 24px;
+top: 24px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 23px;
+line-height: 28px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Subtitle */
+
+position: absolute;
+width: 342px;
+height: 13px;
+left: 24px;
+top: 62px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 13px;
+
+color: #636E7D;
+
+
+
+/* Booking filter */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 40px;
+left: 20px;
+top: 108px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 10px;
+
+
+/* Booking filter value */
+
+position: absolute;
+width: 300px;
+height: 13px;
+left: 34px;
+top: 119px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #171F2B;
+
+
+
+/* Futsal court booking card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 160px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Futsal court booking title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 173px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Futsal court booking detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 202px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Futsal court booking status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 174px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Badminton court booking card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 264px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Badminton court booking title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 277px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Badminton court booking detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 306px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Badminton court booking status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 278px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Padel court booking card */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 94px;
+left: 20px;
+top: 368px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 14px;
+
+
+/* Padel court booking title */
+
+position: absolute;
+width: 230px;
+height: 17px;
+left: 34px;
+top: 381px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 14px;
+line-height: 17px;
+/* identical to box height */
+
+color: #0F2640;
+
+
+
+/* Padel court booking detail */
+
+position: absolute;
+width: 310px;
+height: 12px;
+left: 34px;
+top: 410px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 10px;
+line-height: 12px;
+
+color: #636E7D;
+
+
+
+/* Padel court booking status */
+
+position: absolute;
+width: 100px;
+height: 11px;
+left: 250px;
+top: 382px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+/* identical to box height */
+
+color: #1A8F57;
+
+
+
+/* Venue management heading */
+
+position: absolute;
+width: 260px;
+height: 19px;
+left: 20px;
+top: 478px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 16px;
+line-height: 19px;
+
+color: #0F2640;
+
+
+
+/* Manage slots */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 52px;
+left: 20px;
+top: 516px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* Manage slots label */
+
+position: absolute;
+width: 140px;
+height: 13px;
+left: 32px;
+top: 533px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 11px;
+line-height: 13px;
+
+color: #0F2640;
+
+
+
+/* Manage equipment */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 165px;
+height: 52px;
+left: 200px;
+top: 516px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+border-radius: 12px;
+
+
+/* Manage equipment label */
+
+position: absolute;
+width: 145px;
+height: 12px;
+left: 210px;
+top: 533px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 10px;
+line-height: 12px;
+
+color: #0F2640;
+
+
+
+/* Open analytics button */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 350px;
+height: 46px;
+left: 20px;
+top: 600px;
+
+background: #1A8F57;
+border: 1px solid #1A8F57;
+border-radius: 12px;
+
+
+/* Open analytics label */
+
+position: absolute;
+width: 326px;
+height: 16px;
+left: 32px;
+top: 612px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 13px;
+line-height: 16px;
+/* identical to box height */
+
+color: #FFFFFF;
+
+
+
+/* Bottom nav */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 390px;
+height: 64px;
+left: 0px;
+top: 780px;
+
+background: #FFFFFF;
+border: 1px solid #E0E6ED;
+
+
+/* Nav Home */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 5px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Search */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 83px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Games */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 161px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Bookings */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 239px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 9px;
+line-height: 11px;
+
+color: #636E7D;
+
+
+
+/* Nav Profile */
+
+position: absolute;
+width: 68px;
+height: 22px;
+left: 317px;
+top: 790px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 700;
+font-size: 9px;
+line-height: 11px;
+
+color: #1A8F57;
+

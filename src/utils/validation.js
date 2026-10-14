@@ -171,9 +171,8 @@ function validateVendorEquipment(values) {
 }
 
 function validateVendorMedia(values) {
-  return Array.isArray(values.photoUris) && values.photoUris.some(uri => typeof uri === 'string' && uri.trim())
-    ? {}
-    : { photoUris: 'Add at least one venue photo before continuing.' };
+  // Media is an optional enhancement; vendors can finish with VenueArtwork fallback.
+  return {};
 }
 
 export function validateVendorStep(values, step) {
