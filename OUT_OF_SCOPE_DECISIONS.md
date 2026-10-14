@@ -111,3 +111,28 @@ The earlier baseline entry above described the repository before the user pointe
 - The initial `./gradlew :app:assembleDebug` and `npm run android -- --no-packager` attempts failed because the default sandbox could not see an Android SDK path. The user then confirmed the lab6 SDK at `/home/ibrahim/.rn_lab/android-sdk`; FYP's ignored `android/local.properties` was set to that path.
 - `npm run android` then passed: Gradle built the debug APK and installed it on `emulator-5554` (`rn_lab` AVD). The foreground activity was `com.playspotpk/.MainActivity`. The filtered `ReactNativeJS` / `ReactNative` log query returned no entries. Before installation, the emulator package list contained the stale `com.rn_lab_workspace` app and no `com.playspotpk`; after installation, FYP launched under the expected package/component name. This confirms the `rn_lab_workspace has not been registered` message was from launching the old lab app against the FYP Metro bundle. The old app was left installed.
 - Tool environment observed: Node.js `22.17.0`, npm `10.9.2`, Java `17.0.20.1`. The app manifest provides `start`, `android`, and `test`; it has no lint script. No map/location, Figma API key, video player, backend, or email service was added for Day 1.
+
+## Day 2 update — 14 October 2026
+
+### 10. Normalized local venue data and persistence
+
+- **Concept:** Venue discovery needs stable vendor, venue, ground, inventory, slot, and review records that can be selected and changed across screens.
+- **Why needed:** Vendor-created and edited venues must be eligible for future player discovery and survive app restarts.
+- **Current-stack fit:** Redux Toolkit is already configured, and AsyncStorage is already part of the app. No server or persistence package is needed.
+- **Choice and scope:** Added JSDoc model definitions and eight fictional Lahore demo venues, vendor profiles, grounds, inventory, slots, and twelve sample reviews. `src/services/venueStorage.js` persists the domain snapshot in `playspot-pk.venue-data.v1`; the existing auth adapter/key remains in place. Redux selectors expose all/published venues, venue-by-ID, grounds/equipment-by-venue, and vendor-owned venues. New registration creates normalized records using stable owner-derived IDs; existing Day 1 nested vendor profiles are migrated at startup by account ID; ground and equipment draft IDs are retained.
+- **Verification:** `npm.cmd test -- --runInBand` passed 3 suites / 13 tests, including fixture relationships/counts, selectors, factory links and slot durations, malformed-storage recovery, and a React Native Testing Library journey through vendor registration, editing, and AsyncStorage reload. The Android JavaScript bundle passed and copied 19 assets. `npm.cmd run android -- --no-packager` could not install/launch because `adb`, an emulator, Android SDK environment paths, and a discoverable `gradlew.bat` were unavailable. A physical-device interaction remains unverified.
+- **Limitations:** These are fictional local records. Seed coordinates and addresses are approximate, reviews are invented, and approval is demo-only.
+
+### 11. Location and venue imagery for Day 2
+
+- **Concept:** Vendor setup can save a location and show a useful visual when no venue photo is selected.
+- **Why needed:** Player discovery will need a fallback location and media-independent venue cards.
+- **Current-stack fit:** The registration flow collects address/area and optional coordinates without location permission. The installed `react-native-image-picker` `8.2.1` is reused; no package was added. A code-drawn `VenueArtwork` placeholder works offline without image assets.
+- **Choice and scope:** Require a manually entered address and city; accept latitude/longitude only as a valid pair and allow both to be omitted. Photos/video remain optional local URIs; picker cancellation/errors do not block registration.
+- **Verification:** Form validation covers coordinate pairing/ranges; picker errors and cancellation are handled. The real picker UI still needs a device/emulator interaction.
+- **Limitations:** No GPS permission, map renderer, geocoding, map API key, remote media upload, or authoritative location is included. Coordinates are vendor-supplied or fictional approximate fixtures.
+
+### 12. Demo approval label
+
+- **Concept:** Sample vendor records may show an approval-like state for demonstration.
+- **Choice and scope:** Seeded records use `demo-approved`; newly registered vendors use `pending-demo`. Both are local labels only. No verification service or identity review exists.

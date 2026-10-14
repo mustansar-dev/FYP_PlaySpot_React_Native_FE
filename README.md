@@ -17,6 +17,18 @@ The following routes are implemented:
 
 Discovery, maps, booking, matchmaking, vendor operations, and the later-week screens are not implemented in Day 1.
 
+## Day 2 status: vendor venue setup and local demo data
+
+- Vendor registration keeps its seven-step draft while moving back and forward. It captures business and venue details, a manual address fallback with optional vendor-entered coordinates, sports and multiple grounds, dimensions, indoor/outdoor, surface, condition, hourly price, slot duration, facilities, parking, inventory, photos, optional video, and a review/submit step.
+- Submission creates normalized vendor, venue, ground, inventory, and seven-day slot records. The local venue set includes eight fictional Lahore examples, twelve sample reviews, and available/unavailable time slots. Names, addresses, reviews, and coordinates are demo fixtures; they are not authoritative listings.
+- Existing Day 1 vendor accounts with nested venue profiles are migrated into normalized records at startup using their account ID, so previously saved registrations remain available to manage.
+- Venue records live in Redux and persist through `playspot-pk.venue-data.v1`. Auth accounts and sessions remain on the existing `playspot-pk.auth.v1` key. Both stores hydrate before authenticated navigation is selected. Invalid venue JSON is reseeded safely.
+- Vendors can edit their venue, grounds, and equipment from the dashboard, save changes locally, and publish/unpublish their venue in the local discovery selector. The management route is visible only to the vendor role.
+- Selectors in `src/store/selectors/venueSelectors.js` provide all/published venues, venue by ID, grounds and equipment by venue ID, vendor profiles, and a vendor's venues by owner ID. Screens select Redux records rather than importing fixture arrays.
+- The existing React Native CLI project already has `react-native-image-picker` `8.2.1`; it is reused for optional photos/video. Picker cancel/error leaves the form usable. Media stays in device-local URIs. `VenueArtwork` draws a local placeholder when a photo is absent.
+
+The app still has no map, GPS permission flow, player discovery screen, booking service, backend verification, or remote media upload. Coordinates are optional; when omitted, the manually entered address and area remain the location fallback. `demo-approved` and `pending-demo` describe local fixture/onboarding state only.
+
 ## Setup and run
 
 Requirements from the lab6 baseline: Node.js `>=22.11`, npm, JDK 17, Android SDK/platform tools, and an Android emulator or connected device.
@@ -43,6 +55,8 @@ The versioned AsyncStorage key `playspot-pk.auth.v1` stores the demo account rec
 
 Vendor media is optional. Selected photos/video remain device-local URIs; there is no upload service. GPS/location is not requested during Day 1 registration; address and area are entered manually. The welcome marquee uses bundled-in-code sport illustrations and does not depend on a remote image URL.
 
+The venue persistence key stores demo profiles, venues, grounds, inventory, slots, and reviews. It does not contain passwords. New vendor profiles use `pending-demo`; seeded profiles use `demo-approved` only to illustrate local state, not real verification.
+
 ## Checks run for Day 1
 
 - `npm install` — completed; npm reported 53 dependency audit findings (8 moderate, 45 high) and a deprecation notice for `crypto-js`. No automatic dependency upgrades were applied.
@@ -52,3 +66,10 @@ Vendor media is optional. Selected photos/video remain device-local URIs; there 
 - `npm run android` — passed after configuring the ignored `android/local.properties` with the SDK path supplied from lab6. Gradle built the debug APK and installed it on `emulator-5554` (`rn_lab` AVD). The foreground activity was `com.playspotpk/.MainActivity`; the filtered React Native log query returned no entries. Before install, the emulator had `com.rn_lab_workspace` but not `com.playspotpk`, confirming the registration error came from launching the old lab app.
 
 Tested tool versions: Node.js `22.17.0`, npm `10.9.2`, and Java `17.0.20.1`. There is no lint script in this Day 1 package manifest.
+
+## Day 2 check results
+
+- `npm.cmd test -- --runInBand` — passed: 3 suites / 13 tests, including an automated seven-step vendor form → venue management edit → AsyncStorage reload flow.
+- `node_modules\\.bin\\react-native.cmd bundle --platform android --dev false --entry-file index.js --bundle-output %TEMP%\\playspot-day2-final.bundle --assets-dest %TEMP%\\playspot-day2-final-assets` — passed; wrote the JavaScript bundle and copied 19 asset files.
+- `npm.cmd run android -- --no-packager` — blocked: `adb` is unavailable, no emulator is listed, and the CLI could not invoke `gradlew.bat`. `ANDROID_HOME`/`ANDROID_SDK_ROOT` and `android/local.properties` are absent in this Windows environment.
+- The registration/edit/restart path was exercised through React Native Testing Library. A physical-device interaction could not be performed in this environment because no Android SDK/emulator is available; the media picker itself was left skipped as optional in that UI flow.

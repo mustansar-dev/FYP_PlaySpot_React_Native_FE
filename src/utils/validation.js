@@ -76,6 +76,21 @@ function validateVendorVenue(values) {
   if (!hasText(values.city)) {
     errors.city = 'Enter the city.';
   }
+  const hasLatitude = hasText(values.latitude);
+  const hasLongitude = hasText(values.longitude);
+  if (hasLatitude !== hasLongitude) {
+    errors.latitude = 'Enter both coordinates or leave both blank to use the address fallback.';
+    errors.longitude = errors.latitude;
+  } else if (hasLatitude && hasLongitude) {
+    const latitude = Number(values.latitude);
+    const longitude = Number(values.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      errors.latitude = 'Latitude must be between -90 and 90.';
+    }
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      errors.longitude = 'Longitude must be between -180 and 180.';
+    }
+  }
   return errors;
 }
 
@@ -115,6 +130,10 @@ function validateVendorGrounds(values) {
     if (!isPositiveNumber(ground.hourlyPricePKR)) {
       errors[`grounds.${index}.hourlyPricePKR`] = 'Enter an hourly price greater than 0.';
     }
+    const duration = Number(ground.slotDurationMinutes);
+    if (!Number.isInteger(duration) || duration < 15 || duration > 240) {
+      errors[`grounds.${index}.slotDurationMinutes`] = 'Choose a slot duration from 15 to 240 minutes.';
+    }
   });
 
   return errors;
@@ -151,6 +170,12 @@ function validateVendorEquipment(values) {
   return errors;
 }
 
+function validateVendorMedia(values) {
+  return Array.isArray(values.photoUris) && values.photoUris.some(uri => typeof uri === 'string' && uri.trim())
+    ? {}
+    : { photoUris: 'Add at least one venue photo before continuing.' };
+}
+
 export function validateVendorStep(values, step) {
   if (step === 0) {
     return validateVendorAccount(values);
@@ -167,6 +192,9 @@ export function validateVendorStep(values, step) {
   if (step === 4) {
     return validateVendorEquipment(values);
   }
+  if (step === 5) {
+    return validateVendorMedia(values);
+  }
   if (step === 6) {
     return {
       ...validateVendorAccount(values),
@@ -174,6 +202,7 @@ export function validateVendorStep(values, step) {
       ...validateVendorGrounds(values),
       ...validateVendorFacilities(values),
       ...validateVendorEquipment(values),
+      ...validateVendorMedia(values),
     };
   }
   return {};

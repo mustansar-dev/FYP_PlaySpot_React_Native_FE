@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
+import VenueArtwork from '../components/VenueArtwork';
+import VenuePhotoSlider from '../components/VenuePhotoSlider';
 import { useTheme } from '../context/ThemeContext';
 import { endSession } from '../services/authRepository';
 import { sessionEnded } from '../store/authSlice';
+import { selectEquipmentByVenueId, selectGroundsByVenueId, selectVendorProfileById, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
 
-export default function VendorDashboardScreen() {
+export default function VendorDashboardScreen({ navigation }) {
   const dispatch = useDispatch();
   const { currentUser, storageNotice } = useSelector(state => state.auth);
   const { colors, radius } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const venue = currentUser?.vendorProfile;
-  const grounds = venue?.grounds || [];
+  const venues = useSelector(state => selectVenuesByOwnerId(state, currentUser?.id || ''));
+  const venue = venues[0] || null;
+  const grounds = useSelector(state => selectGroundsByVenueId(state, venue?.id));
+  const equipment = useSelector(state => selectEquipmentByVenueId(state, venue?.id));
+  const vendorProfile = useSelector(state => selectVendorProfileById(state, venue?.vendorId));
+  const venueStorageNotice = useSelector(state => state.venues.storageNotice);
 
   const logout = async () => {
     setLoading(true);
@@ -54,13 +61,47 @@ export default function VendorDashboardScreen() {
           </View>
         ) : null}
 
+        {venueStorageNotice ? (
+          <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
+            <Text style={[styles.noticeText, { color: colors.ink }]}>{venueStorageNotice}</Text>
+          </View>
+        ) : null}
+
+        {venue && venue.photoUris?.length ? (
+          <VenuePhotoSlider photos={venue.photoUris} venueName={venue.name} radius={radius.md} />
+        ) : venue ? (
+          <VenueArtwork sport={venue.sports?.[0]} />
+        ) : null}
+
         {venue ? (
           <View style={[styles.venueCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
             <Text style={[styles.sectionLabel, { color: colors.inkSoft }]}>LOCAL VENUE PROFILE</Text>
-            <Text style={[styles.venueName, { color: colors.ink }]}>{venue.venueName}</Text>
-            <Text style={[styles.detail, { color: colors.inkSoft }]}>{venue.businessName}</Text>
+            <Text style={[styles.venueName, { color: colors.ink }]}>{venue.name}</Text>
+            <Text style={[styles.detail, { color: colors.inkSoft }]}>{vendorProfile?.businessName || currentUser?.businessName}</Text>
             <Text style={[styles.detail, { color: colors.inkSoft }]}>{venue.address}, {venue.city}</Text>
             {venue.locationNote ? <Text style={[styles.detail, { color: colors.inkSoft }]}>{venue.locationNote}</Text> : null}
+            <Text style={[styles.detail, { color: colors.inkSoft }]}>
+              {venue.latitude != null && venue.longitude != null
+                ? `Vendor-entered coordinates: ${venue.latitude}, ${venue.longitude} (approximate demo)`
+                : 'Location uses the manually entered address.'}
+            </Text>
+            <Text style={[styles.detail, { color: venue.published ? colors.success : colors.error }]}>
+              {venue.published ? 'Published in local demo discovery' : 'Hidden from local demo discovery'}
+            </Text>
+            {venue.videoUri ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open venue video"
+                onPress={() => Linking.openURL(venue.videoUri).catch(() => setError('This video could not be opened on this device.'))}
+                style={[styles.videoProfile, { backgroundColor: colors.navy, borderRadius: radius.md }]}
+              >
+                <Text style={styles.videoPlay}>▶</Text>
+                <View style={styles.videoCopy}>
+                  <Text style={styles.videoTitle}>VENUE VIDEO</Text>
+                  <Text style={styles.videoHint}>Tap to open the selected video</Text>
+                </View>
+              </Pressable>
+            ) : null}
             <View style={styles.metricRow}>
               <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
                 <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{grounds.length}</Text>
@@ -93,7 +134,7 @@ export default function VendorDashboardScreen() {
               {venue.parkingAvailable ? ` · Parking for ${venue.parkingSpaces} vehicles` : ' · No parking'}
             </Text>
             <Text style={[styles.sectionLabel, { color: colors.inkSoft, marginTop: 14 }]}>EQUIPMENT</Text>
-            {venue.equipment?.length ? venue.equipment.map(item => (
+            {equipment.length ? equipment.map(item => (
               <Text key={item.id} style={[styles.detail, { color: colors.ink }]}>
                 {item.name} · {item.priceMode} · PKR {item.unitPricePKR} · Qty {item.quantityAvailable}
               </Text>
@@ -108,11 +149,20 @@ export default function VendorDashboardScreen() {
           </View>
         )}
 
+        {venue ? (
+          <AppButton
+            title="Manage venue, grounds and equipment"
+            testID="vendor-manage-venue"
+            onPress={() => navigation.navigate('VendorVenueManagement', { venueId: venue.id })}
+            style={styles.manageButton}
+          />
+        ) : null}
+
         <View style={[styles.demoCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
-          <Text style={[styles.demoEyebrow, { color: colors.primary }]}>DAY 1 COMPLETE</Text>
-          <Text style={[styles.demoTitle, { color: colors.ink }]}>Profile saved locally</Text>
+          <Text style={[styles.demoEyebrow, { color: colors.primary }]}>LOCAL DEMO DATA</Text>
+          <Text style={[styles.demoTitle, { color: colors.ink }]}>Profile saved on this device</Text>
           <Text style={[styles.demoCopy, { color: colors.inkSoft }]}>
-            Booking management and venue publishing are not part of today’s auth setup. This profile has not been sent to a server.
+            Venue approval and publishing are local demo states. Nothing is sent to a server.
           </Text>
         </View>
 
@@ -147,6 +197,11 @@ const styles = StyleSheet.create({
   notice: { padding: 12, marginBottom: 14 },
   noticeText: { fontSize: 12, lineHeight: 18 },
   venueCard: { borderWidth: 1, padding: 16, marginBottom: 14 },
+  videoProfile: { flexDirection: 'row', alignItems: 'center', padding: 14, marginTop: 14, gap: 12 },
+  videoPlay: { color: '#FFFFFF', fontSize: 22 },
+  videoCopy: { flex: 1 },
+  videoTitle: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  videoHint: { color: '#CBD9CF', fontSize: 11, marginTop: 3 },
   sectionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   venueName: { fontSize: 19, lineHeight: 25, fontWeight: '900', marginTop: 10 },
   detail: { fontSize: 11, lineHeight: 18, marginTop: 4 },
@@ -158,6 +213,7 @@ const styles = StyleSheet.create({
   groundName: { fontSize: 12, fontWeight: '800' },
   price: { fontSize: 11, fontWeight: '900', marginTop: 5 },
   demoCard: { borderWidth: 1, padding: 16, marginBottom: 18 },
+  manageButton: { marginBottom: 16 },
   demoEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   demoTitle: { fontSize: 15, fontWeight: '800', marginTop: 7 },
   demoCopy: { fontSize: 12, lineHeight: 18, marginTop: 5 },

@@ -1,14 +1,21 @@
 import React, { useEffect } from 'react';
-import { Provider, useDispatch } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './context/ThemeContext';
 import RootNavigator from './navigation/RootNavigator';
 import { restoreSession } from './services/authRepository';
 import { authHydrated } from './store/authSlice';
+import { venueCreated, venuesHydrated, venueStorageNoticeSet } from './store/venueSlice';
+import { loadVenueData, saveVenueData } from './services/venueStorage';
+import { createVendorVenueRecords } from './services/vendorVenueFactory';
+import { selectVenuesByOwnerId } from './store/selectors/venueSelectors';
 import store from './store/store';
 
 function AppContent() {
   const dispatch = useDispatch();
+  const isAuthHydrated = useSelector(state => state.auth.hydrated);
+  const accounts = useSelector(state => state.auth.accounts);
+  const isVenuesHydrated = useSelector(state => state.venues.hydrated);
 
   useEffect(() => {
     let active = true;
@@ -33,6 +40,78 @@ function AppContent() {
     return () => {
       active = false;
     };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!isAuthHydrated || !isVenuesHydrated) {
+      return;
+    }
+    accounts.forEach(account => {
+      if (account.role !== 'vendor' || !account.vendorProfile) {
+        return;
+      }
+      const currentVenues = selectVenuesByOwnerId(store.getState(), account.id);
+      if (currentVenues.length > 0) {
+        return;
+      }
+      const profile = {
+        ...account.vendorProfile,
+        businessName: account.vendorProfile.businessName || account.businessName || account.name,
+        contactPhone: account.vendorProfile.contactPhone || account.phone,
+        latitude: account.vendorProfile.latitude ?? '',
+        longitude: account.vendorProfile.longitude ?? '',
+        sports: account.vendorProfile.sports || account.preferredSports || [],
+        facilities: account.vendorProfile.facilities || [],
+        grounds: account.vendorProfile.grounds || [],
+        equipment: account.vendorProfile.equipment || [],
+        photoUris: account.vendorProfile.photoUris || [],
+      };
+      dispatch(venueCreated(createVendorVenueRecords(profile, account.id)));
+    });
+  }, [accounts, isAuthHydrated, dispatch, isVenuesHydrated]);
+
+  useEffect(() => {
+    let active = true;
+    loadVenueData().then(result => {
+      if (active) {
+        dispatch(venuesHydrated(result));
+      }
+    }).catch(() => {
+      if (active) {
+        dispatch(venuesHydrated({
+          data: store.getState().venues,
+          notice: 'Venue data could not be loaded. Fictional demo venues are shown for this session.',
+        }));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    let lastSnapshot = null;
+    let saving = Promise.resolve();
+    const unsubscribe = store.subscribe(() => {
+      const venues = store.getState().venues;
+      const domainData = {
+        version: venues.version,
+        vendorProfiles: venues.vendorProfiles,
+        venues: venues.venues,
+        grounds: venues.grounds,
+        equipment: venues.equipment,
+        slots: venues.slots,
+        reviews: venues.reviews,
+      };
+      if (!venues.hydrated || (lastSnapshot && Object.keys(domainData).every(key => domainData[key] === lastSnapshot[key]))) {
+        return;
+      }
+      lastSnapshot = domainData;
+      saving = saving.then(() => saveVenueData(domainData)).catch(() => {
+        dispatch(venueStorageNoticeSet('Venue changes could not be saved on this device.'));
+      });
+    });
+    return unsubscribe;
   }, [dispatch]);
 
   return <RootNavigator />;

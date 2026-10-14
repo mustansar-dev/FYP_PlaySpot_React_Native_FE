@@ -20,6 +20,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { registerAccount } from '../services/authRepository';
 import { accountRegistered } from '../store/authSlice';
+import { venueCreated } from '../store/venueSlice';
+import { createVendorVenueRecords } from '../services/vendorVenueFactory';
 import { validateVendorStep } from '../utils/validation';
 
 const STEPS = [
@@ -33,7 +35,7 @@ const STEPS = [
 ];
 const SPORTS = ['Futsal', 'Football', 'Cricket', 'Padel', 'Badminton'];
 const FACILITIES = ['Changing rooms', 'Washrooms', 'Floodlights', 'Seating', 'Cafe', 'Showers'];
-const SURFACES = ['Real grass', 'Turf', 'Wood', 'Synthetic', 'Other'];
+const SURFACES = ['Real grass', 'Artificial turf', 'Wood', 'Synthetic', 'Other'];
 
 function blankGround() {
   return {
@@ -46,6 +48,7 @@ function blankGround() {
     surface: '',
     conditionRating: '',
     hourlyPricePKR: '',
+    slotDurationMinutes: '60',
   };
 }
 
@@ -61,6 +64,8 @@ function makeInitialDraft() {
     address: '',
     city: '',
     locationNote: '',
+    latitude: '',
+    longitude: '',
     sports: [],
     grounds: [blankGround()],
     facilities: [],
@@ -251,7 +256,7 @@ export default function VendorRegistrationScreen({ navigation }) {
     setErrors(nextErrors);
     setSubmitError('');
     if (Object.keys(nextErrors).length > 0) {
-      const firstInvalidStep = [0, 1, 2, 3, 4].find(index =>
+      const firstInvalidStep = [0, 1, 2, 3, 4, 5].find(index =>
         Object.keys(validateVendorStep(draft, index)).length > 0,
       );
       if (firstInvalidStep !== undefined) {
@@ -264,10 +269,13 @@ export default function VendorRegistrationScreen({ navigation }) {
     try {
       const vendorProfile = {
         businessName: draft.businessName.trim(),
+        contactPhone: draft.phone.trim(),
         venueName: draft.venueName.trim(),
         address: draft.address.trim(),
         city: draft.city.trim(),
         locationNote: draft.locationNote.trim(),
+        latitude: draft.latitude.trim(),
+        longitude: draft.longitude.trim(),
         sports: [...draft.sports],
         grounds: draft.grounds.map(ground => ({
           ...ground,
@@ -276,6 +284,7 @@ export default function VendorRegistrationScreen({ navigation }) {
           lengthMeters: Number(ground.lengthMeters),
           conditionRating: Number(ground.conditionRating),
           hourlyPricePKR: Number(ground.hourlyPricePKR),
+          slotDurationMinutes: Number(ground.slotDurationMinutes),
         })),
         facilities: [...draft.facilities],
         parkingAvailable: draft.parkingAvailable,
@@ -300,6 +309,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         vendorProfile,
       });
       dispatch(accountRegistered(result));
+      dispatch(venueCreated(createVendorVenueRecords(vendorProfile, result.account.id)));
       setDraft(previous => ({ ...previous, password: '', confirmPassword: '' }));
       navigation.replace('RegistrationSuccess', {
         userId: result.account.id,
@@ -411,8 +421,28 @@ export default function VendorRegistrationScreen({ navigation }) {
         onChangeText={value => updateField('locationNote', value)}
         testID="vendor-location-note"
       />
+      <View style={styles.twoColumn}>
+        <FormField
+          label="Latitude (optional)"
+          value={draft.latitude}
+          onChangeText={value => updateField('latitude', value)}
+          keyboardType="decimal-pad"
+          testID="vendor-latitude"
+          error={errors.latitude}
+          style={styles.column}
+        />
+        <FormField
+          label="Longitude (optional)"
+          value={draft.longitude}
+          onChangeText={value => updateField('longitude', value)}
+          keyboardType="decimal-pad"
+          testID="vendor-longitude"
+          error={errors.longitude}
+          style={styles.column}
+        />
+      </View>
       <Text style={[styles.helper, { color: colors.inkSoft }]}>
-        Location is stored as the address you enter. This Day 1 demo does not request GPS access.
+        Coordinates are optional. Leave both blank to use your manually entered address and area. Sample locations are not verified.
       </Text>
     </>
   );
@@ -527,6 +557,14 @@ export default function VendorRegistrationScreen({ navigation }) {
             keyboardType="number-pad"
             testID={`vendor-ground-price-${index + 1}`}
             error={errors[`grounds.${index}.hourlyPricePKR`]}
+          />
+          <FormField
+            label="Slot duration (minutes)"
+            value={ground.slotDurationMinutes}
+            onChangeText={value => updateGround(index, 'slotDurationMinutes', value)}
+            keyboardType="number-pad"
+            testID={`vendor-ground-duration-${index + 1}`}
+            error={errors[`grounds.${index}.slotDurationMinutes`]}
           />
         </View>
       ))}
@@ -649,7 +687,7 @@ export default function VendorRegistrationScreen({ navigation }) {
   const renderMediaStep = () => (
     <>
       <Text style={[styles.helper, { color: colors.inkSoft, marginBottom: 14 }]}>
-        Photos and video are optional. Your venue can be registered without media.
+        Add at least one venue photo to register. A video is optional.
       </Text>
       <View style={styles.mediaActions}>
         <AppButton
@@ -671,6 +709,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         />
       </View>
       {mediaError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{mediaError}</Text> : null}
+      {errors.photoUris ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{errors.photoUris}</Text> : null}
       {draft.photoUris.length > 0 ? (
         <View style={styles.photoGrid}>
           {draft.photoUris.map((uri, index) => (
@@ -692,7 +731,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         <View style={[styles.mediaPlaceholder, { backgroundColor: colors.limePale, borderRadius: radius.lg }]}>
           <Text style={styles.mediaPlaceholderIcon}>▧</Text>
           <Text style={[styles.mediaPlaceholderTitle, { color: colors.ink }]}>No photos selected</Text>
-          <Text style={[styles.helper, { color: colors.inkSoft }]}>You can add venue photos later.</Text>
+          <Text style={[styles.helper, { color: colors.inkSoft }]}>Choose at least one photo to continue.</Text>
         </View>
       )}
       {draft.videoUri ? (
@@ -721,13 +760,14 @@ export default function VendorRegistrationScreen({ navigation }) {
         <ReviewRow label="Owner" value={`${draft.name} · ${draft.email}`} />
         <ReviewRow label="Business" value={draft.businessName} />
         <ReviewRow label="Address" value={`${draft.address}, ${draft.city}`} />
+        <ReviewRow label="Location" value={draft.latitude && draft.longitude ? `${draft.latitude}, ${draft.longitude} (vendor entered)` : `${draft.locationNote || draft.city} (manual address fallback)`} />
         <ReviewRow label="Sports" value={draft.sports.join(', ')} />
         <ReviewRow label="Grounds" value={`${draft.grounds.length} · ${draft.grounds.map(item => item.name).join(', ')}`} />
         {draft.grounds.map(ground => (
           <View key={ground.id} style={[styles.groundSummary, { borderColor: colors.border }]}>
             <Text style={[styles.groundSummaryTitle, { color: colors.ink }]}>{ground.name || 'Unnamed ground'} · {ground.sport || 'Sport'}</Text>
             <Text style={[styles.helper, { color: colors.inkSoft }]}>
-              {ground.widthMeters || '—'} × {ground.lengthMeters || '—'} m · {ground.indoorOutdoor || 'Type'} · {ground.surface || 'Surface'} · Condition {ground.conditionRating || '—'}/5
+              {ground.widthMeters || '—'} × {ground.lengthMeters || '—'} m · {ground.indoorOutdoor || 'Type'} · {ground.surface || 'Surface'} · Condition {ground.conditionRating || '—'}/5 · {ground.slotDurationMinutes} min slots
             </Text>
             <Text style={[styles.groundSummaryTitle, { color: colors.primary }]}>PKR {ground.hourlyPricePKR || '—'} / hour</Text>
           </View>
@@ -738,7 +778,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         <ReviewRow label="Media" value={`${draft.photoUris.length} photo(s)${draft.videoUri ? ' · video selected' : ''}`} />
       </View>
       <Text style={[styles.localNote, { color: colors.inkSoft }]}>
-        Submitting saves this profile on this device. No venue is published to a server.
+        Submitting saves a local demo profile and publishes this venue inside this app. No venue is sent to a server.
       </Text>
     </>
   );

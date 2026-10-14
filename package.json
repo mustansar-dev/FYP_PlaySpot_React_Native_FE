@@ -41,7 +41,7 @@
   "jest": {
     "preset": "react-native",
     "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|@react-navigation|@testing-library|react-native-safe-area-context|react-native-screens|react-freeze|use-latest-callback|nanoid|@react-native-async-storage)/)"
+      "node_modules/(?!(react-native|@react-native|@reduxjs|redux|immer|reselect|@standard-schema|react-redux|use-sync-external-store|@react-navigation|@testing-library|react-native-safe-area-context|react-native-screens|react-freeze|use-latest-callback|nanoid|@react-native-async-storage)/)"
     ]
   }
 }

@@ -13,6 +13,7 @@ import PlayerRegistrationScreen from '../screens/PlayerRegistrationScreen';
 import RegistrationSuccessScreen from '../screens/RegistrationSuccessScreen';
 import RoleSelectionScreen from '../screens/RoleSelectionScreen';
 import VendorDashboardScreen from '../screens/VendorDashboardScreen';
+import VendorVenueManagementScreen from '../screens/VendorVenueManagementScreen';
 import VendorRegistrationScreen from '../screens/VendorRegistrationScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { theme } from '../theme/tokens';
@@ -42,16 +43,20 @@ function BootScreen() {
 
 export default function RootNavigator() {
   const { hydrated, currentUser } = useSelector(state => state.auth);
+  const venuesHydrated = useSelector(state => state.venues.hydrated);
 
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-        {!hydrated ? (
+        {!hydrated || !venuesHydrated ? (
           <Stack.Screen name="Boot" component={BootScreen} />
         ) : currentUser?.role === 'player' ? (
           <Stack.Screen name="PlayerHome" component={PlayerHomeScreen} />
         ) : currentUser?.role === 'vendor' ? (
-          <Stack.Screen name="VendorDashboard" component={VendorDashboardScreen} />
+          <>
+            <Stack.Screen name="VendorDashboard" component={VendorDashboardScreen} />
+            <Stack.Screen name="VendorVenueManagement" component={VendorVenueManagementScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
