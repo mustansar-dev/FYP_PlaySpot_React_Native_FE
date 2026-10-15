@@ -21,6 +21,29 @@ import VendorDashboardScreen from '../screens/VendorDashboardScreen';
 import VendorVenueManagementScreen from '../screens/VendorVenueManagementScreen';
 import VendorRegistrationScreen from '../screens/VendorRegistrationScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import {
+  BookingDetailsScreen,
+  BookingSuccessScreen,
+  BookingCheckoutScreen,
+  EquipmentAddonsScreen,
+  ManualWalkInBookingScreen,
+  MyBookingsScreen,
+  SlotSelectionScreen,
+  VendorAvailabilityScreen,
+  VendorBookingsScreen,
+} from '../screens/BookingScreens';
+import {
+  ChatConversationScreen,
+  ChatInboxScreen,
+  CreateGameRoomScreen,
+  CreateTournamentScreen,
+  GameRoomDetailsScreen,
+  GameRoomsScreen,
+  LeaderboardScreen,
+  SplitPaymentScreen,
+  TournamentDetailsScreen,
+  TournamentsScreen,
+} from '../screens/CommunityScreens';
 import { theme } from '../theme/tokens';
 
 const Stack = createNativeStackNavigator();
@@ -49,11 +72,12 @@ function BootScreen() {
 export default function RootNavigator() {
   const { hydrated, currentUser } = useSelector(state => state.auth);
   const venuesHydrated = useSelector(state => state.venues.hydrated);
+  const communityHydrated = useSelector(state => state.community.hydrated);
 
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-        {!hydrated || !venuesHydrated ? (
+        {!hydrated || !venuesHydrated || !communityHydrated ? (
           <Stack.Screen name="Boot" component={BootScreen} />
         ) : currentUser?.role === 'player' ? (
           <>
@@ -63,11 +87,33 @@ export default function RootNavigator() {
             <Stack.Screen name="VenueDetails" component={VenueDetailsScreen} />
             <Stack.Screen name="VenueReviews" component={VenueReviewsScreen} />
             <Stack.Screen name="AddReview" component={AddReviewScreen} />
+            <Stack.Screen name="SlotSelection" component={SlotSelectionScreen} />
+            <Stack.Screen name="EquipmentAddons" component={EquipmentAddonsScreen} />
+            <Stack.Screen name="BookingCheckout" component={BookingCheckoutScreen} />
+            <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+            <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+            <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
+            <Stack.Screen name="GameRooms" component={GameRoomsScreen} />
+            <Stack.Screen name="CreateGameRoom" component={CreateGameRoomScreen} />
+            <Stack.Screen name="GameRoomDetails" component={GameRoomDetailsScreen} />
+            <Stack.Screen name="ChatInbox" component={ChatInboxScreen} />
+            <Stack.Screen name="ChatConversation" component={ChatConversationScreen} />
+            <Stack.Screen name="SplitPayment" component={SplitPaymentScreen} />
+            <Stack.Screen name="Tournaments" component={TournamentsScreen} />
+            <Stack.Screen name="TournamentDetails" component={TournamentDetailsScreen} />
+            <Stack.Screen name="CreateTournament" component={CreateTournamentScreen} />
+            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
           </>
         ) : currentUser?.role === 'vendor' ? (
           <>
             <Stack.Screen name="VendorDashboard" component={VendorDashboardScreen} />
             <Stack.Screen name="VendorVenueManagement" component={VendorVenueManagementScreen} />
+            <Stack.Screen name="VendorAvailability" component={VendorAvailabilityScreen} />
+            <Stack.Screen name="VendorBookings" component={VendorBookingsScreen} />
+            <Stack.Screen name="ManualWalkInBooking" component={ManualWalkInBookingScreen} />
+            <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
+            <Stack.Screen name="ChatInbox" component={ChatInboxScreen} />
+            <Stack.Screen name="ChatConversation" component={ChatConversationScreen} />
           </>
         ) : (
           <>

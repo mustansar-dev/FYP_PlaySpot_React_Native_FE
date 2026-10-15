@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
@@ -48,7 +48,7 @@ export default function VenueDetailsScreen({ navigation, route }) {
       <View style={[styles.ratingSummary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.bigRating, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} local demo reviews</Text></View><Pressable accessibilityRole="button" testID="venue-add-review" onPress={() => navigation.navigate('AddReview', { venueId })}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '900' }}>Write a review</Text></Pressable></View>
       {venueReviews.slice(0, 2).map(review => <View key={review.id} style={styles.reviewRow}><Text style={[styles.cardTitle, { color: colors.ink }]}>{review.playerName}  <Text style={{ color: colors.orange }}>★ {review.stars}</Text></Text><Text style={[styles.body, { color: colors.inkSoft }]}>{review.comment}</Text></View>)}
       <Text style={[styles.small, { color: colors.inkSoft, marginTop: 12 }]}>Approximate location: {venue.address}. {venue.demoLabel}</Text>
-      <AppButton title="Continue to booking" testID="venue-booking-cta" onPress={() => Alert.alert('Booking flow not connected yet', 'Venue discovery is local demo data. Booking is planned for the next milestone.')} style={styles.booking} />
+      <AppButton title="Continue to booking" testID="venue-booking-cta" onPress={() => navigation.navigate('SlotSelection', { venueId, groundId: venueGrounds[0]?.id })} disabled={venueGrounds.length === 0} style={styles.booking} />
     </ScrollView>
   </SafeAreaView>;
 }

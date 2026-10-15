@@ -3,7 +3,7 @@ PLAYSPOT_CODEX_PROMPTS.md
 PLAYSPOT_WEEK_PLAN.md
 Lecture11.pdf
 
-# Node and npm.
+# Node and npm dependencies / local logs.
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -11,9 +11,11 @@ yarn-error.log*
 pnpm-debug.log*
 *.log
 *.tsbuildinfo
+.npm/
 
 # React Native / Metro output.
 .metro-health-check*
+.metro-cache/
 .expo/
 .expo-shared/
 *.jsbundle
@@ -29,7 +31,12 @@ android/.cxx/
 android/app/.cxx/
 **/.cxx/
 android/local.properties
+local.properties
+android/key.properties
+key.properties
 android/app/src/main/assets/index.android.bundle
+android/app/captures/
+android/app/.externalNativeBuild/
 *.apk
 *.aab
 *.hprof
@@ -39,6 +46,9 @@ android/app/src/main/assets/index.android.bundle
 *.keystore
 *.jks
 !debug.keystore
+*.p12
+*.mobileprovision
+*.provisionprofile
 
 # Local secrets and machine-specific tooling.
 .env
@@ -56,4 +66,7 @@ android/app/src/main/assets/index.android.bundle
 ios/Pods/
 ios/build/
 DerivedData/
+*.xcarchive/
+*.dSYM/
+*.ipa
 *.xcuserstate

@@ -68,11 +68,7 @@
  * @property {string} createdAt
  */
 
-const dayFromToday = days => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-};
+import { createSlotsForGround } from '../utils/booking';
 
 const venueFixtures = [
   { id: 'venue-demo-gulberg', vendorId: 'vendor-demo-gulberg', name: 'Greenline Futsal Club', area: 'Gulberg III', latitude: 31.5112, longitude: 74.3431, sport: 'Futsal', width: 20, length: 40, surface: 'Synthetic', price: 4500, facilities: ['Changing rooms', 'Floodlights', 'Washrooms'], indoor: 'Indoor', equipment: 'Football' },
@@ -145,24 +141,16 @@ export function createDemoVenueState() {
     active: true,
   }));
 
-  const slots = grounds.flatMap((ground, groundIndex) =>
-    Array.from({ length: 7 }, (_, dayIndex) => {
-      const date = dayFromToday(dayIndex + 1);
-      return ['16:00', '17:00', '18:00'].map((startTime, slotIndex) => {
-        const startHour = Number(startTime.slice(0, 2));
-        const endTime = `${String(startHour + 1).padStart(2, '0')}:00`;
-        const unavailableDemoSlot = groundIndex === 1 && dayIndex === 0 && slotIndex === 1;
-        return {
-          id: `${ground.id}-${date}-${startTime}`,
-          groundId: ground.id,
-          date,
-          startTime,
-          endTime,
-          status: unavailableDemoSlot ? 'unavailable' : 'available',
-        };
-      });
-    }).flat(),
-  );
+  const slots = grounds.flatMap((ground, groundIndex) => {
+    const groundSlots = createSlotsForGround(ground, 8, 16 * 60, 19 * 60);
+    const today = groundSlots[0]?.date;
+    return groundSlots.map(slot => ({
+      ...slot,
+      status: groundIndex === 1 && slot.date === today && slot.startTime === '17:00'
+        ? 'unavailable'
+        : slot.status,
+    }));
+  });
 
   const reviews = [
     ['venue-demo-gulberg', 'Amina Shah', 5, 'Easy to reach and the court was in good condition.'],

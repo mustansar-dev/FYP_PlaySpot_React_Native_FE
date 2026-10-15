@@ -8,6 +8,8 @@ import { authHydrated } from './store/authSlice';
 import { venueCreated, venuesHydrated, venueStorageNoticeSet } from './store/venueSlice';
 import { loadVenueData, saveVenueData } from './services/venueStorage';
 import { createVendorVenueRecords } from './services/vendorVenueFactory';
+import { createDemoCommunityState } from './data/demoCommunityData';
+import { communityHydrated } from './store/communitySlice';
 import { selectVenuesByOwnerId } from './store/selectors/venueSelectors';
 import store from './store/store';
 
@@ -16,6 +18,7 @@ function AppContent() {
   const isAuthHydrated = useSelector(state => state.auth.hydrated);
   const accounts = useSelector(state => state.auth.accounts);
   const isVenuesHydrated = useSelector(state => state.venues.hydrated);
+  const isCommunityHydrated = useSelector(state => state.community.hydrated);
 
   useEffect(() => {
     let active = true;
@@ -74,14 +77,17 @@ function AppContent() {
     let active = true;
     loadVenueData().then(result => {
       if (active) {
-        dispatch(venuesHydrated(result));
+        const { community, ...venueData } = result.data;
+        dispatch(venuesHydrated({ data: venueData, notice: result.notice }));
+        dispatch(communityHydrated(community || createDemoCommunityState()));
       }
     }).catch(() => {
       if (active) {
         dispatch(venuesHydrated({
-          data: store.getState().venues,
+          data: { ...store.getState().venues, bookings: [] },
           notice: 'Venue data could not be loaded. Fictional demo venues are shown for this session.',
         }));
+        dispatch(communityHydrated(createDemoCommunityState()));
       }
     });
     return () => {
@@ -94,6 +100,7 @@ function AppContent() {
     let saving = Promise.resolve();
     const unsubscribe = store.subscribe(() => {
       const venues = store.getState().venues;
+      const community = store.getState().community;
       const domainData = {
         version: venues.version,
         vendorProfiles: venues.vendorProfiles,
@@ -102,8 +109,10 @@ function AppContent() {
         equipment: venues.equipment,
         slots: venues.slots,
         reviews: venues.reviews,
+        bookings: venues.bookings,
+        community,
       };
-      if (!venues.hydrated || (lastSnapshot && Object.keys(domainData).every(key => domainData[key] === lastSnapshot[key]))) {
+      if (!venues.hydrated || !community.hydrated || (lastSnapshot && Object.keys(domainData).every(key => domainData[key] === lastSnapshot[key]))) {
         return;
       }
       lastSnapshot = domainData;

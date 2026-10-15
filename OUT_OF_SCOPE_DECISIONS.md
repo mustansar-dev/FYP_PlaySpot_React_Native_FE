@@ -155,3 +155,49 @@ The earlier baseline entry above described the repository before the user pointe
 - **Reference:** The root `figma_design` export has nearby venue, search/filter, and venue-detail layouts. Its key tokens are green `#1A8F57`, background `#F6F8FA`, white cards, slate text `#141A24` / `#667080`, border `#E0E6ED`, and orange `#F29429` rating accents.
 - **Choice and scope:** Map the export's green/neutral/orange palette into the existing shared `src/theme/tokens.js` names, preserving the app's existing theme/context architecture. New screens follow the export's search field, chips, venue cards, and detail summary patterns.
 - **Limitations:** `figma_design` is a textual layout/style export; it does not include linked bitmap venue photos or map tiles. Existing code-drawn venue art remains the offline fallback.
+
+## Day 4–5 update — 16 October 2026
+
+### 15. Booking, stock and shared slot availability
+
+- **Feature/concept:** Player bookings, optional equipment, vendor walk-ins, cancellation and slot availability.
+- **Why needed:** PROMPT4 requires both roles to reserve the same ground/date/time source, show consistent PKR totals, and prevent a walk-in and player booking from claiming overlapping times.
+- **What it does:** A small pure availability/pricing module checks a ground, local date and overlapping time range, validates current add-on stock and prepares an integer-PKR booking. The same Redux action path is used for player and walk-in sources. Cancellation releases only the slots and inventory reserved by that booking.
+- **Course scope/current stack:** Date handling, JavaScript functions, Redux Toolkit, controlled React Native forms, selectors, and AsyncStorage are available in the lecture recap and already installed. No date-picker, booking, payment, or persistence package is required; date and time selection use native controls and text.
+- **Options considered:** Check availability separately in each screen (which risks different rules); add a server/native booking package; or centralize the rule in one domain helper and local Redux state.
+- **Choice and scope:** Use `src/utils/booking.js` plus `src/store/venueSlice.js` and the existing storage adapter. A small Redux thunk performs the final read/check/dispatch and returns a friendly result to the screen; Redux Toolkit already includes thunk middleware. This thunk pattern is not explicitly named in the Lecture 11 recap. It is necessary here because both entry points need to check the latest shared Redux state and give the user a clear conflict result without duplicating slot logic. It adds no dependency or native setup.
+- **Verification:** Focused tests cover time overlap, integer fee/add-on totals, player-versus-walk-in rejection, cancellation release, stock limits and persistence/migration. The cross-role screen test creates a vendor walk-in, then verifies checkout cannot reserve that same slot.
+- **Limitations:** Availability is local to one device and cannot coordinate with a real venue or another device. Venue and customer data are demonstration records.
+
+### 16. Matchmaking rooms, local chat and tournament records
+
+- **Feature/concept:** Public/private game rooms, local messages, split amounts, tournament registration and a demo leaderboard.
+- **Why needed:** PROMPT5 requires interactive community journeys while expressly forbidding Firebase, WebSockets, Socket.IO and a backend.
+- **What it does:** Redux stores rooms, members, messages, conversations, split shares, tournaments and deterministic leaderboard rows. Pure helpers protect capacity/private-code checks and make split rounding sum exactly to the whole-PKR total. AsyncStorage writes those records through the existing venue-data snapshot.
+- **Course scope/current stack:** `FlatList`, controlled fields, hooks, React Navigation, Redux Toolkit, AsyncStorage, JavaScript arrays/objects and Flexbox are already part of the course/project. No chat, payment, tournament or chart library is needed.
+- **Options considered:** Add a backend or realtime transport; show a noninteractive visual mock; or keep state local and clearly label all operations as a device-only demo.
+- **Choice and scope:** Use local Redux/AsyncStorage records. Chat shows “Local demo chat — messages do not sync across devices”; split screens say no money is transferred; tournament standings are seeded and do not change when a player joins. This keeps the app inside the explicit frontend-only boundary.
+- **Verification:** Focused tests cover wrong private codes, room/tournament capacity, local message reopening and exact split sums. A UI test verifies private-code feedback, message send/reopen, split save and tournament join.
+- **Limitations:** No messages reach another person or device, no push notifications are sent, no payment reminder is delivered, and seeded standings are not official results.
+
+### 17. Figma CSS export and typography
+
+- **Feature/concept:** Apply the attached frame/layout rules to the new booking and community screens.
+- **Reference:** The local `figma_design` text export includes 390 × 844 frames for booking confirmation, matchmaking, bookings, equipment, chat, public/private rooms, split payments, tournaments/leaderboard and vendor booking management. It supplies the recurring green `#1A8F57`, pale gray canvas, white cards, slate text and rounded card geometry.
+- **Choice and scope:** Reuse the existing shared theme/context and `StyleSheet`/Flexbox patterns; set the shared medium radius to the export's common 14 px value. One targeted `get_design_context` request for the supplied `1:2` frame was rejected by the Figma MCP Starter-plan tool-call limit before it returned a screenshot or node context. I did not retry or request separate frames because the attached CSS export contains the relevant layer/style data and the user asked to conserve Figma quota.
+- **Typography limitation:** The CSS names Inter, but the local export has no font asset and the app does not bundle Inter. Use the platform-native font rather than introducing an unrequested font dependency/native asset setup. Colors, spacing, frame proportions and card treatments remain implemented from the export.
+- **Verification:** Source review checked the attached frame names, dimensions and recurring color/radius values against the shared tokens and new screen styles. The rate-limited MCP request prevented screenshot comparison; no live device was attached for an additional visual walkthrough.
+
+### 18. Lecture 11 scope check
+
+- **Covered directly:** React Native core views/text/pressables/inputs, `StyleSheet`, Flexbox, controlled input state, `useEffect`/`useMemo`/`useRef`, `FlatList`, navigation, Redux/React Redux, AsyncStorage, reusable props, accessibility/test IDs and pure calculations.
+- **No additional out-of-course dependency or native concept was introduced.** The Redux thunk noted above is the only small implementation pattern beyond the lecture recap; its purpose and trade-off are recorded in decision 15.
+- **Intentionally not added:** Realtime sockets/backend chat, real payments, a payment SDK, online tournament services, a date-picker dependency, new animation libraries, audio playback, GPS/maps provider, or an Inter font package. They are unnecessary for PROMPT4/5 or explicitly prohibited by the frontend-only brief.
+
+### Day 4–5 verification results
+
+- `npm test -- --runInBand` passed: 8 suites / 36 tests.
+- `./node_modules/.bin/react-native bundle --platform android --dev false --entry-file index.js --bundle-output /tmp/playspot-prompt45-final.bundle --assets-dest /tmp/playspot-prompt45-final-assets` passed and copied 19 assets.
+- `./gradlew :app:assembleDebug` from `android/` passed. Gradle reported a deprecation notice for future Gradle 10 compatibility.
+- Editor diagnostics found no errors and `git diff --check` passed.
+- `adb devices -l` showed no connected device, so a live emulator walkthrough was unavailable. React Native Testing Library exercised the main player/vendor and community interactions.

@@ -158,6 +158,19 @@ export default function VendorDashboardScreen({ navigation }) {
           />
         ) : null}
 
+        <View style={[styles.toolsCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+          <Text style={[styles.toolsTitle, { color: colors.ink }]}>Bookings and availability</Text>
+          <Text style={[styles.detail, { color: colors.inkSoft }]}>Player reservations and walk-ins share the same slot availability.</Text>
+          <View style={styles.toolsRow}>
+            <AppButton title="Availability" testID="vendor-open-availability" variant="secondary" onPress={() => navigation.navigate('VendorAvailability', { venueId: venue?.id })} style={styles.toolButton} textStyle={styles.toolButtonText} />
+            <AppButton title="Bookings" testID="vendor-open-bookings" variant="secondary" onPress={() => navigation.navigate('VendorBookings')} style={styles.toolButton} textStyle={styles.toolButtonText} />
+          </View>
+          <View style={styles.toolsRow}>
+            <AppButton title="Record walk-in" testID="vendor-open-walkin" onPress={() => navigation.navigate('ManualWalkInBooking', { venueId: venue?.id })} style={styles.toolButton} textStyle={styles.toolButtonText} />
+            <AppButton title="Messages" testID="vendor-open-chat" variant="secondary" onPress={() => navigation.navigate('ChatInbox')} style={styles.toolButton} textStyle={styles.toolButtonText} />
+          </View>
+        </View>
+
         <View style={[styles.demoCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
           <Text style={[styles.demoEyebrow, { color: colors.primary }]}>LOCAL DEMO DATA</Text>
           <Text style={[styles.demoTitle, { color: colors.ink }]}>Profile saved on this device</Text>
@@ -214,6 +227,11 @@ const styles = StyleSheet.create({
   price: { fontSize: 11, fontWeight: '900', marginTop: 5 },
   demoCard: { borderWidth: 1, padding: 16, marginBottom: 18 },
   manageButton: { marginBottom: 16 },
+  toolsCard: { borderWidth: 1, padding: 14, marginBottom: 16 },
+  toolsTitle: { fontSize: 15, fontWeight: '900' },
+  toolsRow: { flexDirection: 'row', gap: 8, marginTop: 9 },
+  toolButton: { flex: 1, minHeight: 44, paddingHorizontal: 6 },
+  toolButtonText: { fontSize: 11 },
   demoEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   demoTitle: { fontSize: 15, fontWeight: '800', marginTop: 7 },
   demoCopy: { fontSize: 12, lineHeight: 18, marginTop: 5 },

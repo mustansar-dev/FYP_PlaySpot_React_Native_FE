@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createDemoCommunityState } from '../data/demoCommunityData';
 import { createDemoVenueState } from '../data/demoVenueData';
+import { createSlotsForGround, getNextBookableDates, parseLocalDateKey } from '../utils/booking';
 
 export const VENUE_STORAGE_KEY = 'playspot-pk.venue-data.v1';
 
-function isValidVenueState(value) {
+function hasValidVenueCollections(value) {
   const hasCollections = Boolean(
     value &&
       value.version === 1 &&
@@ -52,19 +54,73 @@ function isValidVenueState(value) {
   );
 }
 
+function hasValidCommunityData(value) {
+  return Boolean(value &&
+    Array.isArray(value.rooms) &&
+    Array.isArray(value.conversations) &&
+    Array.isArray(value.messages) &&
+    Array.isArray(value.tournaments) &&
+    Array.isArray(value.leaderboard) &&
+    Array.isArray(value.splits));
+}
+
+function hasValidBookings(value) {
+  return Array.isArray(value) && value.every(booking => Boolean(
+    booking && booking.id && ['player', 'walk-in'].includes(booking.source) &&
+    ['confirmed', 'cancelled', 'pending'].includes(booking.status) && booking.slotId &&
+    booking.groundId && booking.venueId && booking.date && booking.startTime && booking.endTime &&
+    Array.isArray(booking.addOns) && Number.isInteger(booking.totalPKR) && booking.totalPKR >= 0,
+  ));
+}
+
+function withUpcomingSlots(data) {
+  const slots = [...data.slots];
+  const dates = getNextBookableDates(new Date(), 7);
+  data.grounds.filter(ground => ground.isActive !== false).forEach(ground => {
+    dates.forEach(({ dateKey }) => {
+      const hasDay = slots.some(slot => slot.groundId === ground.id && slot.date === dateKey);
+      if (!hasDay) {
+        const date = parseLocalDateKey(dateKey);
+        slots.push(...createSlotsForGround(ground, 1, undefined, undefined, date));
+      }
+    });
+  });
+  return { ...data, slots };
+}
+
+function normalizeStoredData(value) {
+  if (!hasValidVenueCollections(value)) return null;
+  const sourceCommunity = hasValidCommunityData(value.community)
+    ? value.community
+    : createDemoCommunityState();
+  const community = {
+    rooms: sourceCommunity.rooms,
+    conversations: sourceCommunity.conversations,
+    messages: sourceCommunity.messages,
+    tournaments: sourceCommunity.tournaments,
+    leaderboard: sourceCommunity.leaderboard,
+    splits: sourceCommunity.splits,
+  };
+  const bookings = hasValidBookings(value.bookings) ? value.bookings : [];
+  const normalized = withUpcomingSlots({ ...value, bookings, community });
+  return hasValidCommunityData(normalized.community) && Array.isArray(normalized.bookings)
+    ? normalized
+    : null;
+}
+
 export async function loadVenueData() {
   let raw;
   try {
     raw = await AsyncStorage.getItem(VENUE_STORAGE_KEY);
   } catch (error) {
     return {
-      data: createDemoVenueState(),
+      data: normalizeStoredData(createDemoVenueState()),
       notice: 'Venue data could not be read. Fictional demo venues are shown for this session.',
     };
   }
 
   if (raw === null) {
-    const data = createDemoVenueState();
+    const data = normalizeStoredData(createDemoVenueState());
     try {
       await AsyncStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(data));
       return { data, notice: null };
@@ -75,14 +131,19 @@ export async function loadVenueData() {
 
   try {
     const parsed = JSON.parse(raw);
-    if (isValidVenueState(parsed)) {
-      return { data: parsed, notice: null };
+    const data = normalizeStoredData(parsed);
+    if (data) {
+      const upgraded = !hasValidBookings(parsed.bookings) || !hasValidCommunityData(parsed.community);
+      return {
+        data,
+        notice: upgraded ? 'Local booking and community demo data is ready on this device.' : null,
+      };
     }
   } catch (error) {
     // Replace malformed local demo data with a fresh fixture set below.
   }
 
-  const data = createDemoVenueState();
+  const data = normalizeStoredData(createDemoVenueState());
   try {
     await AsyncStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
@@ -92,8 +153,9 @@ export async function loadVenueData() {
 }
 
 export async function saveVenueData(data) {
-  if (!isValidVenueState(data)) {
+  const normalized = normalizeStoredData(data);
+  if (!normalized) {
     throw new Error('Venue data could not be saved because its structure is incomplete.');
   }
-  await AsyncStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(data));
+  await AsyncStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(normalized));
 }

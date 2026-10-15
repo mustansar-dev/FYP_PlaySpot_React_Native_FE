@@ -1,3 +1,5 @@
+import { createSlotsForGround } from '../utils/booking';
+
 const makeId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 /** Converts a vendor registration draft into normalized persistent records. */
@@ -59,27 +61,7 @@ export function createVendorVenueRecords(profile, ownerUserId) {
     quantityAvailable: Number(item.quantityAvailable),
     active: true,
   }));
-  const slots = grounds.flatMap(ground => {
-    const duration = ground.slotDurationMinutes;
-    return Array.from({ length: 7 }, (_, dayIndex) => {
-      const date = new Date();
-      date.setDate(date.getDate() + dayIndex + 1);
-      const dateKey = date.toISOString().slice(0, 10);
-      return Array.from({ length: Math.floor(8 * 60 / duration) }, (_, index) => {
-        const minuteOfDay = 9 * 60 + index * duration;
-        const endMinute = minuteOfDay + duration;
-        const format = minutes => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-        return {
-          id: `${ground.id}-${dateKey}-${format(minuteOfDay)}`,
-          groundId: ground.id,
-          date: dateKey,
-          startTime: format(minuteOfDay),
-          endTime: format(endMinute),
-          status: 'available',
-        };
-      });
-    }).flat();
-  });
+  const slots = grounds.flatMap(ground => createSlotsForGround(ground));
 
   return { vendorProfile, venue, grounds, equipment, slots };
 }

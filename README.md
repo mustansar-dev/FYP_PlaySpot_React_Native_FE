@@ -31,20 +31,53 @@ The app still has no map, GPS permission flow, player discovery screen, booking 
 
 ## Day 3 status: player discovery, venue details and reviews
 
-- Player Home now includes sport shortcuts, a local search entry, nearby published venues, map entry, and room/tournament shortcuts. There is no booking data in the current store, so an upcoming booking card is omitted until that flow exists.
+- Player Home includes sport shortcuts, local search, nearby published venues, map entry, and connected room/tournament shortcuts. Day 4 adds an upcoming booking card when a confirmed player reservation exists.
 - Venue Search filters the persisted published venues by text, sport, maximum hourly price, minimum review rating, approximate distance from the selected Lahore center, indoor/outdoor type, and nearest/rating/price sort. Empty results include reset actions.
 - Venue Details reads current venue, ground, inventory and review records from Redux. It shows venue photos when local URIs exist and uses the existing offline `VenueArtwork` otherwise. Review aggregates are calculated from the actual review list.
 - Players can submit a 1–5 star rating and an 8-character minimum comment. Reviews update Redux and are written by the existing `playspot-pk.venue-data.v1` persistence listener.
 - Venue Map is an offline schematic with approximate demo markers and manually selectable Lahore, Gulberg, DHA and Johar Town map centers. It does not use GPS, native map tiles or a map API key; the UI labels this clearly. Distances use a pure haversine helper.
 - The shared theme now follows the supplied `figma_design` export's green, pale gray, white, slate and orange tokens. The exported nearby/search/details layouts informed the screen hierarchy and card/filter styling.
 
-Booking, GPS/map-provider integration, chat, rooms and tournaments remain future work. The venue booking CTA explains that booking is not connected yet instead of creating a fake reservation.
+At the Day 3 checkpoint, booking and community flows were future work. Day 4 and Day 5 below connect them using local demo state. GPS and map-provider integration remain future work.
 
 ### Day 3 checks
 
 - `npm.cmd test -- --runInBand` — passed: 5 suites / 20 tests. Coverage includes haversine distance and ordering, changed search filters and empty/reset states, marker selection and details navigation, manual location fallback, review submission and AsyncStorage round-trip, plus the existing vendor registration/edit/reload flow.
 - `node_modules\.bin\react-native.cmd bundle --platform android --dev false --entry-file index.js --bundle-output "%TEMP%\playspot-day3.bundle" --assets-dest "%TEMP%\playspot-day3-assets"` — passed; wrote the Android JavaScript bundle and copied 19 assets.
 - `git diff --check` — passed. No Android device/OS location permission flow was exercised. This build has no GPS provider, so location-denied behavior is covered through the clearly labeled manual-location fallback; there is no OS permission prompt to deny.
+
+## Day 4 status: booking, equipment and vendor walk-ins
+
+- Players can select a ground/court and a date from today through the next seven days, choose an available future slot, add optional equipment, review integer PKR totals, and finish with pay-at-venue or clearly simulated payment.
+- My Bookings and Booking Details show confirmed, completed and cancelled records. Cancelling an active reservation releases its slot and add-on stock in local state.
+- Vendors can view the same slot records, manage availability, list player bookings and walk-ins together, and record a manual walk-in with customer name, optional contact and a local paid/unpaid marker.
+- Player checkout and vendor walk-ins go through the same `reserveBooking` operation. It rechecks ground/date/overlapping time and stock immediately before saving, so an active walk-in blocks player checkout for that interval.
+- Booking and slot data use Redux and the existing `playspot-pk.venue-data.v1` persistence adapter. Legacy venue-only snapshots are upgraded with booking/community collections, and generated availability covers eight local calendar dates.
+
+## Day 5 status: matchmaking, local chat, split totals and tournaments
+
+- Players can filter public/private game rooms by sport, time and location, create rooms, join/leave, and see full-capacity and private-code errors.
+- Chat Inbox and Conversation support saved local messages, timestamps and unread counts. The screen says messages do not sync across devices.
+- Split Payment supports equal or edited whole-PKR shares, verifies that shares exactly equal the total, and stores local paid/unpaid demo status. It never moves money.
+- Players can list, create and join/leave tournaments with capacity checks. The leaderboard shows deterministic seeded demo points and wins; joining a tournament does not change those standings.
+- Community records share the local persistence snapshot with venues and bookings. The Figma CSS export informed the frame spacing, rounded white cards, green actions and neutral text/surface palette. Existing theme tokens were reused; no Figma assets, new dependencies, native configuration or API keys were needed.
+- Navigation registers 35 unique screen names including the startup boot screen, for 34 reachable guest/player/vendor feature routes.
+
+### Day 4–5 checks
+
+- `npm test -- --runInBand` — passed: 8 suites / 36 tests, including shared booking conflicts, walk-in/player cross-role flow, add-on stock and totals, local chat reopen, private room codes, split rounding, tournament joins and storage migration.
+- `./node_modules/.bin/react-native bundle --platform android --dev false --entry-file index.js --bundle-output /tmp/playspot-prompt45-final.bundle --assets-dest /tmp/playspot-prompt45-final-assets` — passed; wrote the Android JavaScript bundle and copied 19 assets.
+- `./gradlew :app:assembleDebug` (from `android/`) — passed. Gradle emitted an existing Gradle 10 deprecation notice.
+- Editor diagnostics and `git diff --check` — passed. `adb devices -l` returned no connected device, so a live emulator/device walkthrough was unavailable in this run; interactive paths were exercised with React Native Testing Library.
+
+## Course concepts used in the Day 4 and Day 5 flows
+
+- Controlled fields, inline validation and keyboard handling: [CommunityScreens.js](./src/screens/CommunityScreens.js) and [FormField.js](./src/components/FormField.js).
+- `FlatList`, stable keys and empty states: room, chat, tournament, leaderboard and booking lists in [CommunityScreens.js](./src/screens/CommunityScreens.js) and [BookingScreens.js](./src/screens/BookingScreens.js).
+- Redux Toolkit and selectors: booking state in [venueSlice.js](./src/store/venueSlice.js), community state in [communitySlice.js](./src/store/communitySlice.js), and vendor/player booking selectors in [bookingSelectors.js](./src/store/selectors/bookingSelectors.js).
+- AsyncStorage persistence and migration: [venueStorage.js](./src/services/venueStorage.js), coordinated by [App.js](./src/App.js).
+- Reusable props, Flexbox, `StyleSheet`, accessibility labels and `testID`: [DesignPrimitives.js](./src/components/DesignPrimitives.js), [BookingScreens.js](./src/screens/BookingScreens.js), and [CommunityScreens.js](./src/screens/CommunityScreens.js).
+- Pure pricing, availability, room-capacity and split-rounding functions: [booking.js](./src/utils/booking.js) and [community.js](./src/utils/community.js).
 
 ## Setup and run
 
@@ -72,7 +105,7 @@ The versioned AsyncStorage key `playspot-pk.auth.v1` stores the demo account rec
 
 Vendor media is optional. Selected photos/video remain device-local URIs; there is no upload service. GPS/location is not requested during Day 1 registration; address and area are entered manually. The welcome marquee uses bundled-in-code sport illustrations and does not depend on a remote image URL.
 
-The venue persistence key stores demo profiles, venues, grounds, inventory, slots, and reviews. It does not contain passwords. New vendor profiles use `pending-demo`; seeded profiles use `demo-approved` only to illustrate local state, not real verification.
+The local domain persistence key stores demo profiles, venues, grounds, inventory, slots, reviews, bookings, game rooms, chat messages, split plans, tournaments and seeded leaderboard rows. It does not contain passwords. Existing venue-only snapshots are upgraded with empty bookings and seeded community examples. New vendor profiles use `pending-demo`; seeded profiles use `demo-approved` only to illustrate local state, not real verification.
 
 ## Checks run for Day 1
 

@@ -29,7 +29,7 @@ export const theme = {
   },
   radius: {
     sm: 10,
-    md: 16,
+    md: 14,
     lg: 24,
     pill: 999,
   },

@@ -13,6 +13,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { configureStore } from '@reduxjs/toolkit';
 import { createDemoVenueState } from '../data/demoVenueData';
+import { toLocalDateKey } from '../utils/booking';
 import { selectEquipmentByVenueId, selectGroundsByVenueId, selectPublishedVenues, selectVenueById } from '../store/selectors/venueSelectors';
 import venueReducer, { venueCreated, venueUpdated, venuesHydrated } from '../store/venueSlice';
 import { createVendorVenueRecords } from './vendorVenueFactory';
@@ -51,7 +52,7 @@ test('vendor records use stable relationships and include the configured duratio
   expect(records.equipment[0].venueId).toBe(records.venue.id);
   expect(records.equipment[0].priceMode).toBe('rental');
   expect(records.venue.latitude).toBeNull();
-  expect(records.slots).toHaveLength(112);
+  expect(records.slots).toHaveLength(128);
   expect(records.slots[0].endTime).toBe('09:30');
 });
 
@@ -79,6 +80,36 @@ test('malformed venue data resets safely to fictional fixtures', async () => {
   const restored = await loadVenueData();
   expect(restored.data.venues).toHaveLength(8);
   expect(restored.notice).toMatch(/unreadable/i);
+});
+
+test('booking and community records share the central local persistence adapter', async () => {
+  const initial = await loadVenueData();
+  const slot = initial.data.slots.find(item => item.status === 'available');
+  const booking = {
+    id: 'booking-roundtrip-1', source: 'walk-in', status: 'confirmed', paymentMode: 'manual-cash', paymentStatus: 'unpaid',
+    venueId: 'venue-demo-gulberg', venueName: 'Greenline Futsal Club', groundId: slot.groundId, groundName: 'Futsal Court 1',
+    slotId: slot.id, date: slot.date, startTime: slot.startTime, endTime: slot.endTime, durationMinutes: 60,
+    playerUserId: null, vendorUserId: 'demo-vendor-001', customerName: 'Round Trip', customerContact: null,
+    groundFeePKR: 4500, addOns: [], addOnsTotalPKR: 0, totalPKR: 4500, createdAt: new Date().toISOString(),
+  };
+  const community = {
+    ...initial.data.community,
+    messages: [...initial.data.community.messages, { id: 'message-roundtrip-1', conversationId: 'conversation-demo-team', senderId: 'demo-player-001', senderName: 'Amina', body: 'Saved locally', createdAt: new Date().toISOString() }],
+  };
+  await saveVenueData({ ...initial.data, bookings: [booking], community });
+  const restored = await loadVenueData();
+  expect(restored.data.bookings[0].id).toBe('booking-roundtrip-1');
+  expect(restored.data.community.messages.some(message => message.body === 'Saved locally')).toBe(true);
+});
+
+test('legacy venue-only snapshots are upgraded with local community data and eight-day slots', async () => {
+  const legacy = createDemoVenueState();
+  await AsyncStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(legacy));
+  const restored = await loadVenueData();
+  expect(restored.data.bookings).toEqual([]);
+  expect(restored.data.community.rooms.length).toBeGreaterThan(0);
+  expect(restored.notice).toMatch(/booking and community/i);
+  expect(restored.data.slots.some(slot => slot.date === toLocalDateKey())).toBe(true);
 });
 
 test('demo venue factory has related entities and correctly labels local approval state', () => {
