@@ -21,6 +21,7 @@ import {
   registerAccount,
   restoreSession,
   signIn,
+  updateAccountProfile,
 } from './authRepository';
 import { validatePlayerRegistration, validateVendorStep } from '../utils/validation';
 
@@ -121,6 +122,26 @@ test('incorrect password is rejected and corrupted JSON is safely reset', async 
   expect(restored.user).toBeNull();
   expect(restored.accounts).toHaveLength(2);
   expect(restored.storageNotice).toMatch(/unreadable/i);
+});
+
+test('profile editing persists only allowed public profile fields', async () => {
+  const initial = await restoreSession();
+  const account = initial.accounts.find(item => item.role === 'vendor');
+  const result = await updateAccountProfile(account.id, {
+    name: 'Bilal Updated',
+    phone: '0300 555 1234',
+    businessName: 'Updated Demo Courts',
+    passwordHash: 'must-not-change',
+    email: 'changed@example.com',
+  });
+  const reloaded = await restoreSession();
+  const persisted = JSON.parse(await AsyncStorage.getItem(STORAGE_KEY));
+  const saved = persisted.accounts.find(item => item.id === account.id);
+
+  expect(result.account.name).toBe('Bilal Updated');
+  expect(result.account.email).toBe(account.email);
+  expect(reloaded.accounts.find(item => item.id === account.id).businessName).toBe('Updated Demo Courts');
+  expect(saved.passwordHash).toBe(account.passwordHash);
 });
 
 test('player and vendor step validation rejects missing required data', () => {

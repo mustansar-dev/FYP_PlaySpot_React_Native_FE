@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,6 +9,8 @@ import { useTheme } from '../context/ThemeContext';
 import { endSession } from '../services/authRepository';
 import { sessionEnded } from '../store/authSlice';
 import { selectEquipmentByVenueId, selectGroundsByVenueId, selectVendorProfileById, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
+import { selectBookingsForVendor } from '../store/selectors/bookingSelectors';
+import { buildVendorAnalytics, calculateTodayAndUpcomingBookings } from '../utils/vendorAnalytics';
 
 export default function VendorDashboardScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -19,8 +21,16 @@ export default function VendorDashboardScreen({ navigation }) {
   const venues = useSelector(state => selectVenuesByOwnerId(state, currentUser?.id || ''));
   const venue = venues[0] || null;
   const grounds = useSelector(state => selectGroundsByVenueId(state, venue?.id));
+  const allVendorGrounds = useSelector(state => state.venues.grounds.filter(ground => venues.some(item => item.id === ground.venueId)));
   const equipment = useSelector(state => selectEquipmentByVenueId(state, venue?.id));
   const vendorProfile = useSelector(state => selectVendorProfileById(state, venue?.vendorId));
+  const bookings = useSelector(state => selectBookingsForVendor(state, currentUser?.id || ''));
+  const vendorVenueIds = venues.map(item => item.id);
+  const allGroundIds = new Set(allVendorGrounds.map(ground => ground.id));
+  const slots = useSelector(state => state.venues.slots.filter(slot => allGroundIds.has(slot.groundId)));
+  const analytics = useMemo(() => buildVendorAnalytics({ bookings, grounds: allVendorGrounds, slots }), [bookings, allVendorGrounds, slots]);
+  const currentMonth = analytics[analytics.length - 1];
+  const bookingCounts = useMemo(() => calculateTodayAndUpcomingBookings(bookings, vendorVenueIds), [bookings, venues]);
   const venueStorageNotice = useSelector(state => state.venues.storageNotice);
 
   const logout = async () => {
@@ -45,7 +55,7 @@ export default function VendorDashboardScreen({ navigation }) {
           </View>
           <Text style={[styles.brand, { color: colors.ink }]}>PlaySpot <Text style={{ color: colors.primary }}>PK</Text></Text>
           <View style={[styles.roleBadge, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}>
-            <Text style={[styles.roleBadgeText, { color: colors.primaryDark }]}>VENUE PROVIDER</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Open profile" testID="vendor-open-profile" onPress={() => navigation.navigate('Profile')}><Text style={[styles.roleBadgeText, { color: colors.primaryDark }]}>PROFILE · VENUE PROVIDER</Text></Pressable>
           </View>
         </View>
 
@@ -158,6 +168,20 @@ export default function VendorDashboardScreen({ navigation }) {
           />
         ) : null}
 
+        <View style={[styles.metricsCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+          <Text style={[styles.toolsTitle, { color: colors.ink }]}>Business snapshot · local demo</Text>
+          <View style={styles.metricRow}>
+            <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{bookingCounts.today}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>TODAY</Text></View>
+            <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{bookingCounts.upcoming}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>UPCOMING</Text></View>
+            <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{currentMonth.bookings}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>THIS MONTH</Text></View>
+          </View>
+          <Text style={[styles.detail, { color: colors.inkSoft }]}>Booked value PKR {currentMonth.revenuePKR.toLocaleString()} · occupancy {currentMonth.occupancyPercent}%</Text>
+          <View style={styles.toolsRow}>
+            <AppButton title="Analytics" testID="vendor-open-analytics" variant="secondary" onPress={() => navigation.navigate('VendorAnalytics')} style={styles.toolButton} textStyle={styles.toolButtonText} />
+            <AppButton title="Reviews" testID="vendor-open-reviews" variant="secondary" onPress={() => navigation.navigate('VendorReviews')} style={styles.toolButton} textStyle={styles.toolButtonText} />
+          </View>
+        </View>
+
         <View style={[styles.toolsCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
           <Text style={[styles.toolsTitle, { color: colors.ink }]}>Bookings and availability</Text>
           <Text style={[styles.detail, { color: colors.inkSoft }]}>Player reservations and walk-ins share the same slot availability.</Text>
@@ -219,6 +243,7 @@ const styles = StyleSheet.create({
   venueName: { fontSize: 19, lineHeight: 25, fontWeight: '900', marginTop: 10 },
   detail: { fontSize: 11, lineHeight: 18, marginTop: 4 },
   metricRow: { flexDirection: 'row', gap: 8, marginTop: 15 },
+  metricsCard: { borderWidth: 1, padding: 14, marginBottom: 16 },
   metric: { flex: 1, alignItems: 'center', paddingVertical: 11 },
   metricValue: { fontSize: 19, fontWeight: '900' },
   metricLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 0.6, marginTop: 2 },

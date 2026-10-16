@@ -123,3 +123,43 @@ Tested tool versions: Node.js `22.17.0`, npm `10.9.2`, and Java `17.0.20.1`. The
 - `node_modules\\.bin\\react-native.cmd bundle --platform android --dev false --entry-file index.js --bundle-output %TEMP%\\playspot-day2-final.bundle --assets-dest %TEMP%\\playspot-day2-final-assets` — passed; wrote the JavaScript bundle and copied 19 asset files.
 - `npm.cmd run android -- --no-packager` — blocked: `adb` is unavailable, no emulator is listed, and the CLI could not invoke `gradlew.bat`. `ANDROID_HOME`/`ANDROID_SDK_ROOT` and `android/local.properties` are absent in this Windows environment.
 - The registration/edit/restart path was exercised through React Native Testing Library. A physical-device interaction could not be performed in this environment because no Android SDK/emulator is available; the media picker itself was left skipped as optional in that UI flow.
+
+## Day 6: Vendor operations and account tools
+
+- Vendor Dashboard shows today's/upcoming bookings and current-month booked value and occupancy from local records. Vendor Analytics shows six historical seeded months plus the current month for bookings, booked value and occupancy.
+- Vendors can read reviews for their venues and open the existing venue editor to update grounds and inventory. Profile, Edit Profile, Notifications and Settings routes are available to authenticated roles; profile edits persist locally. The light/dark appearance control applies for the current app session.
+- The single role-gated React Navigation native stack remains in place. Vendor analytics, reviews and inventory routes are registered only for vendors. No dependency or Android native configuration was added.
+
+## Course Concepts → Where Used
+
+- **React Native components, JSX, props and reusable UI:** [DesignPrimitives.js](./src/components/DesignPrimitives.js), [AppButton.js](./src/components/AppButton.js), [FormField.js](./src/components/FormField.js), and screen modules. `DesignCard` composes `children`; buttons and fields receive values and callbacks as props.
+- **JavaScript arrays/objects, immutable updates and pure functions:** [booking.js](./src/utils/booking.js), [community.js](./src/utils/community.js), [venueDiscovery.js](./src/utils/venueDiscovery.js), and [vendorAnalytics.js](./src/utils/vendorAnalytics.js) handle availability, totals, filters, rating, room capacity and reports outside the UI.
+- **StyleSheet, Flexbox, conditional rendering and accessibility:** used throughout `src/screens/` and `src/components/`; `DesignPrimitives.js` supplies shared empty and notice states. Primary inputs/actions include accessibility labels and test IDs.
+- **Hooks:** controlled inputs use `useState`; app hydration and storage subscriptions use `useEffect` in [App.js](./src/App.js); derived lists/reports use `useMemo`; refs and cleanup support the built-in marquee in [WelcomeScreen.js](./src/screens/WelcomeScreen.js); [ThemeContext.js](./src/context/ThemeContext.js) uses `useContext` for appearance. `useCallback` is used where stable list handlers help, rather than on every function.
+- **ScrollView and FlatList with stable keys:** venue search, venue cards, booking lists and community rooms/chats/tournaments use record IDs as keys. Long forms/details use `ScrollView` with empty/error/validation feedback.
+- **Navigation and route params:** [RootNavigator.js](./src/navigation/RootNavigator.js) owns one `NavigationContainer`, native stack routes, hydration gating and role-specific registration. Details use ID params. This app demonstrates Stack navigation; Bottom Tabs and Drawer are documented as intentionally unimplemented.
+- **Redux Toolkit and React Redux:** [store.js](./src/store/store.js), auth/venue/community slices and [selectors](./src/store/selectors/) hold shared session, venue, booking and community data. Local input/error state stays in screens.
+- **AsyncStorage:** [authStorage.js](./src/services/authStorage.js) and [venueStorage.js](./src/services/venueStorage.js) provide versioned demo account and business-data persistence. Screens do not write domain state directly to AsyncStorage.
+- **Forms and keyboard flow:** `FormField.js`, [VendorRegistrationScreen.js](./src/screens/VendorRegistrationScreen.js), [BookingScreens.js](./src/screens/BookingScreens.js), and [AccountScreens.js](./src/screens/AccountScreens.js) use controlled inputs, validation/guarded submit handlers, feedback and loading states.
+- **Animation and media:** [WelcomeScreen.js](./src/screens/WelcomeScreen.js) uses built-in Animated and stops its loop on unmount. [VendorVenueManagementScreen.js](./src/screens/VendorVenueManagementScreen.js) reuses the installed picker for optional local media. No Reanimated gesture or audio package was added.
+- **Demo boundaries:** chat, payments, venue locations, reviews, bookings and historical analytics are local examples. There is no real server, GPS/map tiles, email delivery, payment transfer, push notification or multi-device chat.
+
+## 5–7 minute demo order
+
+1. Open Welcome and show the sports marquee, then sign in with the fictional Player account below.
+2. Search/filter a sport, inspect a venue and reviews, then show the offline map and manual Lahore-area selection.
+3. Reserve an available slot, add equipment, show the PKR total and complete a pay-at-venue demo booking.
+4. Log out and sign in with the fictional Venue Provider account. Open bookings and record a walk-in to demonstrate shared availability.
+5. Show Analytics and explain the six seeded history months versus current local values. Visit reviews, profile editing, notifications and the appearance control.
+6. Return to Player, show a game room/chat/tournament and point out local-chat and simulated-payment labels.
+
+## Day 7: Final integration and QA
+
+QA run on 16 October 2026 in Windows PowerShell with Node.js/npm from the current workspace:
+
+- `npm.cmd test -- --runInBand --testTimeout=20000` — passed: 9 suites / 39 tests.
+- Android JavaScript bundle — passed: `node_modules\.bin\react-native.cmd bundle --platform android --dev false --entry-file index.js --bundle-output $env:TEMP\playspot-prompt67-final.bundle --assets-dest $env:TEMP\playspot-prompt67-final-assets`; Metro copied 19 assets.
+- Route audit — 42 unique `Stack.Screen` route names across guest/player/vendor branches (49 declarations including role-specific duplicates and the boot screen). Player and vendor branches register separate route sets.
+- `git diff --check` — passed. `package.json` has no lint or typecheck script.
+- Android Gradle build/device launch — not verified. Gradle 9.3.1 downloaded, but the build emitted no task output while running and was stopped after several minutes. This workspace has Java 23 (project setup documents JDK 17), no `ANDROID_HOME`/`ANDROID_SDK_ROOT`, no `android/local.properties`, and no `adb` command/device. Set up the project's documented Android SDK/JDK 17 environment and rerun `cd android; .\gradlew.bat :app:assembleDebug`, then `npm run android` with an emulator/device.
+- No live-device walkthrough was possible, so keyboard/rotation/media permission presentation has not been rechecked on a device. The existing automated tests cover core player/vendor/community actions, storage migration and the new analytics calculations/profile persistence.

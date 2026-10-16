@@ -38,7 +38,7 @@ export default function PlayerHomeScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <View><Text style={[styles.brand, { color: colors.primary }]}>PlaySpot</Text><Text style={[styles.location, { color: colors.inkSoft }]}>⌖  Lahore · demo area</Text></View>
-          <View style={[styles.avatar, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}><Text style={[styles.avatarText, { color: colors.primary }]}>{currentUser?.name?.[0]?.toUpperCase() || 'P'}</Text></View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open profile" testID="player-open-profile" onPress={() => navigation.navigate('Profile')} style={[styles.avatar, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}><Text style={[styles.avatarText, { color: colors.primary }]}>{currentUser?.name?.[0]?.toUpperCase() || 'P'}</Text></Pressable>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Search sports venues" testID="player-home-search" onPress={() => openSearch('All')} style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
           <Text style={{ color: colors.inkSoft, fontSize: 17 }}>⌕</Text><Text style={[styles.searchText, { color: colors.inkSoft }]}>Search sport, venue or area</Text><Text style={[styles.searchIcon, { color: colors.primary }]}>⚲</Text>

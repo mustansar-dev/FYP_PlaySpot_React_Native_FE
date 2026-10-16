@@ -29,6 +29,10 @@ const authSlice = createSlice({
       state.currentUser = null;
       state.storageNotice = null;
     },
+    profileUpdated(state, action) {
+      state.accounts = action.payload.accounts;
+      state.currentUser = action.payload.user;
+    },
     clearStorageNotice(state) {
       state.storageNotice = null;
     },
@@ -39,6 +43,7 @@ export const {
   accountRegistered,
   authHydrated,
   clearStorageNotice,
+  profileUpdated,
   sessionEnded,
   sessionStarted,
 } = authSlice.actions;

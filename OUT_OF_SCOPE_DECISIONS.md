@@ -201,3 +201,48 @@ The earlier baseline entry above described the repository before the user pointe
 - `./gradlew :app:assembleDebug` from `android/` passed. Gradle reported a deprecation notice for future Gradle 10 compatibility.
 - Editor diagnostics found no errors and `git diff --check` passed.
 - `adb devices -l` showed no connected device, so a live emulator walkthrough was unavailable. React Native Testing Library exercised the main player/vendor and community interactions.
+
+## PROMPT6–7 update — 16 October 2026
+
+### 19. Vendor analytics and reports
+
+- **Feature/concept:** Show current local booking activity and a six-month bookings, booked-value and occupancy view.
+- **Why needed:** PROMPT6 and the Saturday exit gate require vendor-facing operational metrics and at least six months of clearly labeled example data.
+- **What it does:** `src/utils/vendorAnalytics.js` calculates the current month from confirmed/completed local bookings and the saved schedule's available or booking-reserved slot hours for active grounds. Six preceding months are deterministic fictional fixtures. Occupancy is booked time divided by those listed bookable hours; blocked slots are excluded and a zero denominator yields 0%. Growth is omitted where the comparison month has no usable denominator.
+- **Course scope/current stack:** Uses JavaScript date/array calculations, selectors, `useMemo`, Redux state, and native `View` bars. No chart package, backend, server query, or new dependency is needed.
+- **Choice and scope:** Keep chart rendering native and make the historical fixture/current local data distinction visible in the screen. Revenue is labeled booked value; it does not claim that cash was received.
+- **Verification:** PROMPT7 checks cover unit tests, source review, bundle/Android build availability, formula edge cases and route inventory. See the verification results below; no live device is connected in this environment.
+- **Limitations:** Prior months are invented demo values. Current-month numbers reflect only records on this device and cannot represent a real business report.
+
+### 20. Profile, notifications and theme preference
+
+- **Feature/concept:** Give player and vendor accounts profile edit, notification, settings, and local theme controls.
+- **Why needed:** PROMPT6 explicitly asks for role-aware Profile, Edit Profile, Notifications and Settings screens.
+- **What it does:** Profile edits are validated and saved using the existing versioned auth AsyncStorage adapter; vendor business/contact edits also update the existing Redux venue profile. Notifications are assembled from saved booking, review and conversation records. Theme selection uses the existing React Context and applies for the current app session.
+- **Course scope/current stack:** Controlled `TextInput`, `useState`, `useContext`, Redux actions, AsyncStorage adapter, `ScrollView`, props and shared design components already exist in the project/course toolset. No dependency or native change was added.
+- **Choice and scope:** Keep notification content local and derived from business records; keep the appearance choice session-only rather than introducing another persistence store.
+- **Limitations:** Read/unread state and appearance choice do not survive app restart. No push delivery or operating-system notification permission is claimed. Password/email changes are intentionally excluded from profile editing.
+
+### 21. Navigation concepts not added to this React Native CLI app
+
+- **Course concept:** The lecture recap includes bottom tabs and drawer navigation; the execution prompt says to add a Drawer only if compatible.
+- **Why considered:** The inventory contains more than 25 working role-gated routes, and PROMPT6 asks for navigation coverage without dead links.
+- **Observed constraint:** This app has only `@react-navigation/native` and `@react-navigation/native-stack`; there is no drawer, bottom-tabs, or gesture-handler package. The current single role-aware native stack is stable and keeps vendor-only routes out of the player navigator.
+- **Options considered:** Add Drawer/Tab navigation plus its peer/native dependencies and update Android configuration; or retain the working stack and make profile/settings/analytics reachable via explicit, tested navigation actions.
+- **Choice and scope:** Retain the native stack. New vendor routes are only registered in the vendor branch; player profile routes exist only in the player branch. We did not add packages solely to check a navigation item.
+- **Why this is acceptable:** The concept is in the course, but tabs/drawers are navigation patterns rather than a product requirement. The existing stack covers the course's single container, stack, route params, and role-gating requirements without a new native setup risk.
+- **Limitations:** This project demonstrates Stack navigation, not a Bottom Tab or Drawer navigator.
+
+### 22. Gesture animation, audio and media boundaries
+
+- **Course concept:** The lecture/plan also covers Reanimated/Gesture Handler interaction, audio, camera/gallery and orientation-related material.
+- **Choice and reason:** The app already has a built-in `Animated` welcome marquee with cleanup and a compatible image picker for optional venue media. Reanimated/Gesture Handler, audio playback and orientation-lock packages add no value to the requested vendor operations, and are not installed. We did not add them for checklist coverage. Existing layouts use flexible ScrollViews/Flexbox and the screens honor the supplied 390 × 844 Figma CSS export's shared palette, spacing and card treatment.
+- **Limitations:** No new Reanimated gesture, audio playback, device-orientation lock or additional camera/video flow was implemented. The Figma CSS export is the visual source; Figma MCP was not retried because the prior recorded request was blocked by the account's Starter quota.
+
+### 23. Final QA environment limits
+
+- **Observed:** This Windows workspace has no `ANDROID_HOME`/`ANDROID_SDK_ROOT`, no `android/local.properties`, no `adb` command/device, and only Java 23 is installed (the project README documents JDK 17). `package.json` has `test`, `start` and `android` scripts but no lint or typecheck script.
+- **Choice:** Run the actual Jest test script, Android JavaScript bundle command, `git diff --check`, and route/source checks. Gradle 9.3.1 downloaded after permission was granted, but `:app:assembleDebug` produced no task output for several minutes and was cancelled; do not claim a native build or device launch passed.
+- **Verification:** On 16 October 2026, `npm.cmd test -- --runInBand --testTimeout=20000` passed 9 suites / 39 tests; the Android JS bundle passed and copied 19 assets; route audit found 42 distinct route names; `git diff --check` passed. The SDK-less Gradle build was stopped and `adb` was unavailable.
+- **Limitations:** Automated/source checks cannot replace a live Android walkthrough for keyboard geometry, media-picker permission handling or orientation changes. A configured Android SDK, JDK 17 and emulator/device are required to finish those checks.
+- **Lecture PDF access:** `Lecture11.pdf` is present and was inspected as part of the scope audit. Its slide content is image/vector based; this Windows environment has no PDF text/rendering utility installed. The accompanying `PLAYSPOT_WEEK_PLAN.md` includes the explicit source-derived Lecture 11 topic recap, which was used as the implementation boundary. No additional package or lecture topic was inferred from unread slide visuals.

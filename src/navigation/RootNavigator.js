@@ -21,6 +21,8 @@ import VendorDashboardScreen from '../screens/VendorDashboardScreen';
 import VendorVenueManagementScreen from '../screens/VendorVenueManagementScreen';
 import VendorRegistrationScreen from '../screens/VendorRegistrationScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import { EditProfileScreen, NotificationsScreen, ProfileScreen, SettingsScreen, VendorReviewsScreen } from '../screens/AccountScreens';
+import VendorAnalyticsScreen from '../screens/VendorAnalyticsScreen';
 import {
   BookingDetailsScreen,
   BookingSuccessScreen,
@@ -103,6 +105,10 @@ export default function RootNavigator() {
             <Stack.Screen name="TournamentDetails" component={TournamentDetailsScreen} />
             <Stack.Screen name="CreateTournament" component={CreateTournamentScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         ) : currentUser?.role === 'vendor' ? (
           <>
@@ -114,6 +120,13 @@ export default function RootNavigator() {
             <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
             <Stack.Screen name="ChatInbox" component={ChatInboxScreen} />
             <Stack.Screen name="ChatConversation" component={ChatConversationScreen} />
+            <Stack.Screen name="VendorAnalytics" component={VendorAnalyticsScreen} />
+            <Stack.Screen name="VendorReviews" component={VendorReviewsScreen} />
+            <Stack.Screen name="VendorInventory" component={VendorVenueManagementScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         ) : (
           <>
