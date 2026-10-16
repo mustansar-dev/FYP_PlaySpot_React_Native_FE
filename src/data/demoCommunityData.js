@@ -76,6 +76,13 @@ export function createDemoCommunityState() {
   const conversations = [
     {
       id: 'conversation-demo-venue',
+      kind: 'venue-vendor',
+      venueId: 'venue-demo-gulberg',
+      venueName: 'Greenline Futsal Club',
+      vendorId: 'vendor-demo-gulberg',
+      vendorUserId: 'demo-vendor-001',
+      playerUserId: 'demo-player-001',
+      playerName: 'Amina Shah',
       title: 'Greenline Futsal Club',
       subtitle: 'Venue provider · local demo',
       participantIds: ['demo-player-001', 'demo-vendor-001'],

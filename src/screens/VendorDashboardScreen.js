@@ -59,7 +59,7 @@ export default function VendorDashboardScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={[styles.hero, { backgroundColor: colors.navy, borderRadius: radius.lg }]}>
+        <View style={[styles.hero, { backgroundColor: colors.primary, borderRadius: radius.lg }]}>
           <Text style={[styles.eyebrow, { color: colors.lime }]}>VENDOR DEMO DASHBOARD</Text>
           <Text style={styles.title}>Welcome, {currentUser?.name || 'Provider'}.</Text>
           <Text style={styles.subtitle}>Your venue profile is available on this device.</Text>
@@ -103,7 +103,7 @@ export default function VendorDashboardScreen({ navigation }) {
                 accessibilityRole="button"
                 accessibilityLabel="Open venue video"
                 onPress={() => Linking.openURL(venue.videoUri).catch(() => setError('This video could not be opened on this device.'))}
-                style={[styles.videoProfile, { backgroundColor: colors.navy, borderRadius: radius.md }]}
+                style={[styles.videoProfile, { backgroundColor: colors.primaryDark, borderRadius: radius.md }]}
               >
                 <Text style={styles.videoPlay}>▶</Text>
                 <View style={styles.videoCopy}>
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   brandMark: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
   brandBall: { fontSize: 17, fontWeight: '900' },
-  brand: { fontSize: 18, fontWeight: '900', letterSpacing: -0.3 },
+  brand: { fontSize: 23, fontWeight: '900', letterSpacing: -0.7 },
   roleBadge: { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 7 },
   roleBadgeText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
   hero: { padding: 21, marginBottom: 14 },

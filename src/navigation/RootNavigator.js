@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import {
   DefaultTheme,
   NavigationContainer,
+  useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
@@ -19,6 +20,7 @@ import RegistrationSuccessScreen from '../screens/RegistrationSuccessScreen';
 import RoleSelectionScreen from '../screens/RoleSelectionScreen';
 import VendorDashboardScreen from '../screens/VendorDashboardScreen';
 import VendorVenueManagementScreen from '../screens/VendorVenueManagementScreen';
+import VendorInventoryScreen from '../screens/VendorInventoryScreen';
 import VendorRegistrationScreen from '../screens/VendorRegistrationScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { EditProfileScreen, NotificationsScreen, ProfileScreen, SettingsScreen, VendorReviewsScreen } from '../screens/AccountScreens';
@@ -47,6 +49,7 @@ import {
   TournamentsScreen,
 } from '../screens/CommunityScreens';
 import { theme } from '../theme/tokens';
+import BottomNavBar, { BOTTOM_NAV_ROUTES } from '../components/BottomNavBar';
 
 const Stack = createNativeStackNavigator();
 
@@ -72,12 +75,20 @@ function BootScreen() {
 }
 
 export default function RootNavigator() {
+  const navigationRef = useNavigationContainerRef();
+  const [routeName, setRouteName] = useState(null);
   const { hydrated, currentUser } = useSelector(state => state.auth);
   const venuesHydrated = useSelector(state => state.venues.hydrated);
   const communityHydrated = useSelector(state => state.community.hydrated);
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navigationTheme}
+      onReady={() => setRouteName(navigationRef.getCurrentRoute()?.name || null)}
+      onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name || null)}
+    >
+      <View style={styles.navigatorShell}>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {!hydrated || !venuesHydrated || !communityHydrated ? (
           <Stack.Screen name="Boot" component={BootScreen} />
@@ -122,7 +133,7 @@ export default function RootNavigator() {
             <Stack.Screen name="ChatConversation" component={ChatConversationScreen} />
             <Stack.Screen name="VendorAnalytics" component={VendorAnalyticsScreen} />
             <Stack.Screen name="VendorReviews" component={VendorReviewsScreen} />
-            <Stack.Screen name="VendorInventory" component={VendorVenueManagementScreen} />
+            <Stack.Screen name="VendorInventory" component={VendorInventoryScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
@@ -140,11 +151,20 @@ export default function RootNavigator() {
           </>
         )}
       </Stack.Navigator>
+      {currentUser && BOTTOM_NAV_ROUTES.has(routeName) ? (
+        <BottomNavBar
+          role={currentUser.role}
+          routeName={routeName}
+          onNavigate={route => navigationRef.navigate(route)}
+        />
+      ) : null}
+      </View>
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  navigatorShell: { flex: 1 },
   boot: {
     flex: 1,
     alignItems: 'center',

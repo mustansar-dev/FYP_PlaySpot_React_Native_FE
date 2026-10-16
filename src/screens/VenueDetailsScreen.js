@@ -1,17 +1,22 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
 import VenueArtwork from '../components/VenueArtwork';
 import VenuePhotoSlider from '../components/VenuePhotoSlider';
 import { useTheme } from '../context/ThemeContext';
+import { conversationCreated, createCommunityId } from '../store/communitySlice';
 import { getVenueRating, haversineDistanceKm } from '../utils/venueDiscovery';
 
 export default function VenueDetailsScreen({ navigation, route }) {
+  const dispatch = useDispatch();
   const { colors, radius } = useTheme();
   const { venueId } = route.params || {};
   const { venues, grounds, equipment, reviews } = useSelector(state => state.venues);
+  const currentUser = useSelector(state => state.auth.currentUser);
+  const vendorProfile = useSelector(state => state.venues.vendorProfiles.find(item => item.id === venueVendorId(state, venueId)) || null);
+  const conversations = useSelector(state => state.community.conversations);
   const venue = venues.find(item => item.id === venueId);
   const venueGrounds = useMemo(() => grounds.filter(item => item.venueId === venueId && item.isActive), [grounds, venueId]);
   const venueEquipment = useMemo(() => equipment.filter(item => item.venueId === venueId && item.active), [equipment, venueId]);
@@ -48,9 +53,39 @@ export default function VenueDetailsScreen({ navigation, route }) {
       <View style={[styles.ratingSummary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.bigRating, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} local demo reviews</Text></View><Pressable accessibilityRole="button" testID="venue-add-review" onPress={() => navigation.navigate('AddReview', { venueId })}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '900' }}>Write a review</Text></Pressable></View>
       {venueReviews.slice(0, 2).map(review => <View key={review.id} style={styles.reviewRow}><Text style={[styles.cardTitle, { color: colors.ink }]}>{review.playerName}  <Text style={{ color: colors.orange }}>★ {review.stars}</Text></Text><Text style={[styles.body, { color: colors.inkSoft }]}>{review.comment}</Text></View>)}
       <Text style={[styles.small, { color: colors.inkSoft, marginTop: 12 }]}>Approximate location: {venue.address}. {venue.demoLabel}</Text>
+      {currentUser?.role === 'player' && vendorProfile?.ownerUserId ? <AppButton title="Chat with vendor" testID="venue-chat-with-vendor" variant="secondary" onPress={() => {
+        const existing = conversations.find(item => item.kind === 'venue-vendor' && item.venueId === venueId && item.playerUserId === currentUser.id && item.vendorUserId === vendorProfile.ownerUserId);
+        if (existing) {
+          navigation.navigate('ChatConversation', { conversationId: existing.id });
+          return;
+        }
+        const conversation = {
+          id: createCommunityId('conversation'),
+          kind: 'venue-vendor',
+          venueId,
+          venueName: venue.name,
+          vendorId: venue.vendorId,
+          vendorUserId: vendorProfile.ownerUserId,
+          playerUserId: currentUser.id,
+          playerName: currentUser.name,
+          title: venue.name,
+          subtitle: `${currentUser.name} · ${venue.name}`,
+          participantIds: [currentUser.id, vendorProfile.ownerUserId],
+          unreadByUser: { [currentUser.id]: 0, [vendorProfile.ownerUserId]: 0 },
+          lastMessage: 'Conversation started. Send a message to the vendor.',
+          lastAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        };
+        dispatch(conversationCreated(conversation));
+        navigation.navigate('ChatConversation', { conversationId: conversation.id });
+      }} style={styles.chatButton} /> : null}
       <AppButton title="Continue to booking" testID="venue-booking-cta" onPress={() => navigation.navigate('SlotSelection', { venueId, groundId: venueGrounds[0]?.id })} disabled={venueGrounds.length === 0} style={styles.booking} />
     </ScrollView>
   </SafeAreaView>;
+}
+
+function venueVendorId(state, venueId) {
+  return state.venues.venues.find(item => item.id === venueId)?.vendorId;
 }
 
 function Fact({ label, value, colors }) { return <View style={styles.fact}><Text style={[styles.factLabel, { color: colors.inkSoft }]}>{label}</Text><Text numberOfLines={2} style={[styles.factValue, { color: colors.ink }]}>{value}</Text></View>; }
@@ -60,5 +95,5 @@ const styles = StyleSheet.create({ safe: { flex: 1 }, content: { padding: 18, pa
   titleRow: { flexDirection: 'row', gap: 9, alignItems: 'center', marginTop: 15 }, title: { fontSize: 22, fontWeight: '900' }, subtitle: { fontSize: 11, marginTop: 3 }, ratingPill: { padding: 10, alignItems: 'center' }, small: { fontSize: 9, lineHeight: 14 },
   quickFacts: { flexDirection: 'row', borderWidth: 1, paddingVertical: 13, marginTop: 15 }, fact: { flex: 1, paddingHorizontal: 10 }, factLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7 }, factValue: { fontSize: 11, fontWeight: '800', marginTop: 5 }, sectionTitle: { fontSize: 16, fontWeight: '900', marginTop: 20, marginBottom: 9 }, body: { fontSize: 11, lineHeight: 17, marginTop: 3 },
   infoCard: { borderWidth: 1, padding: 13, marginBottom: 8 }, groundHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 }, cardTitle: { fontSize: 12, fontWeight: '900' }, price: { color: '#1A8F57', fontSize: 10, fontWeight: '900' }, chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, pill: { paddingHorizontal: 10, paddingVertical: 7 }, equipmentRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E0E6ED' },
-  reviewsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 17 }, ratingSummary: { borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 10 }, bigRating: { fontSize: 25, fontWeight: '900' }, reviewRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E0E6ED' }, booking: { marginTop: 20 },
+  reviewsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 17 }, ratingSummary: { borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 10 }, bigRating: { fontSize: 25, fontWeight: '900' }, reviewRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E0E6ED' }, chatButton: { marginTop: 18 }, booking: { marginTop: 10 },
 });

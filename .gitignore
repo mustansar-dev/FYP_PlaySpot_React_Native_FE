@@ -3,6 +3,9 @@ PLAYSPOT_CODEX_PROMPTS.md
 PLAYSPOT_WEEK_PLAN.md
 Lecture11.pdf
 
+# Local visual references; app-ready assets live under src/assets/.
+design-reference/
+
 # Node and npm dependencies / local logs.
 node_modules/
 npm-debug.log*

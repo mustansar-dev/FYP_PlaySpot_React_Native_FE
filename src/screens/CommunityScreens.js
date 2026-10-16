@@ -235,7 +235,8 @@ export function ChatInboxScreen({ navigation }) {
   const { currentUser } = useSelector(state => state.auth);
   const conversationRows = useSelector(state => state.community.conversations);
   const conversations = useMemo(() => [...conversationRows]
-    .sort((first, second) => String(second.lastAt).localeCompare(String(first.lastAt))), [conversationRows]);
+    .filter(item => currentUser?.role !== 'vendor' || (item.kind === 'venue-vendor' && item.vendorUserId === currentUser.id))
+    .sort((first, second) => String(second.lastAt).localeCompare(String(first.lastAt))), [conversationRows, currentUser?.id, currentUser?.role]);
 
   const startConversation = () => {
     const conversation = {
@@ -260,22 +261,24 @@ export function ChatInboxScreen({ navigation }) {
         keyExtractor={item => item.id}
         ListHeaderComponent={(
           <>
-            <ScreenHeader title="Messages" subtitle="Local demo chat · messages do not sync across devices." eyebrow="INBOX" onBack={() => navigation.goBack()} />
+            <ScreenHeader title={currentUser?.role === "vendor" ? "Vendor inbox" : "Messages"} subtitle="Local demo chat · messages do not sync across devices." eyebrow="INBOX" onBack={() => navigation.goBack()} />
             <LocalDemoNote />
-            <AppButton title="Start a demo chat" testID="chat-new" onPress={startConversation} style={styles.listAction} />
+            {currentUser?.role !== 'vendor' ? <AppButton title="Start a demo chat" testID="chat-new" onPress={startConversation} style={styles.listAction} /> : null}
           </>
         )}
-        ListEmptyComponent={<EmptyState title="No conversations yet" description="Start a local demo chat to see the conversation screen." action={<AppButton title="Start a demo chat" testID="chat-empty-new" onPress={startConversation} />} />}
+        ListEmptyComponent={<EmptyState title={currentUser?.role === 'vendor' ? 'No player messages yet' : 'No conversations yet'} description={currentUser?.role === 'vendor' ? 'Player chats for your venues will appear here.' : 'Start a local demo chat to see the conversation screen.'} action={currentUser?.role === 'vendor' ? null : <AppButton title="Start a demo chat" testID="chat-empty-new" onPress={startConversation} />} />}
         renderItem={({ item }) => {
           const unread = Number(item.unreadByUser?.[currentUser?.id] || 0);
+          const title = currentUser?.role === "vendor" ? (item.playerName || item.title) : (item.venueName || item.title);
+          const subtitle = currentUser?.role === "vendor" && item.venueName ? `About ${item.venueName}` : item.subtitle;
           return (
-            <Pressable accessibilityRole="button" accessibilityLabel={`Open chat with ${item.title}`} testID={`chat-item-${item.id}`} onPress={() => navigation.navigate('ChatConversation', { conversationId: item.id })}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open chat with ${title}`} testID={`chat-item-${item.id}`} onPress={() => navigation.navigate('ChatConversation', { conversationId: item.id })}>
               <DesignCard style={styles.chatRow}>
-                <View style={[styles.chatAvatar, { backgroundColor: colors.limePale }]}><Text style={[styles.memberInitial, { color: colors.primary }]}>{item.title?.[0]?.toUpperCase() || 'P'}</Text></View>
+                <View style={[styles.chatAvatar, { backgroundColor: colors.limePale }]}><Text style={[styles.memberInitial, { color: colors.primary }]}>{title?.[0]?.toUpperCase() || 'P'}</Text></View>
                 <View style={styles.chatCopy}>
-                  <View style={styles.rowBetween}><Text numberOfLines={1} style={[styles.cardTitle, styles.flex, { color: colors.ink }]}>{item.title}</Text>{unread > 0 ? <StatusBadge label={`${unread} new`} tone="success" /> : null}</View>
+                  <View style={styles.rowBetween}><Text numberOfLines={1} style={[styles.cardTitle, styles.flex, { color: colors.ink }]}>{title}</Text>{unread > 0 ? <StatusBadge label={`${unread} new`} tone="success" /> : null}</View>
                   <Text numberOfLines={1} style={[styles.cardMeta, { color: colors.inkSoft }]}>{item.lastMessage}</Text>
-                  <Text style={[styles.timestamp, { color: colors.muted }]}>{item.subtitle} · {formatTimestamp(item.lastAt)}</Text>
+                  <Text style={[styles.timestamp, { color: colors.muted }]}>{subtitle} · {formatTimestamp(item.lastAt)}</Text>
                 </View>
               </DesignCard>
             </Pressable>
@@ -322,7 +325,7 @@ export function ChatConversationScreen({ navigation, route }) {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.chatPage}>
-          <ScreenHeader title={conversation?.title || 'Conversation'} subtitle="Local demo chat · not real-time" eyebrow="MESSAGES" onBack={() => navigation.goBack()} />
+          <ScreenHeader title={conversation ? (currentUser?.role === 'vendor' ? conversation.playerName || conversation.title : conversation.venueName || conversation.title) : 'Conversation'} subtitle="Local demo chat · not real-time" eyebrow="MESSAGES" onBack={() => navigation.goBack()} />
           <LocalDemoNote />
           {conversation ? (
             <FlatList

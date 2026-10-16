@@ -11,7 +11,7 @@ const SPORT_COLORS = {
 };
 
 /** Local code-drawn venue art keeps screens useful when no photo was selected. */
-export default function VenueArtwork({ sport = 'Sports', compact = false }) {
+export default function VenueArtwork({ sport = 'Sports', compact = false, style }) {
   const { colors, radius } = useTheme();
   return (
     <View
@@ -21,6 +21,7 @@ export default function VenueArtwork({ sport = 'Sports', compact = false }) {
         styles.art,
         compact ? styles.compact : null,
         { backgroundColor: SPORT_COLORS[sport] || colors.limePale, borderRadius: radius.md },
+        style,
       ]}
     >
       <View style={styles.field}>
