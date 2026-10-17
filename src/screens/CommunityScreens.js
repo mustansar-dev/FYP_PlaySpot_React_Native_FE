@@ -19,8 +19,7 @@ import FormField from '../components/FormField';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { createCommunityId, conversationCreated, conversationRead, gameRoomCreated, gameRoomMemberRemoved, joinGameRoom, messageSent, splitSaved, splitShareStatusChanged, tournamentCreated, tournamentParticipantRemoved, joinTournament } from '../store/communitySlice';
-import { selectBookingById } from '../store/selectors/bookingSelectors';
-import { formatDateKey, formatPKR, getNextBookableDates, toLocalDateKey } from '../utils/booking';
+import { formatPKR, getNextBookableDates, getSlotAvailability, toLocalDateKey } from '../utils/booking';
 import {
   calculateEqualShares,
   formatCommunityDate,
@@ -107,11 +106,15 @@ export function GameRoomsScreen({ navigation }) {
 
 export function CreateGameRoomScreen({ navigation }) {
   const dispatch = useDispatch();
-  const { colors } = useTheme();
+  const { colors, radius } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
+  const { venues, grounds, slots, bookings } = useSelector(state => state.venues);
   const [title, setTitle] = useState('');
   const [sport, setSport] = useState('Futsal');
   const [location, setLocation] = useState('');
+  const [selectedVenueId, setSelectedVenueId] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [expandedVenueId, setExpandedVenueId] = useState('');
   const [date, setDate] = useState(getNextBookableDates()[1]?.dateKey || toLocalDateKey());
   const [startTime, setStartTime] = useState('19:00');
   const [visibility, setVisibility] = useState('public');
@@ -119,6 +122,39 @@ export function CreateGameRoomScreen({ navigation }) {
   const [cost, setCost] = useState('900');
   const [joinCode, setJoinCode] = useState('');
   const [errors, setErrors] = useState({});
+
+  const venueSuggestions = useMemo(() => {
+    const query = location.trim().toLowerCase();
+    if (!query) return [];
+    const now = new Date();
+    return venues.filter(venue => venue.published && `${venue.name} ${venue.city} ${venue.locationNote || ''} ${venue.address || ''}`.toLowerCase().includes(query))
+      .map(venue => {
+        const activeGrounds = grounds.filter(ground => ground.venueId === venue.id && ground.isActive !== false);
+        const availableSlots = slots.filter(slot => activeGrounds.some(ground => ground.id === slot.groundId) &&
+          getSlotAvailability({ slotId: slot.id, slots, bookings, now }).available &&
+          new Date(`${slot.date}T${slot.startTime}:00`).getTime() > now.getTime());
+        return { venue, slots: availableSlots.sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)) };
+      })
+      .filter(item => item.slots.length)
+      .slice(0, 5);
+  }, [location, venues, grounds, slots, bookings]);
+  const selectedVenue = venues.find(venue => venue.id === selectedVenueId);
+  const selectedSlot = slots.find(slot => slot.id === selectedSlotId);
+
+  const selectVenueSlot = (venue, slot) => {
+    setSelectedVenueId(venue.id);
+    setSelectedSlotId(slot.id);
+    setLocation(`${venue.name} · ${venue.locationNote || venue.address || venue.city}`);
+    setDate(slot.date);
+    setStartTime(slot.startTime);
+    setExpandedVenueId('');
+  };
+
+  const changeSelectedVenue = () => {
+    setSelectedVenueId('');
+    setSelectedSlotId('');
+    setLocation(selectedVenue?.name || '');
+  };
 
   const create = () => {
     const values = { title, sport, location, date, startTime, visibility, capacity, costPerParticipantPKR: cost, joinCode };
@@ -136,6 +172,7 @@ export function CreateGameRoomScreen({ navigation }) {
       joinCode: visibility === 'private' ? joinCode.trim() : '',
       capacity: Number(capacity),
       costPerParticipantPKR: Number(cost),
+      venueId: selectedVenueId || null,
       status: 'open',
       createdBy: currentUser.id,
       createdByName: currentUser.name,
@@ -152,10 +189,40 @@ export function CreateGameRoomScreen({ navigation }) {
         <ScreenHeader title="Create a game" subtitle="Choose a sport, location and player limit." onBack={() => navigation.goBack()} eyebrow="NEW ROOM" />
         <FormField label="Game name" value={title} onChangeText={setTitle} error={errors.title} placeholder="Friday night futsal" testID="room-title" />
         <ChoiceChips label="Sport" options={SPORTS} selected={sport} onSelect={setSport} testID="room-sport" />
-        <FormField label="Venue or meeting location" value={location} onChangeText={setLocation} error={errors.location} placeholder="Area or venue name" testID="room-location" />
+        <FormField label="Venue or meeting location" value={location} onChangeText={value => { setLocation(value); setSelectedVenueId(''); setSelectedSlotId(''); }} error={errors.location} placeholder="Search venue name or location" testID="room-location" />
+        {selectedVenue ? <View style={[styles.selectedVenueCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+          <View style={styles.selectedVenueCopy}>
+            <Text style={[styles.selectedVenueLabel, { color: colors.primary }]}>SELECTED VENUE</Text>
+            <Text numberOfLines={1} style={[styles.cardTitle, { color: colors.ink }]}>{selectedVenue.name}</Text>
+            <Text numberOfLines={1} style={[styles.cardMeta, { color: colors.inkSoft }]}>{selectedVenue.locationNote || selectedVenue.address || selectedVenue.city}</Text>
+            {selectedSlot ? <Text style={[styles.selectedTime, { color: colors.ink }]}>{formatCommunityDate(selectedSlot.date)} · {formatCommunityTime(selectedSlot.startTime)}–{formatCommunityTime(selectedSlot.endTime)}</Text> : null}
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Change selected venue" testID="room-venue-change" onPress={changeSelectedVenue} hitSlop={8}>
+            <Text style={[styles.changeVenue, { color: colors.primary }]}>Change</Text>
+          </Pressable>
+        </View> : location.trim() ? venueSuggestions.length ? <View style={styles.venueSuggestions}>
+          {venueSuggestions.slice(0, 3).map(({ venue, slots: venueSlots }) => {
+            const expanded = expandedVenueId === venue.id;
+            const visibleSlots = expanded ? venueSlots.slice(1) : [];
+            return <View key={venue.id} style={[styles.venueSuggestion, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+              <Text numberOfLines={1} style={[styles.cardTitle, { color: colors.ink }]}>{venue.name}</Text>
+              <Text numberOfLines={1} style={[styles.cardMeta, { color: colors.inkSoft }]}>{venue.locationNote || venue.address || venue.city}</Text>
+              <View style={styles.nextSlotRow}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Select ${venue.name}, ${formatCommunityDate(venueSlots[0].date)} ${formatCommunityTime(venueSlots[0].startTime)}`} testID={`room-slot-${venueSlots[0].id}`} onPress={() => selectVenueSlot(venue, venueSlots[0])} style={[styles.nextSlot, { backgroundColor: colors.limePale, borderRadius: radius.sm }]}>
+                  <Text style={[styles.nextSlotLabel, { color: colors.primaryDark }]}>NEXT AVAILABLE</Text>
+                  <Text style={[styles.nextSlotTime, { color: colors.primaryDark }]}>{formatCommunityDate(venueSlots[0].date)} · {formatCommunityTime(venueSlots[0].startTime)}–{formatCommunityTime(venueSlots[0].endTime)}</Text>
+                </Pressable>
+                {venueSlots.length > 1 ? <Pressable accessibilityRole="button" accessibilityLabel={expanded ? 'Show fewer available times' : `Show more available times at ${venue.name}`} testID={`room-times-${venue.id}`} onPress={() => setExpandedVenueId(expanded ? '' : venue.id)} hitSlop={8}>
+                  <Text style={[styles.moreTimes, { color: colors.primary }]}>{expanded ? 'Less' : `+${venueSlots.length - 1} times`}</Text>
+                </Pressable> : null}
+              </View>
+              {expanded ? <ScrollView nestedScrollEnabled showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" style={styles.moreSlotList} contentContainerStyle={styles.moreSlotContent}>{visibleSlots.map(slot => <Pressable key={slot.id} accessibilityRole="button" accessibilityLabel={`Select ${venue.name}, ${formatCommunityDate(slot.date)} ${formatCommunityTime(slot.startTime)}`} testID={`room-slot-${slot.id}`} onPress={() => selectVenueSlot(venue, slot)} style={[styles.moreSlot, { backgroundColor: colors.canvas, borderColor: colors.border, borderRadius: radius.sm }]}><Text style={[styles.moreSlotText, { color: colors.ink }]}>{formatCommunityDate(slot.date)} · {formatCommunityTime(slot.startTime)}–{formatCommunityTime(slot.endTime)}</Text></Pressable>)}</ScrollView> : null}
+            </View>;
+          })}
+        </View> : <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>No published venues with future available slots match this search.</Text> : null}
         <View style={styles.twoColumns}>
-          <FormField label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} error={errors.date} placeholder="YYYY-MM-DD" testID="room-date" style={styles.column} />
-          <FormField label="Start time (HH:MM)" value={startTime} onChangeText={setStartTime} placeholder="19:00" testID="room-start-time" style={styles.column} />
+          <FormField label="Date (YYYY-MM-DD)" value={date} onChangeText={value => { setDate(value); setSelectedSlotId(''); }} error={errors.date} placeholder="YYYY-MM-DD" testID="room-date" style={styles.column} />
+          <FormField label="Start time (HH:MM)" value={startTime} onChangeText={value => { setStartTime(value); setSelectedSlotId(''); }} placeholder="19:00" testID="room-start-time" style={styles.column} />
         </View>
         <ChoiceChips label="Visibility" options={['public', 'private']} selected={visibility} onSelect={setVisibility} testID="room-visibility" />
         {visibility === 'private' ? <FormField label="Private join code" value={joinCode} onChangeText={setJoinCode} error={errors.joinCode} autoCapitalize="characters" placeholder="At least 4 characters" testID="room-join-code" /> : null}
@@ -381,11 +448,9 @@ export function SplitPaymentScreen({ navigation, route }) {
   const dispatch = useDispatch();
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
-  const booking = useSelector(state => selectBookingById(state, route.params?.bookingId));
   const room = useSelector(state => state.community.rooms.find(item => item.id === route.params?.roomId));
   const savedSplit = useSelector(state => state.community.splits.find(item =>
     (route.params?.splitId && item.id === route.params.splitId) ||
-    (route.params?.bookingId && item.bookingId === route.params.bookingId) ||
     (route.params?.roomId && item.roomId === route.params.roomId),
   ));
   const participants = useMemo(() => {
@@ -397,7 +462,7 @@ export function SplitPaymentScreen({ navigation, route }) {
       { userId: 'demo-share-player', name: 'Player 4' },
     ];
   }, [room?.id, room?.members, currentUser?.id, currentUser?.name]);
-  const initialTotal = booking?.totalPKR || route.params?.totalPKR || 3500;
+  const initialTotal = route.params?.totalPKR || 3500;
   const [totalText, setTotalText] = useState(String(savedSplit?.totalPKR ?? initialTotal));
   const [shares, setShares] = useState(() => savedSplit?.shares || calculateEqualShares(initialTotal, participants));
   const [message, setMessage] = useState('');
@@ -426,7 +491,7 @@ export function SplitPaymentScreen({ navigation, route }) {
     }
     const split = {
       id: savedSplit?.id || createCommunityId('split'),
-      bookingId: booking?.id || null,
+      bookingId: null,
       roomId: room?.id || null,
       totalPKR,
       shares: shares.map(share => ({ ...share, amountPKR: Number(share.amountPKR) })),
@@ -443,14 +508,14 @@ export function SplitPaymentScreen({ navigation, route }) {
     setShares(current => current.map(share => share.userId === myShare.userId ? { ...share, status } : share));
   };
 
+  if (!room) return <ScreenMissing navigation={navigation} title="Game room not found" />;
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <ScrollView contentContainerStyle={styles.pageContent} keyboardShouldPersistTaps="handled">
         <ScreenHeader title="Split payment" subtitle="Set demo shares for your group. This calculator does not move money." eyebrow="GROUP COSTS" onBack={() => navigation.goBack()} />
         <InlineNotice>Simulated split — no payments are transferred.</InlineNotice>
-        {booking ? (
-          <DesignCard><Text style={[styles.cardTitle, { color: colors.ink }]}>{booking.venueName}</Text><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{booking.groundName} · {formatDateKey(booking.date)}</Text></DesignCard>
-        ) : room ? (
+        {room ? (
           <DesignCard><Text style={[styles.cardTitle, { color: colors.ink }]}>{room.title}</Text><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{room.members.length} current players · demo estimate</Text></DesignCard>
         ) : null}
         <FormField label="Total to divide (PKR)" value={totalText} onChangeText={recalculate} keyboardType="number-pad" testID="split-total" />
@@ -696,6 +761,22 @@ const styles = StyleSheet.create({
   memberInitial: { fontSize: 13, fontWeight: '900' },
   spacedButton: { marginTop: 10 },
   twoColumns: { flexDirection: 'row', gap: 10 },
+  venueSuggestions: { gap: 8, marginTop: -8, marginBottom: 14 },
+  venueSuggestion: { borderWidth: 1, padding: 12 },
+  nextSlotRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  nextSlot: { flex: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  nextSlotLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 0.6 },
+  nextSlotTime: { fontSize: 11, fontWeight: '800', marginTop: 3 },
+  moreTimes: { fontSize: 10, fontWeight: '800', paddingHorizontal: 3 },
+  moreSlotList: { maxHeight: 160, marginTop: 8 },
+  moreSlotContent: { gap: 6 },
+  moreSlot: { borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  moreSlotText: { fontSize: 10, fontWeight: '700' },
+  selectedVenueCard: { borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, marginTop: -8, marginBottom: 14 },
+  selectedVenueCopy: { flex: 1, minWidth: 0 },
+  selectedVenueLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7, marginBottom: 4 },
+  selectedTime: { fontSize: 10, fontWeight: '700', marginTop: 6 },
+  changeVenue: { fontSize: 11, fontWeight: '900' },
   column: { flex: 1 },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   shareIdentity: { flex: 1, gap: 6 },

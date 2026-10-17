@@ -24,6 +24,7 @@ import { getNextBookableDates, getSlotAvailability } from '../utils/booking';
 import { BookingCheckoutScreen, EquipmentAddonsScreen, ManualWalkInBookingScreen } from './BookingScreens';
 import {
   ChatConversationScreen,
+  CreateGameRoomScreen,
   GameRoomDetailsScreen,
   SplitPaymentScreen,
   TournamentDetailsScreen,
@@ -132,8 +133,8 @@ test('local chat messages update the inbox record and remain visible after reope
 
 test('the indivisible split total saves exact PKR shares and tournament join updates the local roster', async () => {
   const store = makeStore(playerUser);
-  const splitScreen = await renderScreen(<SplitPaymentScreen navigation={navigation} route={{ params: { totalPKR: 10001 } }} />, store);
-  expect(splitScreen.getByTestId('split-share-demo-player-001').props.value).toBe('2501');
+  const splitScreen = await renderScreen(<SplitPaymentScreen navigation={navigation} route={{ params: { roomId: 'room-demo-dha-padel-private', totalPKR: 10001 } }} />, store);
+  expect(splitScreen.getByTestId('split-share-demo-player-001').props.value).toBe('5001');
   await fireEvent.press(splitScreen.getByTestId('split-save'));
   const split = store.getState().community.splits[0];
   expect(split.shares.reduce((sum, share) => sum + share.amountPKR, 0)).toBe(10001);
@@ -141,4 +142,16 @@ test('the indivisible split total saves exact PKR shares and tournament join upd
   const tournamentScreen = await renderScreen(<TournamentDetailsScreen navigation={navigation} route={{ params: { tournamentId: 'tournament-demo-badminton-open' } }} />, store);
   await fireEvent.press(tournamentScreen.getByTestId('tournament-join'));
   expect(store.getState().community.tournaments.find(item => item.id === 'tournament-demo-badminton-open').participants.some(item => item.userId === playerUser.id)).toBe(true);
+});
+
+test('game room venue search suggests only venues with future available slots', async () => {
+  const store = makeStore(playerUser);
+  const screen = await renderScreen(<CreateGameRoomScreen navigation={navigation} />, store);
+  await fireEvent.changeText(screen.getByTestId('room-location'), 'Greenline');
+  expect(screen.getByText('Greenline Futsal Club')).toBeTruthy();
+  expect(screen.getByText('NEXT AVAILABLE')).toBeTruthy();
+  await fireEvent.press(screen.getAllByTestId(/room-slot-/)[0]);
+  expect(screen.getByTestId('room-venue-change')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('room-visibility-private'));
+  expect(screen.getByTestId('room-join-code')).toBeTruthy();
 });

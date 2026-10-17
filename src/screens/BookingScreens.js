@@ -415,7 +415,7 @@ function PriceRow({ label, amount, strong = false }) {
   );
 }
 
-function BookingCard({ booking, onPress, onSplit, testID }) {
+function BookingCard({ booking, onPress, testID }) {
   const { colors } = useTheme();
   const status = getBookingDisplayStatus(booking);
   const tone = status === 'Cancelled' ? 'danger' : status === 'Completed' ? 'neutral' : 'success';
@@ -429,7 +429,6 @@ function BookingCard({ booking, onPress, onSplit, testID }) {
         <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{booking.groundName} · {formatDateKey(booking.date)} · {formatTimeRange(booking.startTime, booking.endTime)}</Text>
         <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(booking.totalPKR)}</Text>
       </Pressable>
-      {onSplit ? <AppButton title="Split payment" variant="secondary" testID={`booking-split-${booking.id}`} onPress={onSplit} style={styles.splitButton} /> : null}
     </DesignCard>
   );
 }
@@ -488,7 +487,6 @@ export function MyBookingsScreen({ navigation }) {
             booking={item}
             testID={`my-booking-${item.id}`}
             onPress={() => navigation.navigate('BookingDetails', { bookingId: item.id })}
-            onSplit={getBookingDisplayStatus(item) === 'Confirmed' ? () => navigation.navigate('SplitPayment', { bookingId: item.id }) : null}
           />
         )}
       />
@@ -543,7 +541,6 @@ export function BookingDetailsScreen({ navigation, route }) {
         <Text style={[styles.cardCopy, { color: colors.inkSoft, marginTop: 8 }]}>Payment: {booking.paymentStatus === 'simulated-paid' ? 'simulated; no money moved' : booking.paymentStatus}</Text>
       </DesignCard>
       {active && canCancel ? <AppButton title="Cancel booking and release slot" variant="secondary" testID="booking-cancel" onPress={cancel} textStyle={{ color: colors.error }} /> : null}
-      {active && currentUser?.role === 'player' ? <AppButton title="Split this booking" variant="secondary" testID="booking-split-open" onPress={() => navigation.navigate('SplitPayment', { bookingId: booking.id })} style={styles.buttonGap} /> : null}
       {currentUser?.role === 'vendor' ? <AppButton title="Vendor bookings" variant="quiet" testID="booking-vendor-list" onPress={() => navigation.navigate('VendorBookings')} style={styles.buttonGap} /> : <AppButton title="My bookings" variant="quiet" testID="booking-player-list" onPress={() => navigation.navigate('MyBookings')} style={styles.buttonGap} />}
     </PageShell>
   );
@@ -775,7 +772,6 @@ const styles = StyleSheet.create({
   bookingCard: { marginBottom: 11 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   bookingTitle: { flex: 1 },
-  splitButton: { minHeight: 38, marginTop: 10 },
   successMark: { width: 76, height: 76, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
   successCheck: { fontSize: 42, fontWeight: '800' },
   reference: { fontSize: 12, fontWeight: '800', marginTop: 5 },
