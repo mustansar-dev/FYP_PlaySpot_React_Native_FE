@@ -8,6 +8,7 @@ import VenuePhotoSlider from '../components/VenuePhotoSlider';
 import { useTheme } from '../context/ThemeContext';
 import { conversationCreated, createCommunityId } from '../store/communitySlice';
 import { getVenueRating, haversineDistanceKm } from '../utils/venueDiscovery';
+import { createVenueVendorConversation, findVenueVendorConversation } from '../utils/venueConversations';
 
 export default function VenueDetailsScreen({ navigation, route }) {
   const dispatch = useDispatch();
@@ -54,28 +55,18 @@ export default function VenueDetailsScreen({ navigation, route }) {
       {venueReviews.slice(0, 2).map(review => <View key={review.id} style={styles.reviewRow}><Text style={[styles.cardTitle, { color: colors.ink }]}>{review.playerName}  <Text style={{ color: colors.orange }}>★ {review.stars}</Text></Text><Text style={[styles.body, { color: colors.inkSoft }]}>{review.comment}</Text></View>)}
       <Text style={[styles.small, { color: colors.inkSoft, marginTop: 12 }]}>Approximate location: {venue.address}. {venue.demoLabel}</Text>
       {currentUser?.role === 'player' && vendorProfile?.ownerUserId ? <AppButton title="Chat with vendor" testID="venue-chat-with-vendor" variant="secondary" onPress={() => {
-        const existing = conversations.find(item => item.kind === 'venue-vendor' && item.venueId === venueId && item.playerUserId === currentUser.id && item.vendorUserId === vendorProfile.ownerUserId);
+        const existing = findVenueVendorConversation(conversations, venueId, currentUser.id, vendorProfile.ownerUserId);
         if (existing) {
           navigation.navigate('ChatConversation', { conversationId: existing.id });
           return;
         }
-        const conversation = {
+        const conversation = createVenueVendorConversation({
           id: createCommunityId('conversation'),
-          kind: 'venue-vendor',
-          venueId,
-          venueName: venue.name,
-          vendorId: venue.vendorId,
-          vendorUserId: vendorProfile.ownerUserId,
-          playerUserId: currentUser.id,
-          playerName: currentUser.name,
-          title: venue.name,
-          subtitle: `${currentUser.name} · ${venue.name}`,
-          participantIds: [currentUser.id, vendorProfile.ownerUserId],
-          unreadByUser: { [currentUser.id]: 0, [vendorProfile.ownerUserId]: 0 },
-          lastMessage: 'Conversation started. Send a message to the vendor.',
-          lastAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        };
+          currentUser,
+          venue,
+          vendorProfile,
+        });
+        if (!conversation) return;
         dispatch(conversationCreated(conversation));
         navigation.navigate('ChatConversation', { conversationId: conversation.id });
       }} style={styles.chatButton} /> : null}

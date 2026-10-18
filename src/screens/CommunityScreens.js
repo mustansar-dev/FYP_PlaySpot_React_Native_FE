@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -18,16 +19,34 @@ import { DesignCard, EmptyState, InlineNotice, SectionHeading, StatusBadge } fro
 import FormField from '../components/FormField';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
-import { createCommunityId, conversationCreated, conversationRead, gameRoomCreated, gameRoomMemberRemoved, joinGameRoom, messageSent, splitSaved, splitShareStatusChanged, tournamentCreated, tournamentParticipantRemoved, joinTournament } from '../store/communitySlice';
-import { formatPKR, getNextBookableDates, getSlotAvailability, toLocalDateKey } from '../utils/booking';
+import {
+  createCommunityId,
+  conversationCreated,
+  conversationRead,
+  gameRoomCreated,
+  gameRoomUpdated,
+  joinGameRoom,
+  leaveGameRoom,
+  messageSent,
+  recordRoomSharePayment,
+  tournamentCreated,
+  tournamentParticipantRemoved,
+  joinTournament,
+  updateGameRoomPaymentShares,
+} from '../store/communitySlice';
+import { bookingCancelled, bookingPaymentModeUpdated, reserveBooking } from '../store/venueSlice';
+import { calculateGroundFee, formatPKR, getNextBookableDates, getSlotAvailability, isBookingActive, toLocalDateKey } from '../utils/booking';
+import { createVenueVendorConversation, findVenueVendorConversation } from '../utils/venueConversations';
 import {
   calculateEqualShares,
+  createRoomPaymentShares,
   formatCommunityDate,
   formatCommunityTime,
+  getGameRoomCapacityLimit,
   getRoomOpenSpots,
   matchesRoomFilters,
   validateGameRoomDraft,
-  validateSplitShares,
+  validateRoomPaymentShares,
   validateTournamentDraft,
 } from '../utils/community';
 
@@ -93,7 +112,7 @@ export function GameRoomsScreen({ navigation }) {
             <ChoiceChips label="Room type" options={['All', 'Public', 'Private']} selected={visibility === 'all' ? 'All' : visibility === 'public' ? 'Public' : 'Private'} onSelect={value => setVisibility(value.toLowerCase())} testID="rooms-visibility" />
             <ChoiceChips label="Sport" options={['All', ...SPORTS]} selected={sport} onSelect={setSport} testID="rooms-sport" />
             <ChoiceChips label="When" options={['All', 'Today', 'This week']} selected={time === 'all' ? 'All' : time === 'today' ? 'Today' : 'This week'} onSelect={value => setTime(value === 'All' ? 'all' : value === 'Today' ? 'today' : 'this-week')} testID="rooms-time" />
-            <FormField label="Search area or game" value={query} onChangeText={setQuery} placeholder="Try Gulberg or futsal" testID="rooms-search" />
+            <FormField label="Search area or game" value={query} onChangeText={setQuery} placeholder="Try Gulberg or futsal" testID="rooms-search" leadingIcon="⌕" />
             <SectionHeading title={`${filtered.length} game${filtered.length === 1 ? '' : 's'}`} />
           </>
         )}
@@ -104,134 +123,337 @@ export function GameRoomsScreen({ navigation }) {
   );
 }
 
-export function CreateGameRoomScreen({ navigation }) {
+export function CreateGameRoomScreen({ navigation, route }) {
   const dispatch = useDispatch();
   const { colors, radius } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
-  const { venues, grounds, slots, bookings } = useSelector(state => state.venues);
-  const [title, setTitle] = useState('');
-  const [sport, setSport] = useState('Futsal');
-  const [location, setLocation] = useState('');
-  const [selectedVenueId, setSelectedVenueId] = useState('');
-  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const { venues, grounds, slots, bookings, vendorProfiles } = useSelector(state => state.venues);
+  const rooms = useSelector(state => state.community.rooms);
+  const conversations = useSelector(state => state.community.conversations);
+  const roomId = route?.params?.roomId;
+  const room = useSelector(state => state.community.rooms.find(item => item.id === roomId));
+  const editing = Boolean(roomId);
+  const canEdit = !editing || room?.createdBy === currentUser?.id;
+  const [title, setTitle] = useState(room?.title || '');
+  const [sport, setSport] = useState(room?.sport || 'Futsal');
+  const [location, setLocation] = useState(room?.venueId ? room.location : '');
+  const [selectedVenueId, setSelectedVenueId] = useState(room?.venueId || '');
+  const [selectedSlotId, setSelectedSlotId] = useState(room?.slotId || '');
   const [expandedVenueId, setExpandedVenueId] = useState('');
-  const [date, setDate] = useState(getNextBookableDates()[1]?.dateKey || toLocalDateKey());
-  const [startTime, setStartTime] = useState('19:00');
-  const [visibility, setVisibility] = useState('public');
-  const [capacity, setCapacity] = useState('8');
-  const [cost, setCost] = useState('900');
-  const [joinCode, setJoinCode] = useState('');
+  const [visibility, setVisibility] = useState(room?.visibility || 'public');
+  const [capacity, setCapacity] = useState(String(room?.capacity || (room?.sport === 'Badminton' || room?.sport === 'Padel' ? 4 : 8)));
+  const [paymentMode, setPaymentMode] = useState(room?.paymentMode || 'pay-at-venue');
+  const [joinCode, setJoinCode] = useState(room?.joinCode || '');
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const venueSuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
-    if (!query) return [];
     const now = new Date();
-    return venues.filter(venue => venue.published && `${venue.name} ${venue.city} ${venue.locationNote || ''} ${venue.address || ''}`.toLowerCase().includes(query))
+    return venues
+      .filter(venue => venue.published && venue.sports.includes(sport) &&
+        (!query || `${venue.name} ${venue.city} ${venue.locationNote || ''} ${venue.address || ''}`.toLowerCase().includes(query)))
       .map(venue => {
-        const activeGrounds = grounds.filter(ground => ground.venueId === venue.id && ground.isActive !== false);
-        const availableSlots = slots.filter(slot => activeGrounds.some(ground => ground.id === slot.groundId) &&
-          getSlotAvailability({ slotId: slot.id, slots, bookings, now }).available &&
-          new Date(`${slot.date}T${slot.startTime}:00`).getTime() > now.getTime());
-        return { venue, slots: availableSlots.sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)) };
+        const matchingGrounds = grounds.filter(ground => ground.venueId === venue.id && ground.sport === sport && ground.isActive !== false);
+        const availableSlots = slots.flatMap(slot => {
+          const ground = matchingGrounds.find(item => item.id === slot.groundId);
+          if (!ground || new Date(`${slot.date}T${slot.startTime}:00`).getTime() <= now.getTime()) return [];
+          const assignedRoom = rooms.find(candidate => candidate.id !== room?.id && candidate.status !== 'cancelled' && candidate.slotId === slot.id);
+          const availability = getSlotAvailability({ slotId: slot.id, slots, bookings, now, ignoreBookingId: room?.bookingId });
+          if (!availability.available || assignedRoom) return [];
+          return [{ ...slot, ground, totalCostPKR: calculateGroundFee(ground, slot) }];
+        }).sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`));
+        return { venue, slots: availableSlots };
       })
       .filter(item => item.slots.length)
       .slice(0, 5);
-  }, [location, venues, grounds, slots, bookings]);
+  }, [location, venues, grounds, slots, bookings, rooms, room?.id, room?.bookingId, sport]);
+
   const selectedVenue = venues.find(venue => venue.id === selectedVenueId);
-  const selectedSlot = slots.find(slot => slot.id === selectedSlotId);
+  const selectedVendorProfile = vendorProfiles.find(profile => profile.id === selectedVenue?.vendorId);
+  const selectedSlotRecord = slots.find(slot => slot.id === selectedSlotId);
+  const selectedGround = grounds.find(ground => ground.id === selectedSlotRecord?.groundId);
+  const selectedSlot = selectedSlotRecord && selectedGround
+    ? { ...selectedSlotRecord, ground: selectedGround, sport: selectedGround.sport, totalCostPKR: calculateGroundFee(selectedGround, selectedSlotRecord) }
+    : null;
+  const totalCostPKR = selectedSlot?.totalCostPKR || 0;
+  const capacityNumber = Number(capacity);
+  const estimatedSharePKR = Number.isInteger(capacityNumber) && capacityNumber > 0
+    ? Math.ceil(totalCostPKR / capacityNumber)
+    : 0;
+  const capacityLimit = getGameRoomCapacityLimit(sport);
 
   const selectVenueSlot = (venue, slot) => {
     setSelectedVenueId(venue.id);
     setSelectedSlotId(slot.id);
     setLocation(`${venue.name} · ${venue.locationNote || venue.address || venue.city}`);
-    setDate(slot.date);
-    setStartTime(slot.startTime);
     setExpandedVenueId('');
+    setErrors(previous => ({ ...previous, location: undefined, slot: undefined }));
   };
 
   const changeSelectedVenue = () => {
     setSelectedVenueId('');
     setSelectedSlotId('');
-    setLocation(selectedVenue?.name || '');
+    setLocation('');
   };
 
-  const create = () => {
-    const values = { title, sport, location, date, startTime, visibility, capacity, costPerParticipantPKR: cost, joinCode };
+  const openVendorChat = () => {
+    const vendorUserId = selectedVendorProfile?.ownerUserId;
+    if (!selectedVenue || !currentUser?.id || !vendorUserId) return;
+    const existing = findVenueVendorConversation(conversations, selectedVenue.id, currentUser.id, vendorUserId);
+    if (existing) {
+      navigation.navigate('ChatConversation', { conversationId: existing.id });
+      return;
+    }
+    const conversation = createVenueVendorConversation({
+      id: createCommunityId('conversation'),
+      currentUser,
+      venue: selectedVenue,
+      vendorProfile: selectedVendorProfile,
+    });
+    if (!conversation) return;
+    dispatch(conversationCreated(conversation));
+    navigation.navigate('ChatConversation', { conversationId: conversation.id });
+  };
+
+  const changeSport = nextSport => {
+    setSport(nextSport);
+    setSelectedVenueId('');
+    setSelectedSlotId('');
+    setLocation('');
+    setCapacity(current => String(Math.min(Number(current) || 8, getGameRoomCapacityLimit(nextSport))));
+    setErrors(previous => ({ ...previous, slot: undefined, location: undefined, capacity: undefined }));
+  };
+
+  const create = async () => {
+    if (saving) return;
+    if (!canEdit || !room && editing) {
+      setErrors({ form: 'Only the organizer can edit this game room.' });
+      return;
+    }
+    const values = {
+      title,
+      sport,
+      location,
+      selectedSlot,
+      capacity,
+      totalCostPKR,
+      paymentMode,
+      visibility,
+      joinCode,
+      memberCount: room?.members.length || 0,
+    };
     const validation = validateGameRoomDraft(values);
+    const slotReservation = selectedSlot && !room?.bookingId
+      ? getSlotAvailability({ slotId: selectedSlot.id, slots, bookings })
+      : selectedSlot ? getSlotAvailability({ slotId: selectedSlot.id, slots, bookings, ignoreBookingId: room.bookingId }) : { available: false };
+    if (selectedSlot && !slotReservation.available) validation.slot = 'That venue time was just taken. Choose another available time.';
+    if (selectedSlot && rooms.some(candidate => candidate.id !== room?.id && candidate.status !== 'cancelled' && candidate.slotId === selectedSlot.id)) {
+      validation.slot = 'Another game room already uses this venue time. Choose a different time.';
+    }
     setErrors(validation);
     if (Object.keys(validation).length) return;
-    const room = {
-      id: createCommunityId('room'),
-      title: title.trim(),
-      sport,
-      location: location.trim(),
-      date,
-      startTime,
-      visibility,
-      joinCode: visibility === 'private' ? joinCode.trim() : '',
-      capacity: Number(capacity),
-      costPerParticipantPKR: Number(cost),
-      venueId: selectedVenueId || null,
-      status: 'open',
-      createdBy: currentUser.id,
-      createdByName: currentUser.name,
-      members: [{ userId: currentUser.id, name: currentUser.name, joinedAt: new Date().toISOString() }],
-      createdAt: new Date().toISOString(),
-    };
-    dispatch(gameRoomCreated(room));
-    navigation.replace('GameRoomDetails', { roomId: room.id });
+
+    setSaving(true);
+    const timestamp = new Date().toISOString();
+    const roomRecordId = room?.id || createCommunityId('room');
+    const reusingBooking = Boolean(room?.bookingId && room.slotId === selectedSlot.id &&
+      bookings.some(item => item.id === room.bookingId && isBookingActive(item)));
+    let bookingId = reusingBooking ? room.bookingId : null;
+    try {
+      if (!reusingBooking) {
+        const reservation = await dispatch(reserveBooking({
+          source: 'player',
+          playerUserId: currentUser?.id,
+          roomId: roomRecordId,
+          slotId: selectedSlot.id,
+          addOns: [],
+          paymentMode: 'pay-at-venue',
+        }));
+        if (!reservation.ok) {
+          setErrors({ slot: reservation.error });
+          return;
+        }
+        bookingId = reservation.booking.id;
+        if (room?.bookingId) {
+          dispatch(bookingCancelled({ bookingId: room.bookingId, cancelledAt: timestamp }));
+        }
+      } else if (room.bookingId) {
+        const existingBooking = bookings.find(item => item.id === room.bookingId);
+        if (existingBooking && (existingBooking.paymentMode !== 'pay-at-venue' || existingBooking.paymentStatus !== 'due-at-venue')) {
+          dispatch(bookingPaymentModeUpdated({ bookingId: room.bookingId, paymentMode: 'pay-at-venue' }));
+        }
+      }
+
+      const paymentModeChanged = Boolean(room && room.paymentMode !== paymentMode);
+      const members = room?.members?.length
+        ? room.members.map((member, index) => ({
+          ...member,
+          seatIndex: Number.isInteger(member.seatIndex) ? member.seatIndex : index,
+          paymentStatus: paymentModeChanged && member.userId === room.createdBy
+            ? paymentMode === 'simulated' ? 'simulated-paid' : 'due-at-venue'
+            : member.paymentStatus,
+        }))
+        : [{ userId: currentUser.id, name: currentUser.name, joinedAt: timestamp, seatIndex: 0 }];
+      const paymentShares = createRoomPaymentShares(totalCostPKR, Number(capacity), members, paymentMode, room?.paymentShares || []);
+      const updatedMembers = members.map(member => {
+        const share = paymentShares.find(item => item.seatIndex === member.seatIndex);
+        return { ...member, sharePKR: share?.amountPKR || 0, paymentStatus: share?.status || 'unpaid' };
+      });
+      const roomRecord = {
+        ...(room || {}),
+        id: roomRecordId,
+        title: title.trim(),
+        sport,
+        location: `${selectedVenue.name} · ${selectedVenue.locationNote || selectedVenue.address || selectedVenue.city}`,
+        date: selectedSlot.date,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+        visibility,
+        joinCode: visibility === 'private' ? joinCode.trim() : '',
+        capacity: Number(capacity),
+        totalCostPKR,
+        costPerParticipantPKR: estimatedSharePKR,
+        paymentMode,
+        bookingId,
+        venueId: selectedVenue.id,
+        vendorId: selectedVenue.vendorId,
+        vendorUserId: selectedVendorProfile?.ownerUserId || null,
+        groundId: selectedGround.id,
+        slotId: selectedSlot.id,
+        status: room?.status || 'open',
+        createdBy: room?.createdBy || currentUser.id,
+        createdByName: room?.createdByName || currentUser.name,
+        members: updatedMembers,
+        paymentShares,
+        createdAt: room?.createdAt || timestamp,
+        updatedAt: timestamp,
+      };
+
+      if (room) {
+        dispatch(gameRoomUpdated(roomRecord));
+        navigation.goBack();
+      } else {
+        const conversationId = createCommunityId('conversation');
+        const roomParticipantIds = [...new Set([
+          ...updatedMembers.map(member => member.userId),
+          selectedVendorProfile?.ownerUserId,
+        ].filter(Boolean))];
+        const conversation = {
+          id: conversationId,
+          kind: 'game-room',
+          roomId: roomRecord.id,
+          venueId: selectedVenue.id,
+          venueName: selectedVenue.name,
+          vendorId: selectedVenue.vendorId,
+          vendorUserId: selectedVendorProfile?.ownerUserId || null,
+          playerUserId: currentUser.id,
+          playerName: currentUser.name,
+          title: roomRecord.title,
+          subtitle: `${sport} · ${selectedVendorProfile?.ownerUserId ? 'joined players and venue vendor' : 'joined players only'}`,
+          participantIds: roomParticipantIds,
+          unreadByUser: Object.fromEntries(roomParticipantIds.map(userId => [userId, 0])),
+          lastMessage: selectedVendorProfile?.ownerUserId
+            ? 'Private room chat is ready for the joined players and venue vendor.'
+            : 'Room chat is ready. Only joined players can open it.',
+          lastAt: timestamp,
+          createdAt: timestamp,
+        };
+        dispatch(gameRoomCreated({ ...roomRecord, conversationId }));
+        dispatch(conversationCreated(conversation));
+        navigation.replace('GameRoomDetails', { roomId: roomRecord.id });
+      }
+    } catch (error) {
+      setErrors({ form: error.message || 'The game room could not be saved.' });
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (editing && (!room || !canEdit)) {
+    return <ScreenMissing navigation={navigation} title={room ? 'Only the organizer can edit this game room' : 'Game room not found'} />;
+  }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <ScrollView contentContainerStyle={styles.pageContent} keyboardShouldPersistTaps="handled">
-        <ScreenHeader title="Create a game" subtitle="Choose a sport, location and player limit." onBack={() => navigation.goBack()} eyebrow="NEW ROOM" />
+        <ScreenHeader title={editing ? 'Edit game room' : 'Create a game'} subtitle="Choose a sport, a matching venue time, and your player limit." onBack={() => navigation.goBack()} eyebrow={editing ? 'ORGANIZER SETTINGS' : 'NEW ROOM'} />
         <FormField label="Game name" value={title} onChangeText={setTitle} error={errors.title} placeholder="Friday night futsal" testID="room-title" />
-        <ChoiceChips label="Sport" options={SPORTS} selected={sport} onSelect={setSport} testID="room-sport" />
-        <FormField label="Venue or meeting location" value={location} onChangeText={value => { setLocation(value); setSelectedVenueId(''); setSelectedSlotId(''); }} error={errors.location} placeholder="Search venue name or location" testID="room-location" />
-        {selectedVenue ? <View style={[styles.selectedVenueCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-          <View style={styles.selectedVenueCopy}>
-            <Text style={[styles.selectedVenueLabel, { color: colors.primary }]}>SELECTED VENUE</Text>
-            <Text numberOfLines={1} style={[styles.cardTitle, { color: colors.ink }]}>{selectedVenue.name}</Text>
-            <Text numberOfLines={1} style={[styles.cardMeta, { color: colors.inkSoft }]}>{selectedVenue.locationNote || selectedVenue.address || selectedVenue.city}</Text>
-            {selectedSlot ? <Text style={[styles.selectedTime, { color: colors.ink }]}>{formatCommunityDate(selectedSlot.date)} · {formatCommunityTime(selectedSlot.startTime)}–{formatCommunityTime(selectedSlot.endTime)}</Text> : null}
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Change selected venue" testID="room-venue-change" onPress={changeSelectedVenue} hitSlop={8}>
-            <Text style={[styles.changeVenue, { color: colors.primary }]}>Change</Text>
-          </Pressable>
-        </View> : location.trim() ? venueSuggestions.length ? <View style={styles.venueSuggestions}>
+        <ChoiceChips label="Sport" options={SPORTS} selected={sport} onSelect={changeSport} testID="room-sport" />
+        <FormField label="Venue or meeting location" value={location} onChangeText={value => { setLocation(value); setSelectedVenueId(''); setSelectedSlotId(''); setErrors(previous => ({ ...previous, slot: undefined })); }} error={errors.location} placeholder={`Search ${sport} venues or areas`} testID="room-location" leadingIcon="⌕" />
+        {selectedVenue && selectedSlot ? (
+          <>
+            <View style={[styles.selectedVenueCard, { backgroundColor: colors.surface, borderColor: colors.primary, borderRadius: radius.md }]}>
+              <View style={styles.selectedVenueCopy}>
+                <Text style={[styles.selectedVenueLabel, { color: colors.primary }]}>SELECTED {sport.toUpperCase()} VENUE</Text>
+                <Text numberOfLines={1} style={[styles.cardTitle, { color: colors.ink }]}>{selectedVenue.name}</Text>
+                <Text numberOfLines={1} style={[styles.cardMeta, { color: colors.inkSoft }]}>{selectedGround?.name} · {selectedVenue.locationNote || selectedVenue.city}</Text>
+                <Text style={[styles.selectedTime, { color: colors.ink }]}>{formatCommunityDate(selectedSlot.date)} · {formatCommunityTime(selectedSlot.startTime)}–{formatCommunityTime(selectedSlot.endTime)}</Text>
+                <Text style={[styles.cardMetaStrong, { color: colors.primary }]}>{formatPKR(selectedGround?.hourlyPricePKR)} / hour · {formatPKR(totalCostPKR)} venue total</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Change selected venue or time" testID="room-venue-change" onPress={changeSelectedVenue} hitSlop={8}>
+                <Text style={[styles.changeVenue, { color: colors.primary }]}>Change</Text>
+              </Pressable>
+            </View>
+            {selectedVendorProfile?.ownerUserId ? <AppButton title="Chat with venue vendor" variant="secondary" testID="room-venue-chat" onPress={openVendorChat} style={styles.venueChatButton} /> : null}
+          </>
+        ) : venueSuggestions.length ? <ScrollView testID="room-venue-suggestions" nestedScrollEnabled showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" style={styles.suggestionScroll} contentContainerStyle={styles.venueSuggestions}>
           {venueSuggestions.slice(0, 3).map(({ venue, slots: venueSlots }) => {
             const expanded = expandedVenueId === venue.id;
             const visibleSlots = expanded ? venueSlots.slice(1) : [];
+            const firstSlot = venueSlots[0];
             return <View key={venue.id} style={[styles.venueSuggestion, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-              <Text numberOfLines={1} style={[styles.cardTitle, { color: colors.ink }]}>{venue.name}</Text>
-              <Text numberOfLines={1} style={[styles.cardMeta, { color: colors.inkSoft }]}>{venue.locationNote || venue.address || venue.city}</Text>
+              <View style={styles.suggestionHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={[styles.cardTitle, { color: colors.ink }]}>{venue.name}</Text>
+                  <Text numberOfLines={1} style={[styles.cardMeta, { color: colors.inkSoft }]}>{venue.locationNote || venue.address || venue.city}</Text>
+                </View>
+                <Text style={[styles.priceSmall, { color: colors.primary }]}>{formatPKR(firstSlot.ground.hourlyPricePKR)}/hr</Text>
+              </View>
+              <Text style={[styles.sportAvailability, { color: colors.success }]}>{sport} available · {firstSlot.ground.name}</Text>
               <View style={styles.nextSlotRow}>
-                <Pressable accessibilityRole="button" accessibilityLabel={`Select ${venue.name}, ${formatCommunityDate(venueSlots[0].date)} ${formatCommunityTime(venueSlots[0].startTime)}`} testID={`room-slot-${venueSlots[0].id}`} onPress={() => selectVenueSlot(venue, venueSlots[0])} style={[styles.nextSlot, { backgroundColor: colors.limePale, borderRadius: radius.sm }]}>
-                  <Text style={[styles.nextSlotLabel, { color: colors.primaryDark }]}>NEXT AVAILABLE</Text>
-                  <Text style={[styles.nextSlotTime, { color: colors.primaryDark }]}>{formatCommunityDate(venueSlots[0].date)} · {formatCommunityTime(venueSlots[0].startTime)}–{formatCommunityTime(venueSlots[0].endTime)}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Select ${venue.name}, ${formatCommunityDate(firstSlot.date)} ${formatCommunityTime(firstSlot.startTime)}, ${formatPKR(firstSlot.totalCostPKR)}`} testID={`room-slot-${firstSlot.id}`} onPress={() => selectVenueSlot(venue, firstSlot)} style={[styles.nextSlot, { backgroundColor: colors.limePale, borderRadius: radius.sm }]}>
+                  <Text style={[styles.nextSlotLabel, { color: colors.primaryDark }]}>NEXT AVAILABLE · {formatPKR(firstSlot.totalCostPKR)} TOTAL</Text>
+                  <Text style={[styles.nextSlotTime, { color: colors.primaryDark }]}>{formatCommunityDate(firstSlot.date)} · {formatCommunityTime(firstSlot.startTime)}–{formatCommunityTime(firstSlot.endTime)}</Text>
                 </Pressable>
                 {venueSlots.length > 1 ? <Pressable accessibilityRole="button" accessibilityLabel={expanded ? 'Show fewer available times' : `Show more available times at ${venue.name}`} testID={`room-times-${venue.id}`} onPress={() => setExpandedVenueId(expanded ? '' : venue.id)} hitSlop={8}>
                   <Text style={[styles.moreTimes, { color: colors.primary }]}>{expanded ? 'Less' : `+${venueSlots.length - 1} times`}</Text>
                 </Pressable> : null}
               </View>
-              {expanded ? <ScrollView nestedScrollEnabled showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" style={styles.moreSlotList} contentContainerStyle={styles.moreSlotContent}>{visibleSlots.map(slot => <Pressable key={slot.id} accessibilityRole="button" accessibilityLabel={`Select ${venue.name}, ${formatCommunityDate(slot.date)} ${formatCommunityTime(slot.startTime)}`} testID={`room-slot-${slot.id}`} onPress={() => selectVenueSlot(venue, slot)} style={[styles.moreSlot, { backgroundColor: colors.canvas, borderColor: colors.border, borderRadius: radius.sm }]}><Text style={[styles.moreSlotText, { color: colors.ink }]}>{formatCommunityDate(slot.date)} · {formatCommunityTime(slot.startTime)}–{formatCommunityTime(slot.endTime)}</Text></Pressable>)}</ScrollView> : null}
+              {expanded ? <ScrollView nestedScrollEnabled showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" style={styles.moreSlotList} contentContainerStyle={styles.moreSlotContent}>{visibleSlots.map(slot => <Pressable key={slot.id} accessibilityRole="button" accessibilityLabel={`Select ${venue.name}, ${formatCommunityDate(slot.date)} ${formatCommunityTime(slot.startTime)}, ${formatPKR(slot.totalCostPKR)}`} testID={`room-slot-${slot.id}`} onPress={() => selectVenueSlot(venue, slot)} style={[styles.moreSlot, { backgroundColor: colors.canvas, borderColor: colors.border, borderRadius: radius.sm }]}><Text style={[styles.moreSlotText, { color: colors.ink }]}>{formatCommunityDate(slot.date)} · {formatCommunityTime(slot.startTime)}–{formatCommunityTime(slot.endTime)} · {formatPKR(slot.totalCostPKR)}</Text></Pressable>)}</ScrollView> : null}
             </View>;
           })}
-        </View> : <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>No published venues with future available slots match this search.</Text> : null}
-        <View style={styles.twoColumns}>
-          <FormField label="Date (YYYY-MM-DD)" value={date} onChangeText={value => { setDate(value); setSelectedSlotId(''); }} error={errors.date} placeholder="YYYY-MM-DD" testID="room-date" style={styles.column} />
-          <FormField label="Start time (HH:MM)" value={startTime} onChangeText={value => { setStartTime(value); setSelectedSlotId(''); }} placeholder="19:00" testID="room-start-time" style={styles.column} />
+        </ScrollView> : <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{location.trim() ? `No published venues with a future ${sport} time match this search.` : `No published venues currently offer ${sport}.`}</Text>}
+        {errors.slot ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{errors.slot}</Text> : null}
+        <View style={styles.capacityHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardTitle, { color: colors.ink }]}>Player capacity</Text>
+            <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{sport} supports up to {capacityLimit} players in this room.</Text>
+          </View>
+          <FormField label="Players" value={capacity} onChangeText={value => setCapacity(value.replace(/[^\d]/g, ''))} error={errors.capacity} keyboardType="number-pad" testID="room-capacity" style={styles.capacityField} />
         </View>
-        <ChoiceChips label="Visibility" options={['public', 'private']} selected={visibility} onSelect={setVisibility} testID="room-visibility" />
+        {selectedSlot ? <DesignCard testID="room-cost-summary">
+          <Text style={[styles.cardTitle, { color: colors.ink }]}>Transparent cost estimate</Text>
+          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{formatPKR(totalCostPKR)} venue total ÷ {capacityNumber || '—'} planned players</Text>
+          <View style={styles.costSummaryRow}><Text style={[styles.cardMetaStrong, { color: colors.ink }]}>Estimated share per player</Text><Text style={[styles.price, { color: colors.primary }]}>{formatPKR(estimatedSharePKR)}</Text></View>
+          <View style={styles.costSummaryRow}><Text style={[styles.cardMetaStrong, { color: colors.ink }]}>Your organizer share</Text><Text style={[styles.price, { color: colors.primary }]}>{formatPKR(estimatedSharePKR)}</Text></View>
+          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>Whole-PKR shares are balanced so their total equals the venue slot price exactly.</Text>
+        </DesignCard> : <InlineNotice>Select a venue time to see the total and per-player share.</InlineNotice>}
+        <ChoiceChips label="How will players settle their share?" options={['Pay at venue', 'Simulated online payment']} selected={paymentMode === 'simulated' ? 'Simulated online payment' : 'Pay at venue'} onSelect={value => setPaymentMode(value === 'Simulated online payment' ? 'simulated' : 'pay-at-venue')} testID="room-payment" />
+        <InlineNotice>{paymentMode === 'simulated'
+          ? `Only your share (${formatPKR(estimatedSharePKR)}) is marked simulated paid when the room is created. Other shares stay unpaid; the full venue total is split across ${capacityNumber || 'the planned'} seats. No real payment is taken.`
+          : `Your share (${formatPKR(estimatedSharePKR)}) is due at the venue. The full slot total is split across ${capacityNumber || 'the planned'} seats, and no payment is taken during room creation.`}</InlineNotice>
+        <ChoiceChips label="Room visibility" options={['public', 'private']} selected={visibility} onSelect={setVisibility} testID="room-visibility" />
         {visibility === 'private' ? <FormField label="Private join code" value={joinCode} onChangeText={setJoinCode} error={errors.joinCode} autoCapitalize="characters" placeholder="At least 4 characters" testID="room-join-code" /> : null}
-        <View style={styles.twoColumns}>
-          <FormField label="Player capacity" value={capacity} onChangeText={setCapacity} error={errors.capacity} keyboardType="number-pad" testID="room-capacity" style={styles.column} />
-          <FormField label="Cost / player (PKR)" value={cost} onChangeText={setCost} error={errors.costPerParticipantPKR} keyboardType="number-pad" testID="room-cost" style={styles.column} />
-        </View>
-        <InlineNotice>Room costs are demo estimates. This app does not collect or split money.</InlineNotice>
-        <AppButton title="Create game room" testID="room-submit" onPress={create} />
+        {errors.totalCostPKR ? <InlineNotice tone="danger">{errors.totalCostPKR}</InlineNotice> : null}
+        {errors.form ? <InlineNotice tone="danger">{errors.form}</InlineNotice> : null}
+        <AppButton
+          title={saving ? 'Saving game room…' : editing ? 'Save game room settings' : paymentMode === 'simulated' ? `Pay your share · ${formatPKR(estimatedSharePKR)} · create room` : `Create room · your ${formatPKR(estimatedSharePKR)} share due at venue`}
+          testID="room-submit"
+          onPress={create}
+          loading={saving}
+          disabled={saving || !selectedSlot}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -242,10 +464,16 @@ export function GameRoomDetailsScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const room = useSelector(state => state.community.rooms.find(item => item.id === route.params?.roomId));
+  const conversation = useSelector(state => state.community.conversations.find(item =>
+    item.kind === 'game-room' && item.roomId === route.params?.roomId,
+  ));
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const member = room?.members.find(item => item.userId === currentUser?.id);
+  const isOrganizer = room?.createdBy === currentUser?.id;
   const openSpots = useMemo(() => getRoomOpenSpots(room), [room]);
+  const organizerShare = room?.paymentShares?.find(share => share.seatIndex === 0)
+    || room?.paymentShares?.find(share => share.userId === room?.createdBy);
 
   const join = () => {
     setError('');
@@ -253,7 +481,16 @@ export function GameRoomDetailsScreen({ navigation, route }) {
     if (!result.ok) setError(result.error);
     else setJoinCode('');
   };
-  const leave = () => dispatch(gameRoomMemberRemoved({ roomId: room.id, userId: currentUser.id }));
+  const leave = () => {
+    if (isOrganizer) {
+      Alert.alert('Cancel this game room?', 'The room will close and its local venue reservation will be released.', [
+        { text: 'Keep room', style: 'cancel' },
+        { text: 'Cancel room', style: 'destructive', onPress: () => dispatch(leaveGameRoom({ roomId: room.id, userId: currentUser.id })) },
+      ]);
+      return;
+    }
+    dispatch(leaveGameRoom({ roomId: room.id, userId: currentUser.id }));
+  };
 
   if (!room) return <ScreenMissing navigation={navigation} title="Game room not found" />;
 
@@ -266,17 +503,31 @@ export function GameRoomDetailsScreen({ navigation, route }) {
           <View style={styles.rowBetween}><Text style={[styles.cardTitle, styles.flex, { color: colors.ink }]}>{room.location}</Text><StatusBadge label={room.visibility} tone={room.visibility === 'private' ? 'warning' : 'success'} /></View>
           <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Organizer · {room.createdByName || 'PlaySpot player'}</Text>
           <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{room.members.length} / {room.capacity} players · {openSpots} spots left</Text>
-          <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(room.costPerParticipantPKR)} per player · demo estimate</Text>
+          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{room.groundName || room.sport} · {formatCommunityDate(room.date)} · {formatCommunityTime(room.startTime)}</Text>
+          <View style={styles.roomCostDivider} />
+          <View style={styles.rowBetween}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Venue slot total</Text><Text style={[styles.price, { color: colors.ink }]}>{formatPKR(room.totalCostPKR ?? room.costPerParticipantPKR * room.capacity)}</Text></View>
+          <View style={styles.rowBetween}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Estimated share / player</Text><Text style={[styles.price, { color: colors.primary }]}>{formatPKR(room.costPerParticipantPKR)}</Text></View>
+          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Organizer share · {formatPKR(organizerShare?.amountPKR ?? room.costPerParticipantPKR)} · {organizerShare?.status === 'simulated-paid' ? 'simulated paid' : organizerShare?.status === 'paid-at-venue' ? 'paid at venue' : organizerShare?.status === 'due-at-venue' ? 'due at venue' : 'unpaid'}</Text>
+          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>Room creation records the organizer’s share only; the venue total is divided across the planned player seats.</Text>
         </DesignCard>
+        {isOrganizer && room.status !== 'cancelled' ? <AppButton title="Edit game room settings" testID="room-edit" variant="secondary" onPress={() => navigation.navigate('CreateGameRoom', { roomId: room.id })} /> : null}
+        {isOrganizer && room.visibility === 'private' ? <InlineNotice>Private room code · {room.joinCode}</InlineNotice> : null}
         <SectionHeading title="Players" />
         {room.members.map((item, index) => (
-          <View key={item.userId} style={[styles.memberRow, { borderColor: colors.border }]}>
+          <DesignCard key={item.userId} style={styles.memberPaymentCard}>
             <View style={[styles.memberAvatar, { backgroundColor: colors.limePale }]}><Text style={[styles.memberInitial, { color: colors.primary }]}>{item.name?.[0]?.toUpperCase() || String(index + 1)}</Text></View>
-            <Text style={[styles.cardTitle, { color: colors.ink }]}>{item.name}{item.userId === room.createdBy ? ' · Organizer' : ''}</Text>
-          </View>
+            <View style={styles.memberPaymentCopy}>
+              <Text style={[styles.cardTitle, { color: colors.ink }]}>{item.name}{item.userId === room.createdBy ? ' · Organizer' : ''}</Text>
+              <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{formatPKR(item.sharePKR ?? room.paymentShares?.find(share => share.userId === item.userId)?.amountPKR ?? room.costPerParticipantPKR)} share</Text>
+            </View>
+            <StatusBadge
+              label={item.paymentStatus === 'simulated-paid' ? 'Simulated paid' : item.paymentStatus === 'paid-at-venue' ? 'Paid at venue' : item.paymentStatus === 'due-at-venue' ? 'Due at venue' : 'Unpaid'}
+              tone={['simulated-paid', 'paid-at-venue'].includes(item.paymentStatus) ? 'success' : 'warning'}
+            />
+          </DesignCard>
         ))}
-        {member ? (
-          <AppButton title="Leave game room" variant="secondary" testID="room-leave" onPress={leave} />
+        {member && room.status === 'open' ? (
+          <AppButton title={isOrganizer ? 'Cancel game room' : 'Leave game room'} variant="secondary" testID="room-leave" onPress={leave} />
         ) : room.status !== 'open' ? (
           <AppButton title="Room is closed" testID="room-closed" disabled />
         ) : openSpots === 0 ? (
@@ -287,10 +538,9 @@ export function GameRoomDetailsScreen({ navigation, route }) {
             <AppButton title="Join game room" testID="room-join" onPress={join} disabled={room.visibility === 'private' && !joinCode.trim()} />
           </>
         )}
-        {room.visibility === 'private' && room.createdBy === currentUser?.id ? <InlineNotice>Share this private code with invited players: {room.joinCode}</InlineNotice> : null}
         {error ? <InlineNotice tone="danger" testID="room-join-error">{error}</InlineNotice> : null}
-        <AppButton title="Open local chat" variant="secondary" testID="room-chat" onPress={() => navigation.navigate('ChatInbox')} style={styles.spacedButton} />
-        <AppButton title="Split payment calculator" variant="quiet" testID="room-split" onPress={() => navigation.navigate('SplitPayment', { roomId: room.id, totalPKR: room.costPerParticipantPKR * room.members.length })} style={styles.spacedButton} />
+        {member ? <AppButton title="Open this room’s private chat" variant="secondary" testID="room-chat" disabled={!conversation} onPress={() => conversation && navigation.navigate('ChatConversation', { conversationId: conversation.id })} style={styles.spacedButton} /> : <InlineNotice>{room.vendorUserId ? 'Room chat is private to joined players and the selected venue vendor. Join this room to open it.' : 'Room chat is private to joined players. Join this room to open it.'}</InlineNotice>}
+        {member ? <AppButton title="Open split payment calculator" variant="quiet" testID="room-split" onPress={() => navigation.navigate('SplitPayment', { roomId: room.id })} style={styles.spacedButton} /> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -302,7 +552,9 @@ export function ChatInboxScreen({ navigation }) {
   const { currentUser } = useSelector(state => state.auth);
   const conversationRows = useSelector(state => state.community.conversations);
   const conversations = useMemo(() => [...conversationRows]
-    .filter(item => currentUser?.role !== 'vendor' || (item.kind === 'venue-vendor' && item.vendorUserId === currentUser.id))
+    .filter(item => item.participantIds?.includes(currentUser?.id) &&
+      (currentUser?.role !== 'vendor' ||
+        ((item.kind === 'venue-vendor' || item.kind === 'game-room') && item.vendorUserId === currentUser.id)))
     .sort((first, second) => String(second.lastAt).localeCompare(String(first.lastAt))), [conversationRows, currentUser?.id, currentUser?.role]);
 
   const startConversation = () => {
@@ -336,8 +588,12 @@ export function ChatInboxScreen({ navigation }) {
         ListEmptyComponent={<EmptyState title={currentUser?.role === 'vendor' ? 'No player messages yet' : 'No conversations yet'} description={currentUser?.role === 'vendor' ? 'Player chats for your venues will appear here.' : 'Start a local demo chat to see the conversation screen.'} action={currentUser?.role === 'vendor' ? null : <AppButton title="Start a demo chat" testID="chat-empty-new" onPress={startConversation} />} />}
         renderItem={({ item }) => {
           const unread = Number(item.unreadByUser?.[currentUser?.id] || 0);
-          const title = currentUser?.role === "vendor" ? (item.playerName || item.title) : (item.venueName || item.title);
-          const subtitle = currentUser?.role === "vendor" && item.venueName ? `About ${item.venueName}` : item.subtitle;
+          const title = currentUser?.role === 'vendor'
+            ? item.kind === 'game-room' ? item.title : item.playerName || item.title
+            : item.venueName || item.title;
+          const subtitle = currentUser?.role === 'vendor' && item.kind === 'game-room'
+            ? `Game room · ${item.venueName || 'your venue'}`
+            : currentUser?.role === 'vendor' && item.venueName ? `About ${item.venueName}` : item.subtitle;
           return (
             <Pressable accessibilityRole="button" accessibilityLabel={`Open chat with ${title}`} testID={`chat-item-${item.id}`} onPress={() => navigation.navigate('ChatConversation', { conversationId: item.id })}>
               <DesignCard style={styles.chatRow}>
@@ -362,6 +618,12 @@ export function ChatConversationScreen({ navigation, route }) {
   const { currentUser } = useSelector(state => state.auth);
   const conversationRows = useSelector(state => state.community.conversations);
   const conversation = conversationRows.find(item => item.id === route.params?.conversationId);
+  const room = useSelector(state => state.community.rooms.find(item => item.id === conversation?.roomId));
+  const isRoomMember = conversation?.kind !== 'game-room' || Boolean(
+    room?.members.some(member => member.userId === currentUser?.id)
+    || room?.vendorUserId === currentUser?.id,
+  );
+  const canOpenConversation = Boolean(conversation?.participantIds?.includes(currentUser?.id) && isRoomMember);
   const messageRows = useSelector(state => state.community.messages);
   const messages = useMemo(() => messageRows.filter(item => item.conversationId === route.params?.conversationId)
     .sort((first, second) => String(first.createdAt).localeCompare(String(second.createdAt))), [messageRows, route.params?.conversationId]);
@@ -369,14 +631,14 @@ export function ChatConversationScreen({ navigation, route }) {
   const listRef = useRef(null);
 
   useEffect(() => {
-    if (conversation && currentUser?.id) {
+    if (canOpenConversation && conversation && currentUser?.id) {
       dispatch(conversationRead({ conversationId: conversation.id, userId: currentUser.id }));
     }
-  }, [conversation?.id, currentUser?.id, dispatch]);
+  }, [canOpenConversation, conversation?.id, currentUser?.id, dispatch]);
 
   const send = () => {
     const body = draft.trim();
-    if (!body || !conversation) return;
+    if (!body || !conversation || !canOpenConversation) return;
     dispatch(messageSent({
       id: createCommunityId('message'),
       conversationId: conversation.id,
@@ -392,9 +654,9 @@ export function ChatConversationScreen({ navigation, route }) {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.chatPage}>
-          <ScreenHeader title={conversation ? (currentUser?.role === 'vendor' ? conversation.playerName || conversation.title : conversation.venueName || conversation.title) : 'Conversation'} subtitle="Local demo chat · not real-time" eyebrow="MESSAGES" onBack={() => navigation.goBack()} />
+          <ScreenHeader title={conversation ? (currentUser?.role === 'vendor' && conversation.kind === 'venue-vendor' ? conversation.playerName || conversation.title : conversation.title) : 'Conversation'} subtitle="Local demo chat · not real-time" eyebrow="MESSAGES" onBack={() => navigation.goBack()} />
           <LocalDemoNote />
-          {conversation ? (
+          {canOpenConversation ? (
             <FlatList
               ref={listRef}
               data={messages}
@@ -415,8 +677,8 @@ export function ChatConversationScreen({ navigation, route }) {
                 );
               }}
             />
-          ) : <EmptyState title="Conversation not found" description="Return to the inbox and open a saved conversation." />}
-          <View style={[styles.composer, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+          ) : <EmptyState title={conversation?.kind === 'game-room' ? 'Join this game room to open its private chat' : 'Conversation not available'} description="Only current conversation participants can read or send these local demo messages." />}
+          {canOpenConversation ? <View style={[styles.composer, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
             <TextInput
               accessibilityLabel="Write a local demo message"
               testID="chat-message-input"
@@ -433,7 +695,7 @@ export function ChatConversationScreen({ navigation, route }) {
             <Pressable accessibilityRole="button" accessibilityLabel="Send local demo message" testID="chat-message-send" disabled={!draft.trim()} onPress={send} style={[styles.sendButton, { backgroundColor: colors.primary, borderRadius: radius.pill, opacity: draft.trim() ? 1 : 0.45 }]}>
               <Text style={styles.sendLabel}>Send</Text>
             </Pressable>
-          </View>
+          </View> : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -449,94 +711,122 @@ export function SplitPaymentScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const room = useSelector(state => state.community.rooms.find(item => item.id === route.params?.roomId));
-  const savedSplit = useSelector(state => state.community.splits.find(item =>
-    (route.params?.splitId && item.id === route.params.splitId) ||
-    (route.params?.roomId && item.roomId === route.params.roomId),
-  ));
-  const participants = useMemo(() => {
-    if (room?.members?.length) return room.members.map(member => ({ userId: member.userId, name: member.name }));
-    return [
-      { userId: currentUser?.id, name: currentUser?.name || 'You' },
-      { userId: 'demo-share-hasham', name: 'Hasham' },
-      { userId: 'demo-share-mustansar', name: 'Mustansar' },
-      { userId: 'demo-share-player', name: 'Player 4' },
-    ];
-  }, [room?.id, room?.members, currentUser?.id, currentUser?.name]);
-  const initialTotal = route.params?.totalPKR || 3500;
-  const [totalText, setTotalText] = useState(String(savedSplit?.totalPKR ?? initialTotal));
-  const [shares, setShares] = useState(() => savedSplit?.shares || calculateEqualShares(initialTotal, participants));
+  const conversation = useSelector(state => state.community.conversations.find(item => item.kind === 'game-room' && item.roomId === room?.id));
+  const ground = useSelector(state => state.venues.grounds.find(item => item.id === room?.groundId));
+  const booking = useSelector(state => state.venues.bookings.find(item => item.id === room?.bookingId));
+  const isOrganizer = room?.createdBy === currentUser?.id;
+  const isMember = room?.members.some(member => member.userId === currentUser?.id);
+  const totalPKR = Number(room?.totalCostPKR ?? (room?.costPerParticipantPKR || 0) * (room?.capacity || 0));
+  const [draftShares, setDraftShares] = useState(() => (room?.paymentShares || []).map(share => ({ ...share, amountPKR: String(share.amountPKR) })));
   const [message, setMessage] = useState('');
-  const totalPKR = Number(totalText);
-  const validation = useMemo(() => validateSplitShares(totalPKR, shares), [totalPKR, shares]);
-  const shareSum = useMemo(() => shares.reduce((sum, share) => sum + (Number(share.amountPKR) || 0), 0), [shares]);
-  const myShare = shares.find(share => share.userId === currentUser?.id);
+  const roomShares = room?.paymentShares || [];
+  const shares = draftShares.length === roomShares.length ? draftShares : roomShares.map(share => ({ ...share, amountPKR: String(share.amountPKR) }));
+  const normalizedShares = shares.map(share => ({ ...share, amountPKR: Number(share.amountPKR) }));
+  const validation = useMemo(() => validateRoomPaymentShares(totalPKR, room?.capacity || 0, normalizedShares), [totalPKR, room?.capacity, normalizedShares]);
+  const shareSum = useMemo(() => normalizedShares.reduce((sum, share) => sum + (Number(share.amountPKR) || 0), 0), [normalizedShares]);
+  const myShare = roomShares.find(share => share.userId === currentUser?.id);
 
-  const recalculate = nextTotalText => {
-    const cleaned = String(nextTotalText).replace(/[^\d]/g, '');
-    setTotalText(cleaned);
-    if (cleaned && shares.length) {
-      setShares(current => calculateEqualShares(Number(cleaned), current));
-    }
-    setMessage('');
-  };
-  const updateShare = (userId, value) => {
+  useEffect(() => {
+    setDraftShares(roomShares.map(share => ({ ...share, amountPKR: String(share.amountPKR) })));
+  }, [room?.id, roomShares]);
+
+  const updateShare = (seatIndex, value) => {
+    if (!isOrganizer) return;
     const cleaned = String(value).replace(/[^\d]/g, '');
-    setShares(current => current.map(share => share.userId === userId ? { ...share, amountPKR: cleaned } : share));
+    setDraftShares(current => current.map(share => share.seatIndex === seatIndex ? { ...share, amountPKR: cleaned } : share));
     setMessage('');
   };
   const save = () => {
+    if (!isOrganizer) {
+      setMessage('Only the organizer can update share amounts. Discuss changes in the room chat.');
+      return;
+    }
     if (!validation.valid) {
       setMessage(validation.message);
       return;
     }
-    const split = {
-      id: savedSplit?.id || createCommunityId('split'),
-      bookingId: null,
-      roomId: room?.id || null,
-      totalPKR,
-      shares: shares.map(share => ({ ...share, amountPKR: Number(share.amountPKR) })),
-      createdAt: savedSplit?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    dispatch(splitSaved(split));
-    setMessage('Split saved locally. No payment was transferred.');
+    const result = dispatch(updateGameRoomPaymentShares({
+      roomId: room.id,
+      userId: currentUser.id,
+      shares: normalizedShares,
+    }));
+    setMessage(result.ok ? 'Share plan saved. Any changed paid share is marked unpaid again.' : result.error);
   };
-  const updateMyStatus = () => {
-    if (!savedSplit || !myShare) return;
-    const status = myShare.status === 'paid' ? 'unpaid' : 'paid';
-    dispatch(splitShareStatusChanged({ splitId: savedSplit.id, userId: myShare.userId, status }));
-    setShares(current => current.map(share => share.userId === myShare.userId ? { ...share, status } : share));
+  const payMyShare = () => {
+    const result = dispatch(recordRoomSharePayment({ roomId: room.id, userId: currentUser.id }));
+    setMessage(result.ok
+      ? room.paymentMode === 'simulated' ? 'Your share is marked simulated paid. No money was transferred.' : 'Your share is marked paid at the venue in this local demo.'
+      : result.error);
   };
 
   if (!room) return <ScreenMissing navigation={navigation} title="Game room not found" />;
+  if (!isMember) return <ScreenMissing navigation={navigation} title="Join this game room to view its payment plan" />;
+
+  const myShareAmount = Number(myShare?.amountPKR ?? room.members.find(member => member.userId === currentUser?.id)?.sharePKR ?? 0);
+  const mySharePaid = ['paid-at-venue', 'simulated-paid'].includes(myShare?.status);
+  const shareStatusLabel = share => share.status === 'open' ? 'Open spot'
+    : share.status === 'simulated-paid' ? 'Simulated paid'
+      : share.status === 'paid-at-venue' ? 'Paid at venue'
+        : share.status === 'due-at-venue' ? 'Due at venue' : 'Unpaid';
+  const equalShares = () => {
+    const baseShares = calculateEqualShares(totalPKR, Array.from({ length: room.capacity }, (_, index) => ({ userId: String(index), name: `Seat ${index + 1}` })));
+    setDraftShares(baseShares.map((share, index) => ({
+      ...(shares.find(item => item.seatIndex === index) || {}),
+      seatIndex: index,
+      amountPKR: String(share.amountPKR),
+    })));
+    setMessage('Equal shares are balanced to the exact venue total.');
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <ScrollView contentContainerStyle={styles.pageContent} keyboardShouldPersistTaps="handled">
-        <ScreenHeader title="Split payment" subtitle="Set demo shares for your group. This calculator does not move money." eyebrow="GROUP COSTS" onBack={() => navigation.goBack()} />
+        <ScreenHeader title="Room payment plan" subtitle="See the venue total, your exact share, and local payment status." eyebrow="GROUP COSTS" onBack={() => navigation.goBack()} />
         <InlineNotice>Simulated split — no payments are transferred.</InlineNotice>
-        {room ? (
-          <DesignCard><Text style={[styles.cardTitle, { color: colors.ink }]}>{room.title}</Text><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{room.members.length} current players · demo estimate</Text></DesignCard>
-        ) : null}
-        <FormField label="Total to divide (PKR)" value={totalText} onChangeText={recalculate} keyboardType="number-pad" testID="split-total" />
-        <SectionHeading title="Participants and shares" />
-        {shares.map(share => (
-          <DesignCard key={share.userId} style={styles.shareRow}>
+        <DesignCard testID="split-total-card">
+          <Text style={[styles.cardTitle, { color: colors.ink }]}>{room.title}</Text>
+          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{room.location} · {room.members.length} joined of {room.capacity}</Text>
+          <View style={styles.costSummaryRow}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Venue slot total</Text><Text style={[styles.price, { color: colors.ink }]}>{formatPKR(totalPKR)}</Text></View>
+          {ground ? <Text style={[styles.finePrint, { color: colors.inkSoft }]}>{ground.name} · {formatPKR(ground.hourlyPricePKR)}/hour × {booking?.durationMinutes || 60} minutes</Text> : null}
+          <View style={styles.costSummaryRow}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Planned shares</Text><Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{room.capacity} players</Text></View>
+          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>The venue fee is divided across room capacity. Any remaining rupees are assigned one at a time from the first seat so all shares add up exactly.</Text>
+        </DesignCard>
+        <DesignCard style={styles.yourShareCard} testID="split-your-share">
+          <Text style={[styles.shareEyebrow, { color: colors.primary }]}>YOUR SHARE</Text>
+          <View style={styles.costSummaryRow}>
+            <Text style={[styles.yourShareAmount, { color: colors.ink }]}>{formatPKR(myShareAmount)}</Text>
+            <StatusBadge label={shareStatusLabel(myShare || {})} tone={mySharePaid ? 'success' : 'warning'} />
+          </View>
+          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Your amount is fixed by the organizer’s room plan and seat. Ask in the private room chat if you want it reviewed.</Text>
+          {!mySharePaid ? <AppButton
+            title={room.paymentMode === 'simulated' ? `Pay ${formatPKR(myShareAmount)} · simulated` : `Confirm ${formatPKR(myShareAmount)} paid at venue`}
+            testID="room-share-pay"
+            onPress={payMyShare}
+            style={styles.sharePayButton}
+          /> : null}
+        </DesignCard>
+        <SectionHeading title="Player payment status" />
+        {shares.map((share, index) => (
+          <DesignCard key={`share-seat-${share.seatIndex ?? index}`} style={styles.shareRow}>
             <View style={styles.shareIdentity}>
-              <Text style={[styles.cardTitle, { color: colors.ink }]}>{share.name}{share.userId === currentUser?.id ? ' · You' : ''}</Text>
-              <StatusBadge label={share.status || 'unpaid'} tone={share.status === 'paid' ? 'success' : 'warning'} />
+              <Text style={[styles.cardTitle, { color: colors.ink }]}>{share.name || `Open player ${index + 1}`}{share.userId === currentUser?.id ? ' · You' : ''}</Text>
+              <StatusBadge label={shareStatusLabel(share)} tone={['simulated-paid', 'paid-at-venue'].includes(share.status) ? 'success' : share.status === 'open' ? 'neutral' : 'warning'} />
             </View>
-            <FormField label="Share (PKR)" value={String(share.amountPKR)} onChangeText={value => updateShare(share.userId, value)} keyboardType="number-pad" testID={`split-share-${share.userId}`} style={styles.shareInput} />
+            {isOrganizer ? <FormField label="Share (PKR)" value={String(share.amountPKR)} onChangeText={value => updateShare(share.seatIndex ?? index, value)} keyboardType="number-pad" testID={`split-share-seat-${share.seatIndex ?? index}`} style={styles.shareInput} />
+              : <Text style={[styles.shareAmount, { color: colors.ink }]}>{formatPKR(share.amountPKR)}</Text>}
           </DesignCard>
         ))}
         <View style={[styles.rowBetween, styles.shareTotal]}>
           <Text style={[styles.cardTitle, { color: colors.ink }]}>Shares total</Text>
           <Text style={[styles.price, { color: shareSum === totalPKR ? colors.primary : colors.error }]}>{formatPKR(shareSum)} / {formatPKR(totalPKR)}</Text>
         </View>
-        <AppButton title="Divide equally" variant="secondary" testID="split-equal" onPress={() => { setShares(current => calculateEqualShares(Number(totalText), current)); setMessage(''); }} disabled={!Number.isInteger(totalPKR) || totalPKR < 0} />
-        {!validation.valid ? <InlineNotice tone="danger">{validation.message}</InlineNotice> : null}
-        <AppButton title="Save split plan" testID="split-save" onPress={save} disabled={!validation.valid} style={styles.spacedButton} />
-        {savedSplit && myShare ? <AppButton title={myShare.status === 'paid' ? 'Mark my share unpaid (demo)' : 'Mark my share paid (demo)'} variant="secondary" testID="split-toggle-status" onPress={updateMyStatus} style={styles.spacedButton} /> : null}
+        {isOrganizer ? <>
+          <InlineNotice>Only you can edit these amounts. Players can discuss a change in the private room chat, then you can update the plan here.</InlineNotice>
+          {!validation.valid ? <InlineNotice tone="danger">{validation.message}</InlineNotice> : null}
+          <AppButton title="Divide equally" variant="secondary" testID="split-equal" onPress={equalShares} />
+          <AppButton title="Save share plan" testID="split-save" onPress={save} disabled={!validation.valid} style={styles.spacedButton} />
+        </> : <InlineNotice>Share amounts are read-only for players. Ask the organizer in the private room chat if something needs to change.</InlineNotice>}
+        <AppButton title="Open this room’s private chat" variant="secondary" testID="split-room-chat" disabled={!conversation} onPress={() => conversation && navigation.navigate('ChatConversation', { conversationId: conversation.id })} style={styles.spacedButton} />
         {message ? <InlineNotice testID="split-message">{message}</InlineNotice> : null}
       </ScrollView>
     </SafeAreaView>
@@ -761,7 +1051,8 @@ const styles = StyleSheet.create({
   memberInitial: { fontSize: 13, fontWeight: '900' },
   spacedButton: { marginTop: 10 },
   twoColumns: { flexDirection: 'row', gap: 10 },
-  venueSuggestions: { gap: 8, marginTop: -8, marginBottom: 14 },
+  suggestionScroll: { maxHeight: 320, marginTop: -8, marginBottom: 14 },
+  venueSuggestions: { gap: 8, paddingBottom: 2 },
   venueSuggestion: { borderWidth: 1, padding: 12 },
   nextSlotRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   nextSlot: { flex: 1, paddingHorizontal: 10, paddingVertical: 8 },
@@ -773,14 +1064,30 @@ const styles = StyleSheet.create({
   moreSlot: { borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
   moreSlotText: { fontSize: 10, fontWeight: '700' },
   selectedVenueCard: { borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, marginTop: -8, marginBottom: 14 },
+  venueChatButton: { marginTop: -8, marginBottom: 14 },
   selectedVenueCopy: { flex: 1, minWidth: 0 },
   selectedVenueLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7, marginBottom: 4 },
   selectedTime: { fontSize: 10, fontWeight: '700', marginTop: 6 },
   changeVenue: { fontSize: 11, fontWeight: '900' },
+  suggestionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sportAvailability: { fontSize: 10, fontWeight: '800', marginTop: 8 },
+  capacityHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 9 },
+  capacityField: { width: 112, marginBottom: 0 },
+  costSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 8 },
+  finePrint: { fontSize: 10, lineHeight: 16, marginTop: 8 },
+  error: { color: '#B83434', fontSize: 11, marginBottom: 10 },
+  roomCostDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#E0E6ED', marginTop: 9 },
+  memberPaymentCard: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  memberPaymentCopy: { flex: 1 },
   column: { flex: 1 },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   shareIdentity: { flex: 1, gap: 6 },
   shareInput: { width: 122, marginBottom: 0 },
+  shareAmount: { fontSize: 12, fontWeight: '900', paddingHorizontal: 3 },
+  yourShareCard: { borderColor: '#1A8F57', borderWidth: 1 },
+  shareEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  yourShareAmount: { fontSize: 27, fontWeight: '900' },
+  sharePayButton: { marginTop: 12 },
   shareTotal: { paddingVertical: 12 },
   rankCard: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   rankNumber: { width: 36, fontSize: 18, fontWeight: '900' },

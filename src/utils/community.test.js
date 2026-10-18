@@ -2,6 +2,8 @@ import {
   calculateEqualShares,
   canJoinGameRoom,
   canJoinTournament,
+  createRoomPaymentShares,
+  getGameRoomCapacityLimit,
   getRoomOpenSpots,
   validateGameRoomDraft,
   validateSplitShares,
@@ -42,10 +44,39 @@ describe('local community rules and totals', () => {
     expect(validateSplitShares(10000, shares).valid).toBe(false);
   });
 
-  test('room form validates required details, date/time, capacity and private code', () => {
+  test('badminton room capacity is capped at four and player shares follow the selected capacity', () => {
+    expect(getGameRoomCapacityLimit('Badminton')).toBe(4);
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    const selectedSlot = {
+      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      startTime: '16:00',
+      sport: 'Badminton',
+    };
+    const validation = validateGameRoomDraft({
+      title: 'Badminton doubles', sport: 'Badminton', location: 'Model Town Hall', selectedSlot,
+      capacity: '5', totalCostPKR: 2201, visibility: 'private', joinCode: 'RALLY24', paymentMode: 'simulated',
+    });
+    expect(validation.capacity).toMatch(/2 to 4/);
+
+    const shares = createRoomPaymentShares(2201, 4, [{ userId: 'organizer', name: 'Organizer', seatIndex: 0 }], 'simulated');
+    expect(shares.map(share => share.amountPKR)).toEqual([551, 550, 550, 550]);
+    expect(shares[0].status).toBe('simulated-paid');
+    expect(shares.reduce((sum, share) => sum + share.amountPKR, 0)).toBe(2201);
+  });
+
+  test('room form requires a future sport-matched slot and a supported local payment mode', () => {
     expect(validateGameRoomDraft({
-      title: '', sport: '', location: '', date: '2026-01-01', startTime: '25:00',
-      capacity: '1', costPerParticipantPKR: '-10', visibility: 'private', joinCode: 'x',
-    })).toMatchObject({ title: expect.any(String), date: expect.any(String), capacity: expect.any(String), joinCode: expect.any(String) });
+      title: '', sport: 'Badminton', location: '', date: '2026-01-01', startTime: '25:00',
+      capacity: '1', totalCostPKR: -10, visibility: 'private', joinCode: 'x', paymentMode: 'card',
+    })).toMatchObject({
+      title: expect.any(String),
+      location: expect.any(String),
+      slot: expect.any(String),
+      capacity: expect.any(String),
+      joinCode: expect.any(String),
+      totalCostPKR: expect.any(String),
+      paymentMode: expect.any(String),
+    });
   });
 });

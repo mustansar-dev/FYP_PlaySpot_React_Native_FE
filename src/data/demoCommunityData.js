@@ -1,4 +1,5 @@
 import { toLocalDateKey } from '../utils/booking';
+import { createRoomPaymentShares } from '../utils/community';
 
 function dateAfter(days) {
   const now = new Date();
@@ -60,7 +61,7 @@ export function createDemoCommunityState() {
       startTime: '20:00',
       visibility: 'private',
       joinCode: 'PADEL24',
-      capacity: 6,
+      capacity: 4,
       costPerParticipantPKR: 1100,
       status: 'open',
       createdBy: 'demo-player-006',
@@ -72,6 +73,24 @@ export function createDemoCommunityState() {
       createdAt: '2026-10-16T09:55:00.000Z',
     },
   ];
+
+  rooms.forEach(room => {
+    room.totalCostPKR = room.costPerParticipantPKR * room.capacity;
+    room.paymentMode = 'pay-at-venue';
+    room.bookingId = null;
+    room.paymentShares = createRoomPaymentShares(
+      room.totalCostPKR,
+      room.capacity,
+      room.members.map((member, seatIndex) => ({ ...member, seatIndex })),
+      room.paymentMode,
+    );
+    room.members = room.members.map((member, seatIndex) => ({
+      ...member,
+      seatIndex,
+      sharePKR: room.paymentShares[seatIndex]?.amountPKR || 0,
+      paymentStatus: room.paymentShares[seatIndex]?.status || 'unpaid',
+    }));
+  });
 
   const conversations = [
     {
@@ -93,13 +112,39 @@ export function createDemoCommunityState() {
     },
     {
       id: 'conversation-demo-team',
-      title: 'DHA Futsal Squad',
+      kind: 'game-room',
+      roomId: 'room-demo-gulberg-futsal',
+      title: 'Gulberg evening futsal',
       subtitle: 'Game room players · local demo',
       participantIds: ['demo-player-001', 'demo-player-002', 'demo-player-003'],
-      unreadByUser: { 'demo-player-001': 0, 'demo-player-002': 1, 'demo-player-003': 0 },
+      unreadByUser: { 'demo-player-001': 1, 'demo-player-002': 0, 'demo-player-003': 0 },
       lastMessage: 'I can bring an extra ball.',
       lastAt: '2026-10-16T10:15:00.000Z',
       createdAt: '2026-10-16T10:00:00.000Z',
+    },
+    {
+      id: 'conversation-demo-room-badminton',
+      kind: 'game-room',
+      roomId: 'room-demo-model-badminton',
+      title: 'Saturday badminton doubles',
+      subtitle: 'Room chat · private to joined players',
+      participantIds: ['demo-player-004', 'demo-player-005'],
+      unreadByUser: { 'demo-player-004': 1, 'demo-player-005': 0 },
+      lastMessage: 'I can bring shuttlecocks.',
+      lastAt: '2026-10-16T10:45:00.000Z',
+      createdAt: '2026-10-16T10:40:00.000Z',
+    },
+    {
+      id: 'conversation-demo-room-padel',
+      kind: 'game-room',
+      roomId: 'room-demo-dha-padel-private',
+      title: 'DHA padel group',
+      subtitle: 'Room chat · private to joined players',
+      participantIds: ['demo-player-006', 'demo-player-007'],
+      unreadByUser: { 'demo-player-006': 0, 'demo-player-007': 1 },
+      lastMessage: 'See you at the court.',
+      lastAt: '2026-10-16T10:20:00.000Z',
+      createdAt: '2026-10-16T10:18:00.000Z',
     },
     {
       id: 'conversation-demo-support',
@@ -117,6 +162,8 @@ export function createDemoCommunityState() {
     { id: 'message-demo-venue-1', conversationId: 'conversation-demo-venue', senderId: 'demo-player-001', senderName: 'Amina Shah', body: 'Is the 7 PM futsal slot available?', createdAt: '2026-10-16T11:25:00.000Z' },
     { id: 'message-demo-venue-2', conversationId: 'conversation-demo-venue', senderId: 'demo-vendor-001', senderName: 'Bilal Ahmed', body: 'The evening court is ready for your group.', createdAt: '2026-10-16T11:40:00.000Z' },
     { id: 'message-demo-team-1', conversationId: 'conversation-demo-team', senderId: 'demo-player-002', senderName: 'Hamza R.', body: 'I can bring an extra ball.', createdAt: '2026-10-16T10:15:00.000Z' },
+    { id: 'message-demo-badminton-1', conversationId: 'conversation-demo-room-badminton', senderId: 'demo-player-005', senderName: 'Aliya S.', body: 'I can bring shuttlecocks.', createdAt: '2026-10-16T10:45:00.000Z' },
+    { id: 'message-demo-padel-1', conversationId: 'conversation-demo-room-padel', senderId: 'demo-player-006', senderName: 'Bilal H.', body: 'See you at the court.', createdAt: '2026-10-16T10:20:00.000Z' },
     { id: 'message-demo-support-1', conversationId: 'conversation-demo-support', senderId: 'demo-vendor-001', senderName: 'Bilal Ahmed', body: 'You can ask about the sample venue details here.', createdAt: '2026-10-15T14:10:00.000Z' },
   ];
 
@@ -168,5 +215,19 @@ export function createDemoCommunityState() {
     { id: 'rank-demo-sana', name: 'Sana K.', sport: 'Padel', points: 1280, wins: 13 },
   ];
 
-  return { rooms, conversations, messages, tournaments, leaderboard, splits: [] };
+  const notifications = [
+    {
+      id: 'notification-demo-room-message-1',
+      recipientId: 'demo-player-001',
+      roomId: 'room-demo-gulberg-futsal',
+      conversationId: 'conversation-demo-team',
+      messageId: 'message-demo-team-1',
+      title: 'New message in Gulberg evening futsal',
+      body: 'Hamza R.: I can bring an extra ball.',
+      createdAt: '2026-10-16T10:15:00.000Z',
+      readAt: null,
+    },
+  ];
+
+  return { rooms, conversations, messages, tournaments, leaderboard, splits: [], notifications };
 }

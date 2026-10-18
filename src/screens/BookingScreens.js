@@ -30,8 +30,10 @@ import {
   toLocalDateKey,
 } from '../utils/booking';
 import { bookingCancelled, reserveBooking } from '../store/venueSlice';
-import { selectBookingsForUser, selectBookingsForVendor } from '../store/selectors/bookingSelectors';
+import { cancelGameRoom } from '../store/communitySlice';
+import { selectBookingsForUser, selectBookingsForVendor, selectGameRoomsForUser } from '../store/selectors/bookingSelectors';
 import { selectVenueById, selectGroundsByVenueId, selectEquipmentByVenueId, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
+import { getRoomOpenSpots } from '../utils/community';
 
 function PageShell({ navigation, title, subtitle, eyebrow, children, footer }) {
   const { colors } = useTheme();
@@ -461,6 +463,7 @@ export function MyBookingsScreen({ navigation }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const bookings = useSelector(state => selectBookingsForUser(state, currentUser?.id || ''));
+  const myRooms = useSelector(state => selectGameRoomsForUser(state, currentUser?.id || ''));
   const [filter, setFilter] = useState('Upcoming');
   const filtered = useMemo(() => bookings.filter(booking => {
     const status = getBookingDisplayStatus(booking);
@@ -478,6 +481,39 @@ export function MyBookingsScreen({ navigation }) {
         ListHeaderComponent={(
           <>
             <ScreenHeader title="My bookings" subtitle="Upcoming and completed local reservations." onBack={() => navigation.goBack()} />
+            <View style={styles.roomSectionHeader}>
+              <View style={styles.roomSectionCopy}>
+                <Text style={[styles.roomSectionTitle, { color: colors.ink }]}>My game rooms</Text>
+                <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Rooms you created or joined</Text>
+              </View>
+              <Pressable accessibilityRole="button" testID="my-rooms-create" onPress={() => navigation.navigate('CreateGameRoom')} hitSlop={8}>
+                <Text style={[styles.roomCreateLink, { color: colors.primary }]}>Create +</Text>
+              </Pressable>
+            </View>
+            {myRooms.length ? myRooms.map(room => {
+              const member = room.members.find(item => item.userId === currentUser?.id);
+              const isOrganizer = room.createdBy === currentUser?.id;
+              const amount = member?.sharePKR ?? room.paymentShares?.find(share => share.userId === currentUser?.id)?.amountPKR ?? room.costPerParticipantPKR;
+              return <Pressable key={room.id} accessibilityRole="button" accessibilityLabel={`Open game room ${room.title}`} testID={`my-game-room-${room.id}`} onPress={() => navigation.navigate('GameRoomDetails', { roomId: room.id })}>
+                <DesignCard style={styles.myRoomCard}>
+                  <View style={styles.rowBetween}>
+                    <Text numberOfLines={1} style={[styles.cardTitle, styles.bookingTitle, { color: colors.ink }]}>{room.title}</Text>
+                    <StatusBadge label={room.status === 'cancelled' ? 'Cancelled' : isOrganizer ? 'Organizer' : 'Joined'} tone={room.status === 'cancelled' ? 'danger' : isOrganizer ? 'success' : 'neutral'} />
+                  </View>
+                  <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{room.sport} · {formatDateKey(room.date)} · {formatTimeRange(room.startTime, room.endTime)}</Text>
+                  <Text numberOfLines={1} style={[styles.cardCopy, { color: colors.inkSoft }]}>{room.location}</Text>
+                  <View style={styles.rowBetween}>
+                    <Text style={[styles.cardCopy, { color: colors.ink }]}>{room.members.length}/{room.capacity} players · {getRoomOpenSpots(room)} spots left</Text>
+                    <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(amount)} / player</Text>
+                  </View>
+                  <Text style={[styles.roomPaymentStatus, { color: room.status === 'cancelled' ? colors.inkSoft : ['simulated-paid', 'paid-at-venue'].includes(member?.paymentStatus) ? colors.success : colors.orange }]}>{room.status === 'cancelled' ? 'Room cancelled' : member?.paymentStatus === 'simulated-paid' ? 'Your share · simulated paid' : member?.paymentStatus === 'paid-at-venue' ? 'Your share · paid at venue' : `Your share · ${formatPKR(amount)} due`}</Text>
+                </DesignCard>
+              </Pressable>;
+            }) : <Pressable accessibilityRole="button" onPress={() => navigation.navigate('GameRooms')} style={[styles.noRoomsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.cardTitle, { color: colors.ink }]}>No game rooms yet</Text>
+              <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Browse games or create one to see it here.</Text>
+            </Pressable>}
+            <SectionHeading title="Venue bookings" />
             <ChoiceChips options={['Upcoming', 'Past', 'Cancelled']} selected={filter} onSelect={setFilter} testID="my-bookings-filter" />
           </>
         )}
@@ -511,7 +547,10 @@ export function BookingDetailsScreen({ navigation, route }) {
     if (!booking || !canCancel || !active) return;
     Alert.alert('Cancel this booking?', 'The active slot will become available again in this local demo.', [
       { text: 'Keep booking', style: 'cancel' },
-      { text: 'Cancel booking', style: 'destructive', onPress: () => dispatch(bookingCancelled({ bookingId: booking.id, cancelledAt: new Date().toISOString() })) },
+      { text: 'Cancel booking', style: 'destructive', onPress: () => {
+        if (booking.roomId) dispatch(cancelGameRoom({ roomId: booking.roomId, user: currentUser }));
+        else dispatch(bookingCancelled({ bookingId: booking.id, cancelledAt: new Date().toISOString() }));
+      } },
     ]);
   };
 
@@ -771,6 +810,13 @@ const styles = StyleSheet.create({
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, marginTop: 5, marginBottom: 3 },
   bookingCard: { marginBottom: 11 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  roomSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3, marginBottom: 9 },
+  roomSectionCopy: { flex: 1 },
+  roomSectionTitle: { fontSize: 16, fontWeight: '900' },
+  roomCreateLink: { fontSize: 11, fontWeight: '900', paddingVertical: 8, paddingLeft: 10 },
+  myRoomCard: { marginBottom: 9 },
+  noRoomsCard: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 12 },
+  roomPaymentStatus: { fontSize: 10, fontWeight: '800', marginTop: 7 },
   bookingTitle: { flex: 1 },
   successMark: { width: 76, height: 76, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
   successCheck: { fontSize: 42, fontWeight: '800' },

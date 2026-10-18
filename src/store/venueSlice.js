@@ -119,6 +119,12 @@ const venueSlice = createSlice({
         if (item) item.quantityAvailable += addOn.quantity;
       });
     },
+    bookingPaymentModeUpdated(state, action) {
+      const booking = state.bookings.find(item => item.id === action.payload.bookingId);
+      if (!booking || booking.status !== 'confirmed') return;
+      booking.paymentMode = action.payload.paymentMode === 'simulated' ? 'simulated' : 'pay-at-venue';
+      booking.paymentStatus = booking.paymentMode === 'simulated' ? 'simulated-paid' : 'due-at-venue';
+    },
     venueStorageNoticeSet(state, action) {
       state.storageNotice = action.payload;
     },
@@ -128,6 +134,7 @@ const venueSlice = createSlice({
 export const {
   venueCreated,
   bookingCancelled,
+  bookingPaymentModeUpdated,
   bookingCommitted,
   venuePublicationChanged,
   reviewAdded,

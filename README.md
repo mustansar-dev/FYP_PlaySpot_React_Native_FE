@@ -137,11 +137,11 @@ Tested tool versions: Node.js `22.17.0`, npm `10.9.2`, and Java `17.0.20.1`. The
 - **StyleSheet, Flexbox, conditional rendering and accessibility:** used throughout `src/screens/` and `src/components/`; `DesignPrimitives.js` supplies shared empty and notice states. Primary inputs/actions include accessibility labels and test IDs.
 - **Hooks:** controlled inputs use `useState`; app hydration and storage subscriptions use `useEffect` in [App.js](./src/App.js); derived lists/reports use `useMemo`; refs and cleanup support the built-in marquee in [WelcomeScreen.js](./src/screens/WelcomeScreen.js); [ThemeContext.js](./src/context/ThemeContext.js) uses `useContext` for appearance. `useCallback` is used where stable list handlers help, rather than on every function.
 - **ScrollView and FlatList with stable keys:** venue search, venue cards, booking lists and community rooms/chats/tournaments use record IDs as keys. Long forms/details use `ScrollView` with empty/error/validation feedback.
-- **Navigation and route params:** [RootNavigator.js](./src/navigation/RootNavigator.js) owns one `NavigationContainer`, native stack routes, hydration gating and role-specific registration. Details use ID params. This app demonstrates Stack navigation; Bottom Tabs and Drawer are documented as intentionally unimplemented.
+- **Navigation and route params:** [RootNavigator.js](./src/navigation/RootNavigator.js) owns one `NavigationContainer`, native stack routes, hydration gating and role-specific registration. Details use ID params. The app uses a custom bottom bar, a right-side player profile drawer, and stack routes for profile destinations; it does not install React Navigation's Bottom Tabs or Drawer packages.
 - **Redux Toolkit and React Redux:** [store.js](./src/store/store.js), auth/venue/community slices and [selectors](./src/store/selectors/) hold shared session, venue, booking and community data. Local input/error state stays in screens.
 - **AsyncStorage:** [authStorage.js](./src/services/authStorage.js) and [venueStorage.js](./src/services/venueStorage.js) provide versioned demo account and business-data persistence. Screens do not write domain state directly to AsyncStorage.
 - **Forms and keyboard flow:** `FormField.js`, [VendorRegistrationScreen.js](./src/screens/VendorRegistrationScreen.js), [BookingScreens.js](./src/screens/BookingScreens.js), and [AccountScreens.js](./src/screens/AccountScreens.js) use controlled inputs, validation/guarded submit handlers, feedback and loading states.
-- **Animation and media:** [WelcomeScreen.js](./src/screens/WelcomeScreen.js) uses built-in Animated and stops its loop on unmount. [VendorVenueManagementScreen.js](./src/screens/VendorVenueManagementScreen.js) reuses the installed picker for optional local media. No Reanimated gesture or audio package was added.
+- **Animation and media:** [WelcomeScreen.js](./src/screens/WelcomeScreen.js) uses built-in Animated and stops its loop on unmount. [PlayerProfileDrawer.js](./src/components/PlayerProfileDrawer.js) uses the built-in Animated API and responder gestures for the player drawer. [VendorVenueManagementScreen.js](./src/screens/VendorVenueManagementScreen.js) reuses the installed picker for optional local media. No Reanimated or audio package was added.
 - **Demo boundaries:** chat, payments, venue locations, reviews, bookings and historical analytics are local examples. There is no real server, GPS/map tiles, email delivery, payment transfer, push notification or multi-device chat.
 
 ## 5–7 minute demo order
@@ -163,3 +163,39 @@ QA run on 16 October 2026 in Windows PowerShell with Node.js/npm from the curren
 - `git diff --check` — passed. `package.json` has no lint or typecheck script.
 - Android Gradle build/device launch — not verified. Gradle 9.3.1 downloaded, but the build emitted no task output while running and was stopped after several minutes. This workspace has Java 23 (project setup documents JDK 17), no `ANDROID_HOME`/`ANDROID_SDK_ROOT`, no `android/local.properties`, and no `adb` command/device. Set up the project's documented Android SDK/JDK 17 environment and rerun `cd android; .\gradlew.bat :app:assembleDebug`, then `npm run android` with an emulator/device.
 - No live-device walkthrough was possible, so keyboard/rotation/media permission presentation has not been rechecked on a device. The existing automated tests cover core player/vendor/community actions, storage migration and the new analytics calculations/profile persistence.
+
+## Player UX update — 18 October 2026
+
+- The player bottom bar now has Home, Search, Games, Bookings and Notifications. The previous Profile tab is removed. The top-left player avatar opens a right-side animated drawer that displays the shared Profile screen itself; Edit Profile and Settings appear once there, while My Bookings and Game Rooms stay available from their bottom tabs.
+- Player search inputs include a leading search icon. Venue Search and the room venue selector use the existing green, pale gray, white-card and slate-text theme from [design-reference/design-tokens.md](./design-reference/design-tokens.md).
+- Game room creation filters venue suggestions by the selected sport, puts them in a bounded nested scroll area, only offers future available slots, and displays the hourly price, selected slot total and per-player estimate. Selecting a venue card supplies the date and time; the form has no separate date/time fields. Capacity limits follow the sport, including a four-player maximum for badminton. Shares divide the selected venue total across capacity with whole-PKR remainder balancing.
+- Creating a room reserves its selected venue slot through the shared booking operation, while the organizer’s own share is the only share marked simulated paid. The venue reservation remains due at the venue for the full slot total; pay-at-venue marks the organizer share due there. Neither option transfers money. The Bookings screen also lists game rooms the player created or joined; organizers can edit room settings from details.
+- Every room has its own local private chat for joined players and the selected venue vendor. The room form also opens a direct chat with that vendor. Room messages create in-app notifications and an unread dot for players; they do not send push notifications or sync to another device.
+- In the split calculator, only the organizer can edit shares. Other players can see their own share and payment status and can mark their own local demo payment. They can discuss share changes in the room chat for the organizer to apply.
+- All shared password fields have an accessible eye control to show or hide the entered value.
+
+### Player UX update checks
+
+- `npm test -- --runInBand --testTimeout=20000` — passed: 9 suites / 49 tests after the drawer/payment/password follow-up.
+- Android JavaScript bundle — passed with React Native CLI; Metro copied 24 assets. The CLI logged an `EPERM` while trying its optional environment setup script, then continued and completed the bundle.
+- Editor diagnostics — no errors reported for the changed source and test files. Android Gradle build and live-device drawer-swipe testing were not run in this update.
+
+### Follow-up checks — 18 October 2026
+
+- `npm test -- --runInBand --testTimeout=20000` — passed: 9 suites / 49 tests, including the embedded profile drawer, hidden duplicate routes, nested venue suggestions, organizer-only simulated share status and password visibility.
+- Android JavaScript bundle — passed; Metro copied 24 assets. The CLI logged an `EPERM` while attempting its optional environment setup script, then continued. The first output location was read-only in the sandbox; the successful bundle was written to the permitted temporary directory.
+- `git diff --check` — passed; editor diagnostics reported no errors for the edited screens and components.
+- Android Gradle build and live-device interaction were not run in this follow-up.
+
+### Profile interests and game-room vendor chat — 18 October 2026
+
+- Player profile editing now lets players update the same sports of interest they selected during registration. The selection is saved with the local account.
+- After choosing a game-room venue, players can open that venue’s direct vendor chat. Once the room is created, its selected vendor is also a participant in the room’s private chat and can open it from the vendor inbox.
+- Room chat membership and unread notifications are preserved by the local storage normalizer. These changes use the existing controlled fields, Redux state, stack navigation and conversation records; no new package or native setup was added.
+
+### Profile interests and vendor chat checks — 18 October 2026
+
+- `npm test -- --runInBand --testTimeout=20000` — passed: 9 suites / 51 tests, including profile-interest saves, direct chat from the selected venue, vendor participation and replies in the room chat, and restoration of that membership from local storage.
+- Android JavaScript bundle — passed; Metro copied 24 assets. The optional environment setup script logged `EPERM`, then Metro continued successfully.
+- `git diff --check` — passed; editor diagnostics reported no errors for the changed source files.
+- Android Gradle build and live-device walkthrough were not run.

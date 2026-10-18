@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createDemoCommunityState } from '../data/demoCommunityData';
 import { createDemoVenueState } from '../data/demoVenueData';
 import { createSlotsForGround, getNextBookableDates, parseLocalDateKey } from '../utils/booking';
+import { createRoomPaymentShares, getGameRoomCapacityLimit, validateRoomPaymentShares } from '../utils/community';
 
 export const VENUE_STORAGE_KEY = 'playspot-pk.venue-data.v1';
 
@@ -73,6 +74,137 @@ function hasValidBookings(value) {
   ));
 }
 
+function normalizeCommunityData(value, venueData = {}) {
+  const source = hasValidCommunityData(value) ? value : createDemoCommunityState();
+  const rooms = source.rooms.map(room => {
+    const venue = (venueData.venues || []).find(item => item.id === room.venueId);
+    const vendorId = room.vendorId || venue?.vendorId || null;
+    const vendorProfile = (venueData.vendorProfiles || []).find(item => item.id === vendorId);
+    const vendorUserId = room.vendorUserId || vendorProfile?.ownerUserId || null;
+    const rawMembers = room.members || [];
+    const requestedCapacity = Number.isInteger(Number(room.capacity)) && Number(room.capacity) > 1 ? Number(room.capacity) : 4;
+    const capacity = Math.max(2, rawMembers.length, Math.min(requestedCapacity, getGameRoomCapacityLimit(room.sport)));
+    const totalCostPKR = Number.isInteger(Number(room.totalCostPKR))
+      ? Number(room.totalCostPKR)
+      : Math.max(0, Number(room.costPerParticipantPKR) || 0) * capacity;
+    const members = rawMembers.map((member, index) => ({
+      ...member,
+      seatIndex: Number.isInteger(member.seatIndex) ? member.seatIndex : index,
+    }));
+    const paymentMode = room.paymentMode === 'simulated' ? 'simulated' : 'pay-at-venue';
+    const existingShares = Array.isArray(room.paymentShares) ? room.paymentShares : [];
+    const paymentShares = validateRoomPaymentShares(totalCostPKR, capacity, existingShares).valid
+      ? existingShares.map(share => ({ ...share }))
+      : createRoomPaymentShares(totalCostPKR, capacity, members, paymentMode, existingShares);
+    const normalizedMembers = members.map(member => {
+      const share = paymentShares.find(item => item.seatIndex === member.seatIndex);
+      return {
+        ...member,
+        sharePKR: Number(share?.amountPKR ?? member.sharePKR ?? 0),
+        paymentStatus: share?.status || member.paymentStatus || 'unpaid',
+      };
+    });
+    return {
+      ...room,
+      capacity,
+      totalCostPKR,
+      costPerParticipantPKR: Math.ceil(totalCostPKR / capacity),
+      paymentMode,
+      paymentShares,
+      members: normalizedMembers,
+      venueName: room.venueName || venue?.name || null,
+      vendorId,
+      vendorUserId,
+    };
+  });
+
+  const conversations = source.conversations.map(conversation => ({
+    ...conversation,
+    participantIds: [...(conversation.participantIds || [])],
+    unreadByUser: { ...(conversation.unreadByUser || {}) },
+  }));
+  const messages = source.messages.map(message => ({ ...message }));
+  rooms.forEach(room => {
+    const participantIds = [...new Set([
+      ...room.members.map(member => member.userId),
+      room.vendorUserId,
+    ].filter(Boolean))];
+    let conversation = conversations.find(item => item.kind === 'game-room' && item.roomId === room.id);
+    if (!conversation) {
+      conversation = {
+        id: room.conversationId || `conversation-${room.id}`,
+        kind: 'game-room',
+        roomId: room.id,
+        venueId: room.venueId,
+        venueName: room.venueName,
+        vendorId: room.vendorId,
+        vendorUserId: room.vendorUserId,
+        playerUserId: room.createdBy,
+        playerName: room.createdByName,
+        title: room.title,
+        subtitle: `${room.sport} · ${room.vendorUserId ? 'joined players and venue vendor' : 'joined players only'}`,
+        participantIds,
+        unreadByUser: Object.fromEntries(participantIds.map(userId => [userId, 0])),
+        lastMessage: room.vendorUserId
+          ? 'Private room chat is ready for the joined players and venue vendor.'
+          : 'Room chat is ready. Only joined players can open it.',
+        lastAt: room.createdAt || new Date().toISOString(),
+        createdAt: room.createdAt || new Date().toISOString(),
+      };
+      conversations.push(conversation);
+    } else {
+      conversation.title = room.title;
+      conversation.venueId = room.venueId;
+      conversation.venueName = room.venueName;
+      conversation.vendorId = room.vendorId;
+      conversation.vendorUserId = room.vendorUserId;
+      conversation.playerUserId = room.createdBy;
+      conversation.playerName = room.createdByName;
+      conversation.subtitle = `${room.sport} · ${room.vendorUserId ? 'joined players and venue vendor' : 'joined players only'}`;
+      conversation.participantIds = participantIds;
+      conversation.unreadByUser = Object.fromEntries(participantIds.map(userId => [
+        userId,
+        Number(conversation.unreadByUser?.[userId] || 0),
+      ]));
+    }
+    room.conversationId = conversation.id;
+  });
+
+  const notifications = Array.isArray(source.notifications) ? source.notifications.map(item => ({ ...item })) : [];
+  rooms.forEach(room => {
+    const conversation = conversations.find(item => item.kind === 'game-room' && item.roomId === room.id);
+    const latestMessage = messages.filter(message => message.conversationId === conversation.id)
+      .sort((first, second) => String(second.createdAt).localeCompare(String(first.createdAt)))[0];
+    if (!latestMessage) return;
+    conversation.participantIds.forEach(recipientId => {
+      if (latestMessage.senderId === recipientId || Number(conversation.unreadByUser?.[recipientId] || 0) < 1) return;
+      const id = `notification-${latestMessage.id}-${recipientId}`;
+      if (notifications.some(item => item.id === id)) return;
+      notifications.push({
+        id,
+        recipientId,
+        roomId: room.id,
+        conversationId: conversation.id,
+        messageId: latestMessage.id,
+        title: `New message in ${room.title}`,
+        body: `${latestMessage.senderName}: ${latestMessage.body}`,
+        createdAt: latestMessage.createdAt,
+        readAt: null,
+      });
+    });
+  });
+
+  return {
+    rooms,
+    conversations,
+    messages,
+    tournaments: source.tournaments.map(item => ({ ...item })),
+    leaderboard: source.leaderboard.map(item => ({ ...item })),
+    splits: (source.splits || []).map(item => ({ ...item })),
+    notifications,
+  };
+}
+
 function withUpcomingSlots(data) {
   const slots = [...data.slots];
   const dates = getNextBookableDates(new Date(), 7);
@@ -90,17 +222,7 @@ function withUpcomingSlots(data) {
 
 function normalizeStoredData(value) {
   if (!hasValidVenueCollections(value)) return null;
-  const sourceCommunity = hasValidCommunityData(value.community)
-    ? value.community
-    : createDemoCommunityState();
-  const community = {
-    rooms: sourceCommunity.rooms,
-    conversations: sourceCommunity.conversations,
-    messages: sourceCommunity.messages,
-    tournaments: sourceCommunity.tournaments,
-    leaderboard: sourceCommunity.leaderboard,
-    splits: sourceCommunity.splits,
-  };
+  const community = normalizeCommunityData(value.community, value);
   const bookings = hasValidBookings(value.bookings) ? value.bookings : [];
   const normalized = withUpcomingSlots({ ...value, bookings, community });
   return hasValidCommunityData(normalized.community) && Array.isArray(normalized.bookings)
@@ -133,7 +255,9 @@ export async function loadVenueData() {
     const parsed = JSON.parse(raw);
     const data = normalizeStoredData(parsed);
     if (data) {
-      const upgraded = !hasValidBookings(parsed.bookings) || !hasValidCommunityData(parsed.community);
+      const upgraded = !hasValidBookings(parsed.bookings) || !hasValidCommunityData(parsed.community) ||
+        !Array.isArray(parsed.community?.notifications) || (parsed.community?.rooms || []).some(room =>
+          !Array.isArray(room.paymentShares) || Boolean(room.venueId && !room.vendorUserId));
       return {
         data,
         notice: upgraded ? 'Local booking and community demo data is ready on this device.' : null,

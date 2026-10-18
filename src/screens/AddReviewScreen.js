@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
+import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { reviewAdded } from '../store/venueSlice';
 import { validateReview } from '../utils/venueDiscovery';
@@ -32,7 +33,7 @@ export default function AddReviewScreen({ navigation, route }) {
   if (!venue) return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><View style={styles.content}><Text style={[styles.title, { color: colors.ink }]}>Venue unavailable</Text><AppButton title="Back" onPress={() => navigation.goBack()} /></View></SafeAreaView>;
 
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <Text style={[styles.title, { color: colors.ink }]}>Review {venue.name}</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>Your review is saved on this device as local demo data.</Text>
+    <ScreenHeader title={`Review ${venue.name}`} subtitle="Your review is saved on this device as local demo data." onBack={() => navigation.goBack()} />
     <Text style={[styles.label, { color: colors.ink }]}>Your rating</Text><View style={styles.stars}>{[1, 2, 3, 4, 5].map(value => <Pressable key={value} accessibilityRole="button" accessibilityLabel={`${value} star${value === 1 ? '' : 's'}`} accessibilityState={{ selected: stars === value }} testID={`review-star-${value}`} onPress={() => { setStars(value); setSaved(false); setErrors(previous => ({ ...previous, stars: undefined })); }} hitSlop={8}><Text style={[styles.star, { color: value <= stars ? colors.orange : colors.border }]}>★</Text></Pressable>)}</View>
     {errors.stars ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{errors.stars}</Text> : null}
     <Text style={[styles.label, { color: colors.ink, marginTop: 23 }]}>Tell other players about your visit</Text>

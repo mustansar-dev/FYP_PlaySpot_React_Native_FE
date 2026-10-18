@@ -102,6 +102,46 @@ test('booking and community records share the central local persistence adapter'
   expect(restored.data.community.messages.some(message => message.body === 'Saved locally')).toBe(true);
 });
 
+test('game-room chat persistence restores the selected venue vendor as a participant', async () => {
+  const initial = await loadVenueData();
+  const room = {
+    ...initial.data.community.rooms[0],
+    id: 'room-vendor-chat-migration',
+    conversationId: 'conversation-vendor-chat-migration',
+    venueId: 'venue-demo-model',
+    vendorId: undefined,
+    vendorUserId: undefined,
+  };
+  const conversation = {
+    id: room.conversationId,
+    kind: 'game-room',
+    roomId: room.id,
+    title: room.title,
+    participantIds: room.members.map(member => member.userId),
+    unreadByUser: Object.fromEntries(room.members.map(member => [member.userId, 0])),
+    lastMessage: 'Room chat is ready.',
+    lastAt: room.createdAt,
+    createdAt: room.createdAt,
+  };
+  const legacySnapshot = {
+    ...initial.data,
+    community: {
+      ...initial.data.community,
+      rooms: [...initial.data.community.rooms, room],
+      conversations: [...initial.data.community.conversations, conversation],
+    },
+  };
+  await AsyncStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(legacySnapshot));
+
+  const restored = await loadVenueData();
+  const restoredRoom = restored.data.community.rooms.find(item => item.id === room.id);
+  const restoredChat = restored.data.community.conversations.find(item => item.id === conversation.id);
+  const venueVendor = initial.data.vendorProfiles.find(profile => profile.id === 'vendor-demo-model');
+  expect(restoredRoom.vendorUserId).toBe(venueVendor.ownerUserId);
+  expect(restoredChat.vendorUserId).toBe(venueVendor.ownerUserId);
+  expect(restoredChat.participantIds).toContain(venueVendor.ownerUserId);
+});
+
 test('legacy venue-only snapshots are upgraded with local community data and eight-day slots', async () => {
   const legacy = createDemoVenueState();
   await AsyncStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(legacy));

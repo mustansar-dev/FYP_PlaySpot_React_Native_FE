@@ -5,6 +5,59 @@ export function getRoomOpenSpots(room) {
   return Math.max(0, capacity - (room?.members?.length || 0));
 }
 
+const SPORT_CAPACITY_LIMITS = {
+  Badminton: 4,
+  Padel: 4,
+  Futsal: 10,
+  Football: 22,
+  Cricket: 22,
+};
+
+export function getGameRoomCapacityLimit(sport) {
+  return SPORT_CAPACITY_LIMITS[sport] || 30;
+}
+
+export function createRoomPaymentShares(totalPKR, capacity, members = [], paymentMode = 'pay-at-venue', previousShares = []) {
+  const seatCount = Number(capacity);
+  if (!Number.isInteger(seatCount) || seatCount < 1) return [];
+  const seats = Array.from({ length: seatCount }, (_, seatIndex) => ({
+    userId: `room-seat-${seatIndex}`,
+    name: `Open player ${seatIndex + 1}`,
+  }));
+  const equalShares = calculateEqualShares(Number(totalPKR), seats);
+  if (equalShares.length !== seatCount) return [];
+
+  return equalShares.map((share, seatIndex) => {
+    const member = members.find(item => item.seatIndex === seatIndex);
+    const previous = previousShares.find(item => item.seatIndex === seatIndex);
+    const amountChanged = previous && Number(previous.amountPKR) !== share.amountPKR;
+    let status = 'open';
+    if (member) {
+      status = amountChanged ? 'unpaid' : (member.paymentStatus || previous?.status || 'unpaid');
+      if (seatIndex === 0 && !previous && paymentMode === 'simulated') status = 'simulated-paid';
+      else if (seatIndex === 0 && !previous && paymentMode === 'pay-at-venue') status = 'due-at-venue';
+    }
+    return {
+      seatIndex,
+      userId: member?.userId || null,
+      name: member?.name || `Open player ${seatIndex + 1}`,
+      amountPKR: share.amountPKR,
+      status,
+    };
+  });
+}
+
+export function validateRoomPaymentShares(totalPKR, capacity, shares = []) {
+  const total = Number(totalPKR);
+  const count = Number(capacity);
+  if (!Number.isInteger(total) || total < 0) return { valid: false, message: 'Enter a valid whole-PKR venue total.' };
+  if (!Number.isInteger(count) || count < 1 || shares.length !== count) return { valid: false, message: 'Payment shares must match the room capacity.' };
+  const amounts = shares.map(share => Number(share.amountPKR));
+  if (amounts.some(amount => !Number.isInteger(amount) || amount < 0)) return { valid: false, message: 'Each share must be a whole number of zero or more.' };
+  if (amounts.reduce((sum, amount) => sum + amount, 0) !== total) return { valid: false, message: 'Room shares must add up to the venue total.' };
+  return { valid: true, message: '' };
+}
+
 export function canJoinGameRoom(room, userId, joinCode = '') {
   if (!room) return { ok: false, error: 'This game room could not be found.' };
   if (room.status !== 'open') return { ok: false, error: 'This game room is no longer open.' };
@@ -42,12 +95,25 @@ export function validateGameRoomDraft(values) {
   const errors = {};
   if (!String(values.title || '').trim()) errors.title = 'Enter a name for the game.';
   if (!String(values.sport || '').trim()) errors.sport = 'Choose a sport.';
-  if (!String(values.location || '').trim()) errors.location = 'Enter a meeting location.';
-  if (!isValidFutureDate(values.date, values.startTime)) errors.date = 'Choose a future date and a time in HH:MM format.';
+  if (!String(values.location || '').trim()) errors.location = 'Choose a venue and available time.';
+  const date = values.selectedSlot?.date || values.date;
+  const startTime = values.selectedSlot?.startTime || values.startTime;
+  if (!isValidFutureDate(date, startTime)) errors.slot = 'Choose a future available venue time.';
+  if (values.selectedSlot?.sport && values.selectedSlot.sport !== values.sport) {
+    errors.slot = `Choose a venue offering ${values.sport}.`;
+  }
   const capacity = Number(values.capacity);
-  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 30) errors.capacity = 'Capacity must be from 2 to 30 players.';
-  const cost = Number(values.costPerParticipantPKR);
-  if (!Number.isInteger(cost) || cost < 0) errors.costPerParticipantPKR = 'Enter a whole-number cost of zero or more.';
+  const capacityLimit = getGameRoomCapacityLimit(values.sport);
+  if (!Number.isInteger(capacity) || capacity < 2 || capacity > capacityLimit) {
+    errors.capacity = `${values.sport} room capacity must be from 2 to ${capacityLimit} players.`;
+  } else if (Number(values.memberCount || 0) > capacity) {
+    errors.capacity = `Capacity cannot be lower than the ${Number(values.memberCount)} players already in this room.`;
+  }
+  const totalCost = Number(values.totalCostPKR);
+  if (!Number.isInteger(totalCost) || totalCost < 0) errors.totalCostPKR = 'Choose a venue with a valid PKR price.';
+  if (!['pay-at-venue', 'simulated'].includes(values.paymentMode || 'pay-at-venue')) {
+    errors.paymentMode = 'Choose pay at venue or simulated online payment.';
+  }
   if (values.visibility === 'private' && String(values.joinCode || '').trim().length < 4) {
     errors.joinCode = 'Use a private code with at least 4 characters.';
   }

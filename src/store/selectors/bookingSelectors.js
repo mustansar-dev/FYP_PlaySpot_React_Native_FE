@@ -12,6 +12,12 @@ export const selectBookingsForUser = createSelector(
   (bookings, userId) => bookings.filter(booking => booking.playerUserId === userId),
 );
 
+export const selectGameRoomsForUser = createSelector(
+  [state => state.community.rooms, (_state, userId) => userId],
+  (rooms, userId) => rooms.filter(room => room.createdBy === userId || room.members?.some(member => member.userId === userId))
+    .slice().sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)),
+);
+
 export const selectBookingsForVendor = createSelector(
   [selectBookings, selectVenuesByOwnerId],
   (bookings, venues) => {

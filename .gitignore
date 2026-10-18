@@ -22,6 +22,7 @@ pnpm-debug.log*
 .expo/
 .expo-shared/
 *.jsbundle
+*.bundle
 coverage/
 
 # Android Gradle, native build, and generated artifacts.
@@ -45,11 +46,16 @@ android/app/.externalNativeBuild/
 *.hprof
 *.iml
 
-# Signing keys. Keep only the standard debug key required by this template.
+# Signing keys and certificates must remain local.
 *.keystore
 *.jks
-!debug.keystore
 *.p12
+*.pfx
+*.p8
+*.pem
+*.key
+*.crt
+*.cer
 *.mobileprovision
 *.provisionprofile
 
@@ -58,6 +64,11 @@ android/app/.externalNativeBuild/
 .env.*
 !.env.example
 .vscode/mcp.json
+
+# Temporary files and local caches.
+*.tmp
+*.temp
+.cache/
 
 # Editor and operating-system files.
 .idea/

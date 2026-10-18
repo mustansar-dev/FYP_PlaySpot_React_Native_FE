@@ -80,6 +80,11 @@ export default function RootNavigator() {
   const { hydrated, currentUser } = useSelector(state => state.auth);
   const venuesHydrated = useSelector(state => state.venues.hydrated);
   const communityHydrated = useSelector(state => state.community.hydrated);
+  const hasNotifications = useSelector(state => Boolean(currentUser?.role === 'player' &&
+    state.community.notifications?.some(notification => notification.recipientId === currentUser.id && !notification.readAt)));
+  const showBottomNav = currentUser && (currentUser.role === 'player'
+    ? BOTTOM_NAV_ROUTES.has(routeName) || routeName === 'Notifications'
+    : BOTTOM_NAV_ROUTES.has(routeName));
 
   return (
     <NavigationContainer
@@ -151,11 +156,12 @@ export default function RootNavigator() {
           </>
         )}
       </Stack.Navigator>
-      {currentUser && BOTTOM_NAV_ROUTES.has(routeName) ? (
+      {showBottomNav ? (
         <BottomNavBar
           role={currentUser.role}
           routeName={routeName}
           onNavigate={route => navigationRef.navigate(route)}
+          hasNotifications={hasNotifications}
         />
       ) : null}
       </View>

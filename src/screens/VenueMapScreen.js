@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
+import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { filterAndSortVenues } from '../utils/venueDiscovery';
 
@@ -35,8 +36,7 @@ export default function VenueMapScreen({ navigation, route }) {
 
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={[styles.title, { color: colors.ink }]}>Venue map</Text>
-      <Text style={[styles.copy, { color: colors.inkSoft }]}>Offline schematic · marker positions use approximate demo coordinates</Text>
+      <ScreenHeader title="Venue map" subtitle="Offline schematic · marker positions use approximate demo coordinates" onBack={() => navigation.goBack()} />
       <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.noticeTitle, { color: colors.primaryDark }]}>Manual location · {origin.label || 'Lahore'}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{locationNotice}</Text><Pressable accessibilityRole="button" testID="map-location-retry" onPress={tryDeviceLocation} style={styles.locationAction}><Text style={[styles.link, { color: colors.primary }]}>Try device location</Text></Pressable></View>
       <View style={styles.locationChips}>{LOCATIONS.map(location => <Pressable key={location.label} accessibilityRole="button" accessibilityState={{ selected: origin.label === location.label }} testID={`map-center-${location.label.toLowerCase().replace(/ /g, '-')}`} onPress={() => { setOrigin(location); setLocationNotice('Showing venues relative to your selected demo area.'); }} style={[styles.locationChip, { borderColor: origin.label === location.label ? colors.primary : colors.border, backgroundColor: origin.label === location.label ? colors.limePale : colors.surface, borderRadius: radius.pill }]}><Text style={{ color: origin.label === location.label ? colors.primaryDark : colors.inkSoft, fontSize: 11, fontWeight: '700' }}>{location.label}</Text></Pressable>)}</View>
       <View accessibilityLabel="Offline schematic map of demo Lahore venues" style={[styles.map, { borderRadius: radius.lg }]}>

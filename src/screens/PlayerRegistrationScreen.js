@@ -16,9 +16,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { registerAccount } from '../services/authRepository';
 import { accountRegistered } from '../store/authSlice';
+import { PLAYER_SPORTS } from '../constants/sports';
 import { validatePlayerRegistration } from '../utils/validation';
-
-const SPORTS = ['Futsal', 'Cricket', 'Padel', 'Badminton'];
 
 export default function PlayerRegistrationScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -156,7 +155,7 @@ export default function PlayerRegistrationScreen({ navigation }) {
 
           <ChoiceChips
             label="Sports you enjoy"
-            options={SPORTS}
+            options={PLAYER_SPORTS}
             selected={form.preferredSports}
             onSelect={toggleSport}
             multiple

@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
+import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { getVenueRating } from '../utils/venueDiscovery';
 
@@ -14,7 +15,7 @@ export default function VenueReviewsScreen({ navigation, route }) {
   const items = useMemo(() => reviews.filter(item => item.venueId === venueId).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [reviews, venueId]);
   const rating = getVenueRating(items);
   const header = <View>
-    <Text style={[styles.title, { color: colors.ink }]}>{venue?.name || 'Venue reviews'}</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>Player feedback · fictional local demo</Text>
+    <ScreenHeader title={venue?.name || 'Venue reviews'} subtitle="Player feedback · fictional local demo" onBack={() => navigation.goBack()} />
     <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.average, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>{rating.count} reviews</Text></View></View>
     {[5, 4, 3, 2, 1].map(stars => <View key={stars} style={styles.distribution}><Text style={[styles.distributionLabel, { color: colors.inkSoft }]}>{stars} ★</Text><View style={[styles.track, { backgroundColor: colors.border }]}><View style={[styles.fill, { backgroundColor: colors.orange, width: `${rating.count ? (rating.distribution[stars - 1] / rating.count) * 100 : 0}%` }]} /></View><Text style={[styles.distributionLabel, { color: colors.inkSoft }]}>{rating.distribution[stars - 1]}</Text></View>)}
     <AppButton title="Write a review" testID="reviews-add" onPress={() => navigation.navigate('AddReview', { venueId })} style={styles.addButton} />

@@ -16,6 +16,8 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../context/ThemeContext';
+import BottomNavBar from '../components/BottomNavBar';
+import FormField from '../components/FormField';
 import { createDemoVenueState } from '../data/demoVenueData';
 import authReducer, { authHydrated } from '../store/authSlice';
 import venueReducer, { venuesHydrated } from '../store/venueSlice';
@@ -23,6 +25,10 @@ import { loadVenueData, saveVenueData } from '../services/venueStorage';
 import AddReviewScreen from './AddReviewScreen';
 import VenueMapScreen from './VenueMapScreen';
 import VenueSearchScreen from './VenueSearchScreen';
+import PlayerHomeScreen from './PlayerHomeScreen';
+import { EditProfileScreen } from './AccountScreens';
+
+jest.setTimeout(30000);
 
 function makeStore() {
   const store = configureStore({ reducer: { auth: authReducer, venues: venueReducer } });
@@ -48,6 +54,60 @@ test('search filters and empty state react to user input', async () => {
   expect(screen.getByText('No venues match those filters')).toBeTruthy();
   await fireEvent.press(screen.getByTestId('venue-filters-reset'));
   expect(screen.getByText('8 venues found · approximate distance')).toBeTruthy();
+});
+
+test('player profile icon opens the profile screen in the drawer and keeps its stack actions', async () => {
+  const navigation = { navigate: jest.fn() };
+  const screen = await renderScreen(<PlayerHomeScreen navigation={navigation} />);
+  await fireEvent.press(screen.getByTestId('player-open-profile'));
+  expect(await screen.findByTestId('profile-edit')).toBeTruthy();
+  expect(screen.getByTestId('profile-settings')).toBeTruthy();
+  expect(screen.queryByText('My bookings')).toBeNull();
+  expect(screen.queryByText('Game rooms')).toBeNull();
+  expect(screen.queryByTestId('profile-drawer-profile')).toBeNull();
+  await fireEvent.press(screen.getByTestId('profile-edit'));
+  expect(navigation.navigate).toHaveBeenCalledWith('EditProfile');
+  await waitFor(() => expect(screen.queryByTestId('profile-edit')).toBeNull());
+});
+
+test('player navigation replaces Profile with Notifications and shows the unread dot', async () => {
+  const screen = await renderScreen(<BottomNavBar role="player" routeName="PlayerHome" onNavigate={jest.fn()} hasNotifications />);
+  expect(screen.getByTestId('bottom-nav-notifications')).toBeTruthy();
+  expect(screen.getByTestId('notification-dot')).toBeTruthy();
+  expect(screen.queryByTestId('bottom-nav-profile')).toBeNull();
+});
+
+test('password fields can toggle visibility with an accessible eye control', async () => {
+  const screen = await renderScreen(<FormField label="Password" value="play1234" onChangeText={jest.fn()} secureTextEntry testID="test-password" />);
+  expect(screen.getByTestId('test-password').props.secureTextEntry).toBe(true);
+  expect(screen.getByTestId('test-password-visibility').props.accessibilityLabel).toBe('Show password');
+  await fireEvent.press(screen.getByTestId('test-password-visibility'));
+  expect(screen.getByTestId('test-password').props.secureTextEntry).toBe(false);
+  expect(screen.getByTestId('test-password-visibility').props.accessibilityLabel).toBe('Hide password');
+});
+
+test('player profile editing saves the registration sports of interest', async () => {
+  const store = makeStore();
+  store.dispatch(authHydrated({
+    accounts: [],
+    user: {
+      id: 'demo-player-001',
+      name: 'Amina Shah',
+      email: 'player@playspot.pk',
+      phone: '0300 000 0001',
+      role: 'player',
+      preferredSports: ['Futsal', 'Cricket'],
+    },
+    storageNotice: null,
+  }));
+  const navigation = { goBack: jest.fn() };
+  const screen = await renderScreen(<EditProfileScreen navigation={navigation} />, store);
+  expect(screen.getByTestId('edit-profile-sports-futsal').props.accessibilityState.selected).toBe(true);
+  expect(screen.getByTestId('edit-profile-sports-padel').props.accessibilityState.selected).toBe(false);
+  await fireEvent.press(screen.getByTestId('edit-profile-sports-padel'));
+  await fireEvent.press(screen.getByTestId('edit-profile-save'));
+  await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+  expect(store.getState().auth.currentUser.preferredSports).toEqual(['Futsal', 'Cricket', 'Padel']);
 });
 
 test('map marker selection opens the selected venue details', async () => {

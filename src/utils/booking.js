@@ -87,25 +87,26 @@ export function isBookingActive(booking, now = new Date()) {
   return bookingEndTimestamp(booking) > now.getTime();
 }
 
-export function getSlotAvailability({ slotId, slots = [], bookings = [], now = new Date() }) {
+export function getSlotAvailability({ slotId, slots = [], bookings = [], now = new Date(), ignoreBookingId = null }) {
   const slot = slots.find(item => item.id === slotId);
   if (!slot) return { available: false, reason: 'missing', slot: null };
-  if (slot.status !== 'available') return { available: false, reason: 'unavailable', slot };
+  const slotReservedByIgnoredBooking = Boolean(ignoreBookingId && slot.reservedByBookingId === ignoreBookingId);
+  if (slot.status !== 'available' && !slotReservedByIgnoredBooking) return { available: false, reason: 'unavailable', slot };
 
   const slotBooking = bookings.find(booking =>
-    booking.slotId === slot.id && isBookingActive(booking, now),
+    booking.id !== ignoreBookingId && booking.slotId === slot.id && isBookingActive(booking, now),
   );
   if (slotBooking) return { available: false, reason: 'booked', slot, booking: slotBooking };
 
   const overlappingBooking = bookings.find(booking =>
-    booking.groundId === slot.groundId && booking.date === slot.date &&
+    booking.id !== ignoreBookingId && booking.groundId === slot.groundId && booking.date === slot.date &&
     isBookingActive(booking, now) &&
     intervalsOverlap(slot.startTime, slot.endTime, booking.startTime, booking.endTime),
   );
   if (overlappingBooking) return { available: false, reason: 'booked', slot, booking: overlappingBooking };
 
   const overlappingUnavailable = slots.find(item =>
-    item.id !== slot.id && item.groundId === slot.groundId && item.date === slot.date &&
+    item.id !== slot.id && item.reservedByBookingId !== ignoreBookingId && item.groundId === slot.groundId && item.date === slot.date &&
     item.status !== 'available' &&
     intervalsOverlap(slot.startTime, slot.endTime, item.startTime, item.endTime),
   );
@@ -192,6 +193,7 @@ export function prepareBooking(venueState, request, now = new Date()) {
     status: 'confirmed',
     paymentMode,
     paymentStatus,
+    roomId: request.roomId || null,
     venueId: venue.id,
     venueName: venue.name,
     groundId: ground.id,

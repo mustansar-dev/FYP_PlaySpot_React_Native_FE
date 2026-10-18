@@ -191,7 +191,7 @@ The earlier baseline entry above described the repository before the user pointe
 ### 18. Lecture 11 scope check
 
 - **Covered directly:** React Native core views/text/pressables/inputs, `StyleSheet`, Flexbox, controlled input state, `useEffect`/`useMemo`/`useRef`, `FlatList`, navigation, Redux/React Redux, AsyncStorage, reusable props, accessibility/test IDs and pure calculations.
-- **No additional out-of-course dependency or native concept was introduced.** The Redux thunk noted above is the only small implementation pattern beyond the lecture recap; its purpose and trade-off are recorded in decision 15.
+- **Day 4–5 added no additional out-of-course dependency or native concept.** The Redux thunk noted above is the only small implementation pattern beyond that feature's lecture recap; its purpose and trade-off are recorded in decision 15. The later player drawer gesture uses a core API and is documented in decision 24.
 - **Intentionally not added:** Realtime sockets/backend chat, real payments, a payment SDK, online tournament services, a date-picker dependency, new animation libraries, audio playback, GPS/maps provider, or an Inter font package. They are unnecessary for PROMPT4/5 or explicitly prohibited by the frontend-only brief.
 
 ### Day 4–5 verification results
@@ -246,3 +246,43 @@ The earlier baseline entry above described the repository before the user pointe
 - **Verification:** On 16 October 2026, `npm.cmd test -- --runInBand --testTimeout=20000` passed 9 suites / 39 tests; the Android JS bundle passed and copied 19 assets; route audit found 42 distinct route names; `git diff --check` passed. The SDK-less Gradle build was stopped and `adb` was unavailable.
 - **Limitations:** Automated/source checks cannot replace a live Android walkthrough for keyboard geometry, media-picker permission handling or orientation changes. A configured Android SDK, JDK 17 and emulator/device are required to finish those checks.
 - **Lecture PDF access:** `Lecture11.pdf` is present and was inspected as part of the scope audit. Its slide content is image/vector based; this Windows environment has no PDF text/rendering utility installed. The accompanying `PLAYSPOT_WEEK_PLAN.md` includes the explicit source-derived Lecture 11 topic recap, which was used as the implementation boundary. No additional package or lecture topic was inferred from unread slide visuals.
+
+## Player UX update — 18 October 2026
+
+### 24. Right-side player profile drawer and swipe gesture
+
+- **Feature/concept:** Open Profile, Edit Profile and Settings from an animated drawer triggered by the player home avatar, with edge-swipe open and swipe-right close gestures.
+- **Why needed:** The player UX request removes the Profile tab and requires a drawer entry point while keeping destination screens on stack navigation.
+- **What it does:** [PlayerProfileDrawer.js](./src/components/PlayerProfileDrawer.js) renders the existing Profile screen inside a right-side modal panel, animates it with React Native's built-in `Animated` API, closes from the profile header, backdrop or Android back action, and uses `PanResponder` for edge-swipe open and panel swipe close. Edit Profile and Settings are available once in the embedded profile; its My Bookings and Game Rooms rows are omitted because those destinations have bottom tabs.
+- **Why the current navigation package alone was insufficient:** The app has the native stack package but no React Navigation Drawer, Gesture Handler or Reanimated package. A standard drawer navigator would add native-compatible dependencies and configuration to the existing Android CLI app.
+- **Options considered:** Add and configure a Drawer navigator with its peer gesture/animation packages; provide a static profile menu; or use a small animated drawer panel and keep all destination screens in the existing stack.
+- **Choice and scope:** Use the core Animated and PanResponder APIs. Lecture 11 covers the Drawer pattern, Animated and gesture-based interactions, but does not name PanResponder specifically. This built-in responder API was chosen to meet the requested gesture behavior without adding dependencies or native configuration. [RootNavigator.js](./src/navigation/RootNavigator.js) continues to own the single navigation container and role-gated stack.
+- **Verification:** `npm test -- --runInBand --testTimeout=20000` passed: 9 suites / 48 tests in the initial drawer implementation. Follow-up checks for embedding the profile content and removing duplicate links are recorded in the latest player UX update below. The Android JavaScript bundle passed in the initial implementation. A physical-device swipe/animation walkthrough was not performed.
+- **Limitations:** This is a right-side custom drawer panel with stack-route actions, not React Navigation's `Drawer.Navigator`. Gesture behavior is source- and component-tested but still needs device/emulator interaction review.
+
+### 25. Game-room booking, payment shares and message notifications
+
+- **Feature/concept:** Reserve the selected available venue slot when a player creates a game room; calculate capacity-based shares; keep organizer editing and per-player payment status local; notify joined room members of new room-chat messages.
+- **Why needed:** The player request combines a sport-matched venue/time, total cost, payment choice, per-player share transparency, private room chat and per-member notifications into one connected flow.
+- **Current-stack fit:** Slot conflict checks, Redux Toolkit, AsyncStorage, pure JavaScript share calculations and list/stack screens already exist. The app already labels simulated payments and local chat as demo behavior.
+- **Choice and scope:** Room creation calls the existing shared `reserveBooking` operation with the full venue reservation marked due at the venue, so the selected slot is unavailable to another booking without claiming that its full cost was paid. The selected pay-at-venue or simulated method applies to the organizer's capacity share; only that share is marked paid during simulated room creation, and other shares remain due/unpaid for each player to settle. Neither mode moves money. Payment shares, payment status and room message notifications persist in the local community snapshot. Each room chat includes its selected venue vendor along with joined players, and a room message creates an in-app notification for every other participant; no operating-system push or multi-device delivery is claimed.
+- **Organizer permissions:** Only the organizer can change share amounts or room settings. Joined players can view their share/status and record their own local demo payment. They can discuss changes in the room's private chat for the organizer to apply.
+- **Verification:** The full Jest suite passed 9 suites / 48 tests. Coverage includes sport-filtered venue suggestions, badminton's four-player capacity, slot reservation and simulated payment, organizer editing, room-only chat access, share permissions, per-player payment status, persistent room notifications, the notification dot and migration of existing local data.
+- **Limitations:** Payment records are local demonstrations and do not transfer funds. Room messages and notifications are stored on this device; they do not reach another user or device unless that user's account state is on the same local installation. Push delivery is not connected.
+
+### 26. Password visibility control and bounded venue suggestions
+
+- **Feature/concept:** Let users reveal or hide text in password fields and keep suggested game-room venues within a separately scrollable area.
+- **Why needed:** Password entry should be easy to check on a small touch screen, and a long venue list should not make the entire room form difficult to navigate.
+- **Current-stack fit:** React Native `Pressable`, `View`, controlled component state, and nested `ScrollView` are already part of the project and the course scope. All auth password inputs use the shared `FormField` component.
+- **Choice and scope:** The shared field adds a labeled show/hide control with a minimum touch target; it adds no password storage or authentication behavior. Venue suggestions use a nested, height-bounded scroll view. No library or native configuration was added.
+- **Payment follow-up:** The organizer sees the amount of their own share in the payment choice and create action. The room’s venue reservation remains marked due for the full amount, while the organizer’s per-seat split status records simulated payment. This keeps room-level status distinct from the venue booking total.
+- **Verification:** The full Jest suite passed 9 suites / 49 tests; the Android JavaScript bundle passed and copied 24 assets; `git diff --check` passed. No new dependency, native module or API was introduced.
+
+### 27. Player interests and selected-venue chat participation
+
+- **Feature/concept:** Edit player sports of interest after registration, open a direct vendor conversation from the selected venue in the room form, and add that venue’s vendor to the room’s private chat.
+- **Why needed:** Players need to keep profile preferences current and coordinate with the actual venue provider both before reserving and after the game room is created.
+- **Current-stack fit:** The shared sport-choice component, local account repository, Redux conversation records, stack chat screen and AsyncStorage normalizer already support these flows.
+- **Choice and scope:** Reuse the registration sport options and persist them through `updateAccountProfile`. Reuse the existing `venue-vendor` conversation format for pre-creation chat; store the selected vendor ID on the room and add that vendor alongside room members in its private conversation. The existing participant check limits vendor access to the room’s assigned provider. No dependency, native API or external messaging service was added.
+- **Verification:** The full Jest suite passed 9 suites / 51 tests, including sport selection/save, opening the vendor conversation from the room form, vendor inbox access and replies in the created room chat, and restoring vendor participation from local data. The Android JavaScript bundle passed and copied 24 assets; `git diff --check` passed. Android Gradle and live-device checks were not run.
