@@ -13,15 +13,17 @@ const PLAYER_TABS = [
 
 const VENDOR_TABS = [
   { label: 'Home', icon: '⌂', route: 'VendorDashboard', active: ['VendorDashboard'] },
-  { label: 'Venue', icon: '⌕', route: 'VendorInventory', active: ['VendorInventory', 'VendorVenueManagement'] },
-  { label: 'Bookings', icon: '▣', route: 'VendorBookings', active: ['VendorBookings', 'VendorAvailability', 'ManualWalkInBooking', 'BookingDetails'] },
+  { label: 'Venue', icon: '⌕', route: 'VendorVenue', active: ['VendorVenue', 'VendorInventory', 'VendorVenueManagement'] },
+  { label: 'Bookings', icon: '▣', route: 'VendorBookings', active: ['VendorBookings', 'ManualWalkInBooking', 'BookingDetails'] },
+  { label: 'Availability', icon: '◷', route: 'VendorAvailability', active: ['VendorAvailability'] },
   { label: 'Analytics', icon: '▥', route: 'VendorAnalytics', active: ['VendorAnalytics'] },
-  { label: 'Profile', icon: '●', route: 'Profile', active: ['Profile', 'EditProfile', 'Notifications', 'Settings', 'VendorReviews'] },
+  { label: 'Notifications', icon: 'bell', route: 'Notifications', active: ['Notifications'] },
 ];
 
 export const BOTTOM_NAV_ROUTES = new Set([
   'PlayerHome', 'VenueSearch', 'GameRooms', 'MyBookings', 'Profile', 'BookingCheckout',
   'VendorDashboard', 'VendorBookings', 'VendorAnalytics', 'VendorInventory', 'VendorVenueManagement', 'VendorAvailability',
+  'VendorVenue', 'Notifications',
 ]);
 
 function BellIcon({ color, showDot }) {
@@ -69,7 +71,7 @@ const styles = StyleSheet.create({
   bar: { minHeight: 66, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, paddingTop: 5 },
   item: { flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', gap: 2 },
   icon: { fontSize: 17, lineHeight: 20 },
-  label: { fontSize: 9, lineHeight: 12 },
+  label: { fontSize: 8, lineHeight: 11 },
   bellIcon: { width: 20, height: 21, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   bellBody: { width: 13, height: 14, borderWidth: 1.7, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderBottomWidth: 2 },
   bellClapper: { width: 5, height: 2, borderRadius: 1, marginTop: 1 },

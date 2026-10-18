@@ -1,4 +1,7 @@
 const MINUTES_PER_DAY = 24 * 60;
+export const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+export const DEFAULT_GROUND_DAYS = [...WEEK_DAYS];
+const DAY_BY_INDEX = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function toLocalDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -47,18 +50,27 @@ export function intervalsOverlap(startA, endA, startB, endB) {
 export function createSlotsForGround(
   ground,
   dayCount = 8,
-  openingMinute = 9 * 60,
-  closingMinute = 17 * 60,
+  openingMinute = null,
+  closingMinute = null,
   startDate = new Date(),
 ) {
   const duration = Number(ground?.slotDurationMinutes);
   if (!ground?.id || !Number.isInteger(duration) || duration <= 0) return [];
+  const customOpening = timeToMinutes(ground?.openingTime);
+  const customClosing = timeToMinutes(ground?.closingTime);
+  const opensAt = Number.isInteger(openingMinute) ? openingMinute : Number.isInteger(customOpening) ? customOpening : 9 * 60;
+  const closesAt = Number.isInteger(closingMinute) ? closingMinute : Number.isInteger(customClosing) ? customClosing : 17 * 60;
+  if (closesAt <= opensAt) return [];
+  const allowedDays = Array.isArray(ground.availableDays) && ground.availableDays.length
+    ? new Set(ground.availableDays)
+    : null;
   const slots = [];
   const today = startDate;
   for (let dayOffset = 0; dayOffset < dayCount; dayOffset += 1) {
     const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, 12, 0, 0, 0);
+    if (allowedDays && !allowedDays.has(DAY_BY_INDEX[date.getDay()])) continue;
     const dateKey = toLocalDateKey(date);
-    for (let minute = openingMinute; minute + duration <= closingMinute; minute += duration) {
+    for (let minute = opensAt; minute + duration <= closesAt; minute += duration) {
       const toTime = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
       const startTime = toTime(minute);
       slots.push({

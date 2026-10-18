@@ -49,6 +49,11 @@ export function createVendorVenueRecords(profile, ownerUserId) {
     conditionRating: Number(ground.conditionRating),
     hourlyPricePKR: Number(ground.hourlyPricePKR),
     slotDurationMinutes: Number(ground.slotDurationMinutes) || 60,
+    openingTime: ground.openingTime || '09:00',
+    closingTime: ground.closingTime || '17:00',
+    availableDays: Array.isArray(ground.availableDays) && ground.availableDays.length
+      ? [...ground.availableDays]
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     isActive: true,
   }));
   const equipment = (profile.equipment || []).map(item => ({

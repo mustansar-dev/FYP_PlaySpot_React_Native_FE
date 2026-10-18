@@ -15,6 +15,7 @@ jest.mock('react-native-image-picker', () => ({
 }));
 
 import React from 'react';
+import { Alert } from 'react-native';
 import { configureStore } from '@reduxjs/toolkit';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
@@ -76,6 +77,7 @@ async function continueStep(screen) {
 beforeEach(async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
+  jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 });
 
 test('vendor can complete onboarding, edit the venue and equipment, and restore the saved data', async () => {
@@ -106,6 +108,9 @@ test('vendor can complete onboarding, edit the venue and equipment, and restore 
   await press(registration, 'vendor-ground-condition-1-4');
   await type(registration, 'vendor-ground-price-1', '5000');
   await type(registration, 'vendor-ground-duration-1', '60');
+  await type(registration, 'vendor-ground-opening-1', '08:00');
+  await type(registration, 'vendor-ground-closing-1', '12:00');
+  await press(registration, 'vendor-ground-days-1-tue');
   await continueStep(registration);
 
   await press(registration, 'vendor-facility-washrooms');
@@ -130,6 +135,10 @@ test('vendor can complete onboarding, edit the venue and equipment, and restore 
   expect(createdVenue.name).toBe('Morgan Padel Courts');
   expect(createdVenue.latitude).toBeNull();
   expect(createdVenue.parkingSpaces).toBe(8);
+  const registeredGround = state.venues.grounds.find(ground => ground.venueId === createdVenue.id);
+  expect(registeredGround).toMatchObject({ openingTime: '08:00', closingTime: '12:00' });
+  expect(registeredGround.availableDays).not.toContain('Tue');
+  expect(state.venues.slots.some(slot => slot.groundId === registeredGround.id && slot.startTime === '08:00')).toBe(true);
   expect(selectEquipmentByVenueId(state, createdVenue.id)[0].priceMode).toBe('sale');
   testStore.dispatch(sessionStarted(await startSession(navigation.replace.mock.calls[0][1].userId)));
 
@@ -138,11 +147,21 @@ test('vendor can complete onboarding, edit the venue and equipment, and restore 
     <VendorVenueManagementScreen navigation={navigation} route={{ params: { venueId: createdVenue.id } }} />
   ));
   await type(management, 'manage-venue-name', 'Morgan Padel Courts Updated');
+  await type(management, 'manage-ground-opening-1', '10:00');
+  await type(management, 'manage-ground-closing-1', '12:00');
   await type(management, 'manage-item-quantity-1', '2');
   await press(management, 'manage-venue-save');
   await waitFor(() => expect(testStore.getState().venues.venues.find(venue => venue.id === createdVenue.id).name).toBe('Morgan Padel Courts Updated'));
+  expect(navigation.navigate).toHaveBeenCalledWith('VendorDashboard');
+  expect(Alert.alert).toHaveBeenCalledWith(
+    'Saved successfully',
+    'Venue, grounds, add-ons and custom availability have been saved.',
+  );
 
   state = testStore.getState().venues;
+  const updatedGround = state.grounds.find(ground => ground.venueId === createdVenue.id);
+  expect(updatedGround).toMatchObject({ openingTime: '10:00', closingTime: '12:00' });
+  expect(state.slots.some(slot => slot.groundId === updatedGround.id && slot.startTime === '10:00')).toBe(true);
   await saveVenueData({
     version: state.version,
     vendorProfiles: state.vendorProfiles,

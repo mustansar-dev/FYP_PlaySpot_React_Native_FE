@@ -103,13 +103,24 @@ export const recordRoomSharePayment = ({ roomId, userId }) => (dispatch, getStat
   return { ok: true, status };
 };
 
-export const joinTournament = ({ tournamentId, user }) => (dispatch, getState) => {
+export const joinTournament = ({ tournamentId, user, teamName, teammateNames = [] }) => (dispatch, getState) => {
   const tournament = getState().community.tournaments.find(item => item.id === tournamentId);
   const result = canJoinTournament(tournament, user?.id);
   if (!result.ok) return result;
+  const teamSize = Number(tournament.teamSize) || 1;
+  const cleanTeammates = teammateNames.map(name => String(name).trim()).filter(Boolean);
+  if (teamSize > 1) {
+    if (!String(teamName || '').trim()) return { ok: false, error: 'Enter a name for your team.' };
+    if (cleanTeammates.length !== teamSize - 1) return { ok: false, error: `Enter ${teamSize - 1} teammate name${teamSize === 2 ? '' : 's'} to complete your ${teamSize}-player team.` };
+  }
   dispatch(tournamentParticipantAdded({
     tournamentId,
-    participant: { userId: user.id, name: user.name, joinedAt: new Date().toISOString() },
+    participant: {
+      userId: user.id,
+      name: user.name,
+      ...(teamSize > 1 ? { teamName: String(teamName).trim(), teamMembers: [user.name, ...cleanTeammates] } : {}),
+      joinedAt: new Date().toISOString(),
+    },
   }));
   const joined = getState().community.tournaments.find(item => item.id === tournamentId)
     ?.participants.some(participant => participant.userId === user.id);
@@ -237,15 +248,19 @@ const communitySlice = createSlice({
             ...conversation.unreadByUser,
             [userId]: (conversation.unreadByUser?.[userId] || 0) + 1,
           };
-          if (conversation.kind === 'game-room') {
+          if (conversation.kind === 'game-room' || conversation.kind === 'venue-vendor') {
             state.notifications = state.notifications || [];
             state.notifications.unshift({
               id: `notification-${message.id}-${userId}`,
               recipientId: userId,
-              roomId: conversation.roomId,
+              roomId: conversation.kind === 'game-room' ? conversation.roomId : null,
+              venueId: conversation.venueId || null,
+              venueName: conversation.venueName || conversation.title,
               conversationId: conversation.id,
               messageId: message.id,
-              title: `New message in ${conversation.title}`,
+              title: conversation.kind === 'game-room'
+                ? `New message in ${conversation.title}`
+                : `New message about ${conversation.venueName || conversation.title}`,
               body: `${message.senderName}: ${body}`,
               createdAt: message.createdAt,
               readAt: null,
@@ -291,6 +306,11 @@ const communitySlice = createSlice({
     tournamentCreated(state, action) {
       state.tournaments.unshift(action.payload);
     },
+    tournamentUpdated(state, action) {
+      const index = state.tournaments.findIndex(item => item.id === action.payload.id);
+      if (index < 0) return;
+      state.tournaments[index] = { ...state.tournaments[index], ...action.payload };
+    },
     tournamentParticipantAdded(state, action) {
       const tournament = state.tournaments.find(item => item.id === action.payload.tournamentId);
       const result = canJoinTournament(tournament, action.payload.participant?.userId);
@@ -335,6 +355,7 @@ export const {
   splitSaved,
   splitShareStatusChanged,
   tournamentCreated,
+  tournamentUpdated,
   tournamentParticipantAdded,
   tournamentParticipantRemoved,
 } = communitySlice.actions;

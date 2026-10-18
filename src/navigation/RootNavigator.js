@@ -20,6 +20,7 @@ import RegistrationSuccessScreen from '../screens/RegistrationSuccessScreen';
 import RoleSelectionScreen from '../screens/RoleSelectionScreen';
 import VendorDashboardScreen from '../screens/VendorDashboardScreen';
 import VendorVenueManagementScreen from '../screens/VendorVenueManagementScreen';
+import VendorVenueScreen from '../screens/VendorVenueScreen';
 import VendorInventoryScreen from '../screens/VendorInventoryScreen';
 import VendorRegistrationScreen from '../screens/VendorRegistrationScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -80,7 +81,7 @@ export default function RootNavigator() {
   const { hydrated, currentUser } = useSelector(state => state.auth);
   const venuesHydrated = useSelector(state => state.venues.hydrated);
   const communityHydrated = useSelector(state => state.community.hydrated);
-  const hasNotifications = useSelector(state => Boolean(currentUser?.role === 'player' &&
+  const hasNotifications = useSelector(state => Boolean(currentUser?.id &&
     state.community.notifications?.some(notification => notification.recipientId === currentUser.id && !notification.readAt)));
   const showBottomNav = currentUser && (currentUser.role === 'player'
     ? BOTTOM_NAV_ROUTES.has(routeName) || routeName === 'Notifications'
@@ -129,6 +130,7 @@ export default function RootNavigator() {
         ) : currentUser?.role === 'vendor' ? (
           <>
             <Stack.Screen name="VendorDashboard" component={VendorDashboardScreen} />
+            <Stack.Screen name="VendorVenue" component={VendorVenueScreen} />
             <Stack.Screen name="VendorVenueManagement" component={VendorVenueManagementScreen} />
             <Stack.Screen name="VendorAvailability" component={VendorAvailabilityScreen} />
             <Stack.Screen name="VendorBookings" component={VendorBookingsScreen} />
@@ -139,7 +141,10 @@ export default function RootNavigator() {
             <Stack.Screen name="VendorAnalytics" component={VendorAnalyticsScreen} />
             <Stack.Screen name="VendorReviews" component={VendorReviewsScreen} />
             <Stack.Screen name="VendorInventory" component={VendorInventoryScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Tournaments" component={TournamentsScreen} />
+            <Stack.Screen name="TournamentDetails" component={TournamentDetailsScreen} />
+            <Stack.Screen name="CreateTournament" component={CreateTournamentScreen} />
+            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />

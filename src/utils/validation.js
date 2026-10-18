@@ -134,6 +134,19 @@ function validateVendorGrounds(values) {
     if (!Number.isInteger(duration) || duration < 15 || duration > 240) {
       errors[`grounds.${index}.slotDurationMinutes`] = 'Choose a slot duration from 15 to 240 minutes.';
     }
+    const parseTime = value => {
+      const match = /^(\d{2}):(\d{2})$/.exec(String(value || ''));
+      if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) return null;
+      return Number(match[1]) * 60 + Number(match[2]);
+    };
+    const opening = parseTime(ground.openingTime || '09:00');
+    const closing = parseTime(ground.closingTime || '17:00');
+    if (opening === null) errors[`grounds.${index}.openingTime`] = 'Enter opening time in HH:MM format.';
+    if (closing === null) errors[`grounds.${index}.closingTime`] = 'Enter closing time in HH:MM format.';
+    else if (opening !== null && closing <= opening) errors[`grounds.${index}.closingTime`] = 'Closing time must be after opening time.';
+    if (!Array.isArray(ground.availableDays || ['Mon']) || (ground.availableDays && ground.availableDays.length === 0)) {
+      errors[`grounds.${index}.availableDays`] = 'Choose at least one day for this ground.';
+    }
   });
 
   return errors;

@@ -30,6 +30,7 @@ import {
   messageSent,
   recordRoomSharePayment,
   tournamentCreated,
+  tournamentUpdated,
   tournamentParticipantRemoved,
   joinTournament,
   updateGameRoomPaymentShares,
@@ -109,6 +110,10 @@ export function GameRoomsScreen({ navigation }) {
             <ScreenHeader title="Find players" subtitle="Join a local game or create a match with open spots." eyebrow="PLAY TOGETHER" onBack={() => navigation.goBack()} />
             <LocalDemoNote />
             <AppButton title="Create a game room" testID="rooms-create" onPress={() => navigation.navigate('CreateGameRoom')} style={styles.listAction} />
+            <View style={styles.twoColumns}>
+              <AppButton title="Tournaments" variant="secondary" testID="rooms-tournaments-open" onPress={() => navigation.navigate('Tournaments')} style={styles.column} />
+              <AppButton title="Leaderboard" variant="secondary" testID="rooms-leaderboard-open" onPress={() => navigation.navigate('Leaderboard')} style={styles.column} />
+            </View>
             <ChoiceChips label="Room type" options={['All', 'Public', 'Private']} selected={visibility === 'all' ? 'All' : visibility === 'public' ? 'Public' : 'Private'} onSelect={value => setVisibility(value.toLowerCase())} testID="rooms-visibility" />
             <ChoiceChips label="Sport" options={['All', ...SPORTS]} selected={sport} onSelect={setSport} testID="rooms-sport" />
             <ChoiceChips label="When" options={['All', 'Today', 'This week']} selected={time === 'all' ? 'All' : time === 'today' ? 'Today' : 'This week'} onSelect={value => setTime(value === 'All' ? 'all' : value === 'Today' ? 'today' : 'this-week')} testID="rooms-time" />
@@ -836,13 +841,16 @@ export function SplitPaymentScreen({ navigation, route }) {
 function TournamentCard({ tournament, onPress, testID }) {
   const { colors } = useTheme();
   const remaining = useMemo(() => Math.max(0, tournament.capacity - tournament.participants.length), [tournament]);
+  const teamTournament = Number(tournament.teamSize) > 1;
+  const fee = Number(tournament.entryFeePKR ?? tournament.demoEntryFeePKR ?? 0);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Open ${tournament.title}`} testID={testID} onPress={onPress}>
       <DesignCard style={styles.listCard}>
         <View style={styles.rowBetween}><Text numberOfLines={1} style={[styles.cardTitle, styles.flex, { color: colors.ink }]}>{tournament.title}</Text><StatusBadge label={tournament.status} tone={tournament.status === 'upcoming' ? 'success' : 'neutral'} /></View>
         <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{tournament.sport} · {formatCommunityDate(tournament.date)} · {formatCommunityTime(tournament.startTime)}</Text>
         <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{tournament.location}</Text>
-        <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{tournament.participants.length}/{tournament.capacity} players · {remaining} spots left</Text>
+        <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{tournament.participants.length}/{tournament.capacity} {teamTournament ? 'teams' : 'players'} · {remaining} spots left</Text>
+        <Text style={[styles.cardMeta, { color: colors.primary }]}>{formatPKR(fee)} entry · {formatPKR(tournament.prizePKR || 0)} prize</Text>
       </DesignCard>
     </Pressable>
   );
@@ -850,6 +858,7 @@ function TournamentCard({ tournament, onPress, testID }) {
 
 export function TournamentsScreen({ navigation }) {
   const { colors } = useTheme();
+  const { currentUser } = useSelector(state => state.auth);
   const tournaments = useSelector(state => state.community.tournaments);
   const [sport, setSport] = useState('All');
   const [status, setStatus] = useState('upcoming');
@@ -870,14 +879,14 @@ export function TournamentsScreen({ navigation }) {
         ListHeaderComponent={(
           <>
             <ScreenHeader title="Tournaments" subtitle="Local demo competitions with capacity-protected registration." eyebrow="COMPETE" onBack={() => navigation.goBack()} />
-            <AppButton title="Create a tournament" testID="tournament-create-open" onPress={() => navigation.navigate('CreateTournament')} style={styles.listAction} />
+            {currentUser?.role === 'vendor' ? <AppButton title="Create a tournament" testID="tournament-create-open" onPress={() => navigation.navigate('CreateTournament')} style={styles.listAction} /> : null}
             <AppButton title="View leaderboard" variant="secondary" testID="tournament-leaderboard-open" onPress={() => navigation.navigate('Leaderboard')} style={styles.listAction} />
             <ChoiceChips label="Sport" options={['All', ...SPORTS]} selected={sport} onSelect={setSport} testID="tournament-sport" />
             <ChoiceChips label="Status" options={['Upcoming', 'Active', 'Completed', 'All']} selected={status === 'all' ? 'All' : `${status[0].toUpperCase()}${status.slice(1)}`} onSelect={value => setStatus(value.toLowerCase())} testID="tournament-status" />
             <SectionHeading title={`${filtered.length} tournament${filtered.length === 1 ? '' : 's'}`} />
           </>
         )}
-        ListEmptyComponent={<EmptyState title="No tournaments in this filter" description="Choose another sport or status, or create a local demo tournament." action={<AppButton title="Create a tournament" testID="tournament-empty-create" onPress={() => navigation.navigate('CreateTournament')} />} />}
+        ListEmptyComponent={<EmptyState title="No tournaments in this filter" description="Choose another sport or status to browse competitions." />}
         renderItem={renderTournament}
       />
     </SafeAreaView>
@@ -890,14 +899,30 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const { currentUser } = useSelector(state => state.auth);
   const tournament = useSelector(state => state.community.tournaments.find(item => item.id === route.params?.tournamentId));
   const [error, setError] = useState('');
+  const [teamName, setTeamName] = useState('');
+  const [teammates, setTeammates] = useState('');
+  const [winnerTeamName, setWinnerTeamName] = useState('');
   const isParticipant = tournament?.participants.some(item => item.userId === currentUser?.id);
+  const isOrganizer = currentUser?.role === 'vendor' && tournament?.createdBy === currentUser.id;
+  const teamSize = Number(tournament?.teamSize) || 1;
+  const isTeamTournament = teamSize > 1;
   const remaining = useMemo(() => tournament ? Math.max(0, tournament.capacity - tournament.participants.length) : 0, [tournament]);
   const join = () => {
     setError('');
-    const result = dispatch(joinTournament({ tournamentId: tournament?.id, user: currentUser }));
+    const result = dispatch(joinTournament({ tournamentId: tournament?.id, user: currentUser, teamName, teammateNames: teammates.split(',') }));
     if (!result.ok) setError(result.error);
+    else { setTeamName(''); setTeammates(''); }
   };
   const leave = () => dispatch(tournamentParticipantRemoved({ tournamentId: tournament.id, userId: currentUser.id }));
+  const closeRegistration = () => dispatch(tournamentUpdated({ ...tournament, status: 'active' }));
+  const completeTournament = () => {
+    if (isTeamTournament && !winnerTeamName) {
+      setError('Select the winning team before completing the tournament.');
+      return;
+    }
+    dispatch(tournamentUpdated({ ...tournament, status: 'completed', winnerTeamName: winnerTeamName || tournament.participants[0]?.name || 'Winner recorded by organizer' }));
+    setError('Tournament completed and winner recorded locally.');
+  };
 
   if (!tournament) return <ScreenMissing navigation={navigation} title="Tournament not found" />;
 
@@ -909,17 +934,33 @@ export function TournamentDetailsScreen({ navigation, route }) {
         <DesignCard>
           <Text style={[styles.cardTitle, { color: colors.ink }]}>{tournament.location}</Text>
           <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{formatCommunityTime(tournament.startTime)} · {tournament.status}</Text>
-          <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{tournament.participants.length}/{tournament.capacity} players · {remaining} spots left</Text>
-          <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(tournament.demoEntryFeePKR || 0)} demo entry estimate · no payment is collected</Text>
+          <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{tournament.participants.length}/{tournament.capacity} {isTeamTournament ? 'teams' : 'players'} · {remaining} spots left</Text>
+          {isTeamTournament ? <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Team size · {teamSize} players</Text> : null}
+          <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(tournament.entryFeePKR ?? tournament.demoEntryFeePKR ?? 0)} entry per player · {formatPKR(tournament.prizePKR || 0)} winning prize</Text>
+          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>Local demo listing only. No entry fee is collected and no prize is paid.</Text>
         </DesignCard>
-        <SectionHeading title="Registered players" />
+        <SectionHeading title={isTeamTournament ? 'Registered teams' : 'Registered players'} />
         {tournament.participants.map((participant, index) => (
           <View key={participant.userId} style={[styles.memberRow, { borderColor: colors.border }]}>
             <Text style={[styles.rankNumber, { color: colors.primary }]}>{String(index + 1).padStart(2, '0')}</Text>
-            <Text style={[styles.cardTitle, { color: colors.ink }]}>{participant.name}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.ink }]}>{participant.teamName || participant.name}</Text>
+              <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{participant.teamMembers?.join(' · ') || participant.name}</Text>
+            </View>
           </View>
         ))}
-        {isParticipant ? <AppButton title="Leave tournament" variant="secondary" testID="tournament-leave" onPress={leave} /> : remaining === 0 || tournament.status !== 'upcoming' ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : <AppButton title="Join tournament" testID="tournament-join" onPress={join} />}
+        {isTeamTournament && !isParticipant && !isOrganizer && remaining > 0 && tournament.status === 'upcoming' ? <>
+          <FormField label="Team name" value={teamName} onChangeText={setTeamName} placeholder="Enter your team name" testID="tournament-team-name" />
+          <FormField label={`Teammates (${teamSize - 1} names, comma-separated)`} value={teammates} onChangeText={setTeammates} placeholder="Names of your teammates" testID="tournament-team-members" />
+        </> : null}
+        {isOrganizer ? <>
+          {tournament.status === 'upcoming' ? <AppButton title="Close team registration" variant="secondary" testID="tournament-close-registration" onPress={closeRegistration} /> : null}
+          {tournament.status !== 'completed' && tournament.participants.length ? <>
+            {isTeamTournament ? <ChoiceChips label="Winning team" options={tournament.participants.map(participant => participant.teamName || participant.name)} selected={winnerTeamName} onSelect={setWinnerTeamName} testID="tournament-winner" /> : null}
+            <AppButton title="Complete tournament and record winner" testID="tournament-complete" onPress={completeTournament} />
+          </> : null}
+        </> : isParticipant ? <AppButton title="Leave tournament" variant="secondary" testID="tournament-leave" onPress={leave} /> : remaining === 0 || tournament.status !== 'upcoming' ? <AppButton title={remaining === 0 ? (isTeamTournament ? 'Tournament is full' : 'Tournament is full') : 'Registration closed'} testID="tournament-closed" disabled /> : <AppButton title={isTeamTournament ? 'Register this team' : 'Join tournament'} testID="tournament-join" onPress={join} />}
+        {tournament.winnerTeamName ? <InlineNotice testID="tournament-winner-result">Winner · {tournament.winnerTeamName} · prize {formatPKR(tournament.prizePKR || 0)}</InlineNotice> : null}
         {error ? <InlineNotice tone="danger" testID="tournament-error">{error}</InlineNotice> : null}
         <AppButton title="Open demo leaderboard" variant="secondary" testID="tournament-details-leaderboard" onPress={() => navigation.navigate('Leaderboard', { sport: tournament.sport })} style={styles.spacedButton} />
       </ScrollView>
@@ -936,11 +977,14 @@ export function CreateTournamentScreen({ navigation }) {
   const [location, setLocation] = useState('');
   const [date, setDate] = useState(getNextBookableDates()[2]?.dateKey || toLocalDateKey());
   const [startTime, setStartTime] = useState('16:00');
-  const [capacity, setCapacity] = useState('16');
+  const [capacity, setCapacity] = useState('8');
+  const [teamSize, setTeamSize] = useState('5');
+  const [entryFeePKR, setEntryFeePKR] = useState('500');
+  const [prizePKR, setPrizePKR] = useState('10000');
   const [errors, setErrors] = useState({});
 
   const create = () => {
-    const validation = validateTournamentDraft({ title, sport, location, date, startTime, capacity });
+    const validation = validateTournamentDraft({ title, sport, location, date, startTime, capacity, teamSize, entryFeePKR, prizePKR });
     setErrors(validation);
     if (Object.keys(validation).length) return;
     const tournament = {
@@ -951,10 +995,14 @@ export function CreateTournamentScreen({ navigation }) {
       date,
       startTime,
       capacity: Number(capacity),
+      teamSize: Number(teamSize),
       status: 'upcoming',
-      demoEntryFeePKR: 0,
+      entryFeePKR: Number(entryFeePKR),
+      demoEntryFeePKR: Number(entryFeePKR),
+      prizePKR: Number(prizePKR),
       createdBy: currentUser.id,
-      participants: [{ userId: currentUser.id, name: currentUser.name, joinedAt: new Date().toISOString() }],
+      organizerUserId: currentUser.id,
+      participants: [],
       createdAt: new Date().toISOString(),
     };
     dispatch(tournamentCreated(tournament));
@@ -964,7 +1012,7 @@ export function CreateTournamentScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <ScrollView contentContainerStyle={styles.pageContent} keyboardShouldPersistTaps="handled">
-        <ScreenHeader title="Create tournament" subtitle="Set the schedule and maximum player count." eyebrow="NEW TOURNAMENT" onBack={() => navigation.goBack()} />
+        <ScreenHeader title="Create tournament" subtitle="Set a team competition, entry fee and prize for local players." eyebrow="NEW TOURNAMENT" onBack={() => navigation.goBack()} />
         <FormField label="Tournament name" value={title} onChangeText={setTitle} error={errors.title} placeholder="Lahore weekend cup" testID="tournament-title" />
         <ChoiceChips label="Sport" options={SPORTS} selected={sport} onSelect={setSport} testID="tournament-create-sport" />
         <FormField label="Venue or area" value={location} onChangeText={setLocation} error={errors.location} placeholder="Venue name or area" testID="tournament-location" />
@@ -972,8 +1020,11 @@ export function CreateTournamentScreen({ navigation }) {
           <FormField label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} error={errors.date} testID="tournament-date" style={styles.column} />
           <FormField label="Start time (HH:MM)" value={startTime} onChangeText={setStartTime} testID="tournament-time" style={styles.column} />
         </View>
-        <FormField label="Player capacity" value={capacity} onChangeText={setCapacity} error={errors.capacity} keyboardType="number-pad" testID="tournament-capacity" />
-        <InlineNotice>New tournaments are local demo listings. No venue has been contacted and no entry fee is collected.</InlineNotice>
+        <FormField label="Players per team" value={teamSize} onChangeText={setTeamSize} error={errors.teamSize} keyboardType="number-pad" testID="tournament-team-size" />
+        <FormField label="Maximum teams" value={capacity} onChangeText={setCapacity} error={errors.capacity} keyboardType="number-pad" testID="tournament-capacity" />
+        <FormField label="Entry fee per player (PKR)" value={entryFeePKR} onChangeText={setEntryFeePKR} error={errors.entryFeePKR} keyboardType="number-pad" testID="tournament-entry-fee" />
+        <FormField label="Winning prize (PKR)" value={prizePKR} onChangeText={setPrizePKR} error={errors.prizePKR} keyboardType="number-pad" testID="tournament-prize" />
+        <InlineNotice>Team registrations, entry fees and prizes are local demo records. No payment is collected and no prize is transferred.</InlineNotice>
         <AppButton title="Create tournament" testID="tournament-create-submit" onPress={create} />
       </ScrollView>
     </SafeAreaView>

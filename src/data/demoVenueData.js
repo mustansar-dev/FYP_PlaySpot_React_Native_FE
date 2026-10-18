@@ -127,6 +127,9 @@ export function createDemoVenueState() {
     conditionRating: 4,
     hourlyPricePKR: fixture.price,
     slotDurationMinutes: 60,
+    openingTime: '16:00',
+    closingTime: '19:00',
+    availableDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     isActive: true,
   }));
 

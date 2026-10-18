@@ -49,6 +49,8 @@ export function ProfileScreen({ navigation }) {
   const vendor = user?.role === 'vendor';
   const count = vendor ? vendorBookings.length : playerBookings.length;
   const profile = useSelector(state => selectVendorProfileById(state, vendorVenues[0]?.vendorId));
+  const vendorGrounds = useSelector(state => selectGroundsByVenueId(state, vendorVenues[0]?.id));
+  const vendorEquipment = useSelector(state => selectEquipmentByVenueId(state, vendorVenues[0]?.id));
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content}>
     <ScreenHeader title="Profile" subtitle="Your local PlaySpot demo account" onBack={() => navigation.goBack()} />
     <DesignCard style={{ borderRadius: radius.lg }}>
@@ -56,14 +58,17 @@ export function ProfileScreen({ navigation }) {
       <View style={styles.metricRow}><View style={[styles.metric, { backgroundColor: colors.limePale }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{count}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>{vendor ? 'LOCAL BOOKINGS' : 'MY BOOKINGS'}</Text></View><View style={[styles.metric, { backgroundColor: colors.limePale }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{vendor ? vendorVenues.length : (user?.preferredSports || []).length}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>{vendor ? 'VENUES' : 'SPORTS'}</Text></View></View>
       {vendor && profile ? <Text style={[styles.copy, { color: colors.inkSoft, marginTop: 12 }]}>{profile.businessName} · {profile.verificationStatus === 'demo-approved' ? 'demo approved' : 'pending demo'}</Text> : null}
     </DesignCard>
+    {vendor && vendorVenues[0] ? <DesignCard testID="profile-vendor-venue">
+      <Text style={[styles.label, { color: colors.primary }]}>LOCAL VENUE PROFILE</Text>
+      <Text style={[styles.name, { color: colors.ink }]}>{vendorVenues[0].name}</Text>
+      <Text style={[styles.copy, { color: colors.inkSoft, marginTop: 4 }]}>{profile?.businessName || user?.businessName}</Text>
+      <Text style={[styles.copy, { color: colors.inkSoft, marginTop: 4 }]}>{vendorVenues[0].address} · {vendorVenues[0].city}</Text>
+      <Text style={[styles.copy, { color: colors.inkSoft, marginTop: 4 }]}>{vendorVenues[0].sports?.join(' · ') || 'No sports listed'}</Text>
+      <Text style={[styles.copy, { color: colors.primary, marginTop: 8 }]}>{vendorGrounds.length} grounds · {vendorEquipment.length} add-ons · {vendorVenues[0].published ? 'Published locally' : 'Hidden locally'}</Text>
+    </DesignCard> : null}
     <DesignCard>
       <ActionRow title="Edit profile" subtitle="Update your name and contact details" testID="profile-edit" onPress={() => navigation.navigate('EditProfile')} colors={colors} />
-      {vendor ? <>
-        <ActionRow title="Venue analytics" subtitle="Six seeded months plus current local activity" testID="profile-analytics" onPress={() => navigation.navigate('VendorAnalytics')} colors={colors} />
-        <ActionRow title="Manage reviews" subtitle="Read feedback for your venues" testID="profile-reviews" onPress={() => navigation.navigate('VendorReviews')} colors={colors} />
-        {vendorVenues[0] ? <ActionRow title="Inventory and grounds" subtitle="Edit equipment, prices and venue details" testID="profile-inventory" onPress={() => navigation.navigate('VendorInventory', { venueId: vendorVenues[0].id })} colors={colors} /> : null}
-      </> : null}
-      {vendor ? <ActionRow title="Notifications" subtitle="Booking, review and message updates" testID="profile-notifications" onPress={() => navigation.navigate('Notifications')} colors={colors} /> : null}
+      {vendor ? <ActionRow title="Manage reviews" subtitle="Read feedback for your venues" testID="profile-reviews" onPress={() => navigation.navigate('VendorReviews')} colors={colors} /> : null}
       <ActionRow title="Settings" subtitle="Theme, about and demo session" testID="profile-settings" onPress={() => navigation.navigate('Settings')} colors={colors} last />
     </DesignCard>
   </ScrollView></SafeAreaView>;
@@ -138,7 +143,7 @@ function makeNotifications(user, bookings, reviews, conversations, roomNotificat
     items.unshift({
       ...item,
       persisted: true,
-      title: `New message in ${room?.title || 'your game room'}`,
+      title: room ? `New message in ${room.title}` : `New message about ${item.venueName || 'your venue'}`,
       route: 'ChatConversation',
       params: { conversationId: item.conversationId },
     });
@@ -200,7 +205,7 @@ export function SettingsScreen({ navigation }) {
   </ScrollView></SafeAreaView>;
 }
 
-export function VendorReviewsScreen() {
+export function VendorReviewsScreen({ navigation }) {
   const { colors } = useTheme();
   const user = useSelector(state => state.auth.currentUser);
   const venues = useSelector(state => selectVenuesByOwnerId(state, user?.id || ''));
@@ -209,7 +214,7 @@ export function VendorReviewsScreen() {
   const summary = getVenueRating(reviews);
   const venueById = new Map(venues.map(venue => [venue.id, venue]));
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content}>
-    <ScreenHeader title="Venue reviews" subtitle="Feedback attached to your local venues" />
+    <ScreenHeader title="Venue reviews" subtitle="Feedback attached to your local venues" onBack={() => navigation.goBack()} />
     <DesignCard><Text style={[styles.name, { color: colors.ink }]}>{summary.count ? `${summary.average.toFixed(1)} / 5` : 'No rating yet'}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{summary.count} local demo reviews · averages update from saved reviews</Text></DesignCard>
     {reviews.length ? reviews.map(review => <DesignCard key={review.id}><View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><Text style={[styles.reviewTitle, { color: colors.ink }]}>{review.playerName}</Text><Text style={styles.star}>{'★'.repeat(review.stars)}{'☆'.repeat(5 - review.stars)}</Text></View><Text style={[styles.copy, { color: colors.primary, marginTop: 4 }]}>{venueById.get(review.venueId)?.name || 'Your venue'}</Text><Text style={[styles.copy, { color: colors.ink, marginTop: 7 }]}>{review.comment}</Text></DesignCard>) : <DesignCard><EmptyState title="No reviews yet" description="Player feedback for your published venues will show here." /></DesignCard>}
   </ScrollView></SafeAreaView>;

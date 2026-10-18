@@ -1,265 +1,136 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
-import VenueArtwork from '../components/VenueArtwork';
-import VenuePhotoSlider from '../components/VenuePhotoSlider';
+import DesignCard from '../components/DesignPrimitives';
+import PlayerProfileDrawer from '../components/PlayerProfileDrawer';
 import { useTheme } from '../context/ThemeContext';
-import { endSession } from '../services/authRepository';
-import { sessionEnded } from '../store/authSlice';
-import { selectEquipmentByVenueId, selectGroundsByVenueId, selectVendorProfileById, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
 import { selectBookingsForVendor } from '../store/selectors/bookingSelectors';
-import { buildVendorAnalytics, calculateTodayAndUpcomingBookings } from '../utils/vendorAnalytics';
+import { selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
+import { buildVendorAnalytics } from '../utils/vendorAnalytics';
 
 export default function VendorDashboardScreen({ navigation }) {
-  const dispatch = useDispatch();
   const { currentUser, storageNotice } = useSelector(state => state.auth);
   const { colors, radius } = useTheme();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [profileDrawerVisible, setProfileDrawerVisible] = useState(false);
   const venues = useSelector(state => selectVenuesByOwnerId(state, currentUser?.id || ''));
-  const venue = venues[0] || null;
-  const grounds = useSelector(state => selectGroundsByVenueId(state, venue?.id));
-  const allVendorGrounds = useSelector(state => state.venues.grounds.filter(ground => venues.some(item => item.id === ground.venueId)));
-  const equipment = useSelector(state => selectEquipmentByVenueId(state, venue?.id));
-  const vendorProfile = useSelector(state => selectVendorProfileById(state, venue?.vendorId));
+  const allGrounds = useSelector(state => state.venues.grounds);
+  const allSlots = useSelector(state => state.venues.slots);
+  const venueIds = useMemo(() => new Set(venues.map(venue => venue.id)), [venues]);
+  const grounds = useMemo(() => allGrounds.filter(ground => venueIds.has(ground.venueId)), [allGrounds, venueIds]);
+  const groundIds = useMemo(() => new Set(grounds.map(ground => ground.id)), [grounds]);
+  const slots = useMemo(() => allSlots.filter(slot => groundIds.has(slot.groundId)), [allSlots, groundIds]);
   const bookings = useSelector(state => selectBookingsForVendor(state, currentUser?.id || ''));
-  const vendorVenueIds = venues.map(item => item.id);
-  const allGroundIds = new Set(allVendorGrounds.map(ground => ground.id));
-  const slots = useSelector(state => state.venues.slots.filter(slot => allGroundIds.has(slot.groundId)));
-  const analytics = useMemo(() => buildVendorAnalytics({ bookings, grounds: allVendorGrounds, slots }), [bookings, allVendorGrounds, slots]);
+  const analytics = useMemo(() => buildVendorAnalytics({ bookings, grounds, slots }), [bookings, grounds, slots]);
   const currentMonth = analytics[analytics.length - 1];
-  const bookingCounts = useMemo(() => calculateTodayAndUpcomingBookings(bookings, vendorVenueIds), [bookings, venues]);
-  const venueStorageNotice = useSelector(state => state.venues.storageNotice);
-
-  const logout = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await endSession();
-      dispatch(sessionEnded());
-    } catch (requestError) {
-      setError(requestError.message || 'Could not clear the local demo session.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const closeProfileDrawer = () => setProfileDrawerVisible(false);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
           <View style={[styles.brandMark, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
             <Text style={[styles.brandBall, { color: colors.primary }]}>●</Text>
           </View>
-          <Text style={[styles.brand, { color: colors.ink }]}>PlaySpot <Text style={{ color: colors.primary }}>PK</Text></Text>
-          <View style={[styles.roleBadge, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Open profile" testID="vendor-open-profile" onPress={() => navigation.navigate('Profile')}><Text style={[styles.roleBadgeText, { color: colors.primaryDark }]}>PROFILE · VENUE PROVIDER</Text></Pressable>
+          <View style={styles.brandCopy}>
+            <Text style={[styles.brand, { color: colors.ink }]}>PlaySpot <Text style={{ color: colors.primary }}>PK</Text></Text>
+            <Text style={[styles.brandMeta, { color: colors.inkSoft }]}>VENUE PROVIDER</Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open profile drawer"
+            testID="vendor-open-profile"
+            onPress={() => setProfileDrawerVisible(true)}
+            style={[styles.avatar, { backgroundColor: colors.limePale, borderRadius: radius.pill }]}
+          >
+            <Text style={[styles.avatarText, { color: colors.primary }]}>{currentUser?.name?.[0]?.toUpperCase() || 'V'}</Text>
+          </Pressable>
         </View>
 
         <View style={[styles.hero, { backgroundColor: colors.primary, borderRadius: radius.lg }]}>
-          <Text style={[styles.eyebrow, { color: colors.lime }]}>VENDOR DEMO DASHBOARD</Text>
+          <Text style={[styles.eyebrow, { color: colors.lime }]}>VENDOR DASHBOARD</Text>
           <Text style={styles.title}>Welcome, {currentUser?.name || 'Provider'}.</Text>
-          <Text style={styles.subtitle}>Your venue profile is available on this device.</Text>
+          <Text style={styles.subtitle}>Your local venue activity at a glance.</Text>
         </View>
 
-        {storageNotice ? (
-          <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
-            <Text style={[styles.noticeText, { color: colors.ink }]}>{storageNotice}</Text>
-          </View>
-        ) : null}
+        {storageNotice ? <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.noticeText, { color: colors.ink }]}>{storageNotice}</Text></View> : null}
+        {venues.length === 0 ? <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.noticeText, { color: colors.ink }]}>No venue is connected to this local account yet. Use the Venue tab to review your setup.</Text></View> : null}
 
-        {venueStorageNotice ? (
-          <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
-            <Text style={[styles.noticeText, { color: colors.ink }]}>{venueStorageNotice}</Text>
-          </View>
-        ) : null}
-
-        {venue && venue.photoUris?.length ? (
-          <VenuePhotoSlider photos={venue.photoUris} venueName={venue.name} radius={radius.md} />
-        ) : venue ? (
-          <VenueArtwork sport={venue.sports?.[0]} />
-        ) : null}
-
-        {venue ? (
-          <View style={[styles.venueCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
-            <Text style={[styles.sectionLabel, { color: colors.inkSoft }]}>LOCAL VENUE PROFILE</Text>
-            <Text style={[styles.venueName, { color: colors.ink }]}>{venue.name}</Text>
-            <Text style={[styles.detail, { color: colors.inkSoft }]}>{vendorProfile?.businessName || currentUser?.businessName}</Text>
-            <Text style={[styles.detail, { color: colors.inkSoft }]}>{venue.address}, {venue.city}</Text>
-            {venue.locationNote ? <Text style={[styles.detail, { color: colors.inkSoft }]}>{venue.locationNote}</Text> : null}
-            <Text style={[styles.detail, { color: colors.inkSoft }]}>
-              {venue.latitude != null && venue.longitude != null
-                ? `Vendor-entered coordinates: ${venue.latitude}, ${venue.longitude} (approximate demo)`
-                : 'Location uses the manually entered address.'}
-            </Text>
-            <Text style={[styles.detail, { color: venue.published ? colors.success : colors.error }]}>
-              {venue.published ? 'Published in local demo discovery' : 'Hidden from local demo discovery'}
-            </Text>
-            {venue.videoUri ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open venue video"
-                onPress={() => Linking.openURL(venue.videoUri).catch(() => setError('This video could not be opened on this device.'))}
-                style={[styles.videoProfile, { backgroundColor: colors.primaryDark, borderRadius: radius.md }]}
-              >
-                <Text style={styles.videoPlay}>▶</Text>
-                <View style={styles.videoCopy}>
-                  <Text style={styles.videoTitle}>VENUE VIDEO</Text>
-                  <Text style={styles.videoHint}>Tap to open the selected video</Text>
-                </View>
-              </Pressable>
-            ) : null}
-            <View style={styles.metricRow}>
-              <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
-                <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{grounds.length}</Text>
-                <Text style={[styles.metricLabel, { color: colors.inkSoft }]}>GROUNDS</Text>
-              </View>
-              <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
-                <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{venue.sports?.length || 0}</Text>
-                <Text style={[styles.metricLabel, { color: colors.inkSoft }]}>SPORTS</Text>
-              </View>
-              <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
-                <Text style={[styles.metricValue, { color: colors.primaryDark }]}>{venue.photoUris?.length || 0}</Text>
-                <Text style={[styles.metricLabel, { color: colors.inkSoft }]}>PHOTOS</Text>
-              </View>
+        <View style={[styles.snapshotCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
+          <View style={styles.snapshotHeading}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.ink }]}>Business snapshot</Text>
+              <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Current local demo records</Text>
             </View>
-            <Text style={[styles.sectionLabel, { color: colors.inkSoft, marginTop: 17 }]}>SPORTS</Text>
-            <Text style={[styles.detail, { color: colors.ink }]}>{venue.sports?.join(' · ') || 'No sports listed'}</Text>
-            <Text style={[styles.sectionLabel, { color: colors.inkSoft, marginTop: 14 }]}>GROUND DETAILS</Text>
-            {grounds.map(ground => (
-              <View key={ground.id} style={[styles.groundRow, { borderColor: colors.border }]}>
-                <Text style={[styles.groundName, { color: colors.ink }]}>{ground.name} · {ground.sport}</Text>
-                <Text style={[styles.detail, { color: colors.inkSoft }]}>
-                  {ground.widthMeters} × {ground.lengthMeters} m · {ground.indoorOutdoor} · {ground.surface} · Condition {ground.conditionRating}/5
-                </Text>
-                <Text style={[styles.price, { color: colors.primary }]}>PKR {ground.hourlyPricePKR} / hour</Text>
-              </View>
-            ))}
-            <Text style={[styles.sectionLabel, { color: colors.inkSoft, marginTop: 14 }]}>FACILITIES & PARKING</Text>
-            <Text style={[styles.detail, { color: colors.ink }]}>
-              {venue.facilities?.join(' · ') || 'No facilities listed'}
-              {venue.parkingAvailable ? ` · Parking for ${venue.parkingSpaces} vehicles` : ' · No parking'}
-            </Text>
-            <Text style={[styles.sectionLabel, { color: colors.inkSoft, marginTop: 14 }]}>EQUIPMENT</Text>
-            {equipment.length ? equipment.map(item => (
-              <Text key={item.id} style={[styles.detail, { color: colors.ink }]}>
-                {item.name} · {item.priceMode} · PKR {item.unitPricePKR} · Qty {item.quantityAvailable}
-              </Text>
-            )) : <Text style={[styles.detail, { color: colors.inkSoft }]}>No add-ons listed</Text>}
+            <Text style={[styles.period, { color: colors.primary }]}>THIS MONTH</Text>
           </View>
-        ) : (
-          <View style={[styles.venueCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
-            <Text style={[styles.sectionLabel, { color: colors.inkSoft }]}>ACCOUNT DETAILS</Text>
-            <Text style={[styles.venueName, { color: colors.ink }]}>{currentUser?.businessName}</Text>
-            <Text style={[styles.detail, { color: colors.inkSoft }]}>{currentUser?.email}</Text>
-            <Text style={[styles.detail, { color: colors.inkSoft }]}>{currentUser?.phone}</Text>
+          <View style={styles.metricsRow}>
+            <Metric label="BOOKINGS" value={currentMonth.bookings} colors={colors} />
+            <Metric label="BOOKED VALUE" value={`Rs. ${currentMonth.revenuePKR.toLocaleString()}`} colors={colors} />
+            <Metric label="OCCUPANCY" value={`${currentMonth.occupancyPercent}%`} colors={colors} />
           </View>
-        )}
-
-        {venue ? (
-          <AppButton
-            title="Manage venue, grounds and equipment"
-            testID="vendor-manage-venue"
-            onPress={() => navigation.navigate('VendorVenueManagement', { venueId: venue.id })}
-            style={styles.manageButton}
-          />
-        ) : null}
-
-        <View style={[styles.metricsCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-          <Text style={[styles.toolsTitle, { color: colors.ink }]}>Business snapshot · local demo</Text>
-          <View style={styles.metricRow}>
-            <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{bookingCounts.today}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>TODAY</Text></View>
-            <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{bookingCounts.upcoming}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>UPCOMING</Text></View>
-            <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{currentMonth.bookings}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>THIS MONTH</Text></View>
-          </View>
-          <Text style={[styles.detail, { color: colors.inkSoft }]}>Booked value PKR {currentMonth.revenuePKR.toLocaleString()} · occupancy {currentMonth.occupancyPercent}%</Text>
-          <View style={styles.toolsRow}>
-            <AppButton title="Analytics" testID="vendor-open-analytics" variant="secondary" onPress={() => navigation.navigate('VendorAnalytics')} style={styles.toolButton} textStyle={styles.toolButtonText} />
-            <AppButton title="Reviews" testID="vendor-open-reviews" variant="secondary" onPress={() => navigation.navigate('VendorReviews')} style={styles.toolButton} textStyle={styles.toolButtonText} />
+          <View style={styles.actionRow}>
+            <AppButton title="Analytics" testID="vendor-open-analytics" variant="secondary" onPress={() => navigation.navigate('VendorAnalytics')} style={styles.halfButton} />
+            <AppButton title="Reviews" testID="vendor-open-reviews" variant="secondary" onPress={() => navigation.navigate('VendorReviews')} style={styles.halfButton} />
           </View>
         </View>
 
-        <View style={[styles.toolsCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-          <Text style={[styles.toolsTitle, { color: colors.ink }]}>Bookings and availability</Text>
-          <Text style={[styles.detail, { color: colors.inkSoft }]}>Player reservations and walk-ins share the same slot availability.</Text>
-          <View style={styles.toolsRow}>
-            <AppButton title="Availability" testID="vendor-open-availability" variant="secondary" onPress={() => navigation.navigate('VendorAvailability', { venueId: venue?.id })} style={styles.toolButton} textStyle={styles.toolButtonText} />
-            <AppButton title="Bookings" testID="vendor-open-bookings" variant="secondary" onPress={() => navigation.navigate('VendorBookings')} style={styles.toolButton} textStyle={styles.toolButtonText} />
-          </View>
-          <View style={styles.toolsRow}>
-            <AppButton title="Record walk-in" testID="vendor-open-walkin" onPress={() => navigation.navigate('ManualWalkInBooking', { venueId: venue?.id })} style={styles.toolButton} textStyle={styles.toolButtonText} />
-            <AppButton title="Messages" testID="vendor-open-chat" variant="secondary" onPress={() => navigation.navigate('ChatInbox')} style={styles.toolButton} textStyle={styles.toolButtonText} />
+        <View style={[styles.communityCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
+          <Text style={[styles.cardTitle, { color: colors.ink }]}>Grow your sports community</Text>
+          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Create a local tournament and follow seeded demo rankings.</Text>
+          <View style={styles.actionRow}>
+            <AppButton title="Tournaments" testID="vendor-open-tournaments" onPress={() => navigation.navigate('Tournaments')} style={styles.halfButton} />
+            <AppButton title="Leaderboard" testID="vendor-open-leaderboard" variant="secondary" onPress={() => navigation.navigate('Leaderboard')} style={styles.halfButton} />
           </View>
         </View>
 
-        <View style={[styles.demoCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
-          <Text style={[styles.demoEyebrow, { color: colors.primary }]}>LOCAL DEMO DATA</Text>
-          <Text style={[styles.demoTitle, { color: colors.ink }]}>Profile saved on this device</Text>
-          <Text style={[styles.demoCopy, { color: colors.inkSoft }]}>
-            Venue approval and publishing are local demo states. Nothing is sent to a server.
-          </Text>
-        </View>
-
-        {error ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
-        <AppButton
-          title="Log out of demo account"
-          testID="vendor-logout"
-          variant="secondary"
-          onPress={logout}
-          loading={loading}
-          disabled={loading}
-        />
-        <Text style={[styles.footer, { color: colors.inkSoft }]}>Local frontend demo · no server authenticated this account</Text>
+        <Text style={[styles.footer, { color: colors.inkSoft }]}>Frontend demo · activity and venue records stay on this device.</Text>
       </ScrollView>
+      <PlayerProfileDrawer
+        visible={profileDrawerVisible}
+        onClose={closeProfileDrawer}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
 
+function Metric({ label, value, colors }) {
+  return <View style={[styles.metric, { backgroundColor: colors.limePale, borderRadius: 14 }]}>
+    <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.metricValue, { color: colors.primaryDark }]}>{value}</Text>
+    <Text style={[styles.metricLabel, { color: colors.inkSoft }]}>{label}</Text>
+  </View>;
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 22, paddingTop: 10, paddingBottom: 28 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  brandMark: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 9 },
-  brandBall: { fontSize: 17, fontWeight: '900' },
-  brand: { fontSize: 23, fontWeight: '900', letterSpacing: -0.7 },
-  roleBadge: { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 7 },
-  roleBadgeText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  hero: { padding: 21, marginBottom: 14 },
-  eyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  title: { color: '#FFFFFF', fontSize: 26, lineHeight: 33, fontWeight: '900', marginTop: 8 },
-  subtitle: { color: '#CBD9CF', fontSize: 13, lineHeight: 20, marginTop: 5 },
-  notice: { padding: 12, marginBottom: 14 },
-  noticeText: { fontSize: 12, lineHeight: 18 },
-  venueCard: { borderWidth: 1, padding: 16, marginBottom: 14 },
-  videoProfile: { flexDirection: 'row', alignItems: 'center', padding: 14, marginTop: 14, gap: 12 },
-  videoPlay: { color: '#FFFFFF', fontSize: 22 },
-  videoCopy: { flex: 1 },
-  videoTitle: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  videoHint: { color: '#CBD9CF', fontSize: 11, marginTop: 3 },
-  sectionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  venueName: { fontSize: 19, lineHeight: 25, fontWeight: '900', marginTop: 10 },
-  detail: { fontSize: 11, lineHeight: 18, marginTop: 4 },
-  metricRow: { flexDirection: 'row', gap: 8, marginTop: 15 },
-  metricsCard: { borderWidth: 1, padding: 14, marginBottom: 16 },
-  metric: { flex: 1, alignItems: 'center', paddingVertical: 11 },
-  metricValue: { fontSize: 19, fontWeight: '900' },
-  metricLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 0.6, marginTop: 2 },
-  groundRow: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10 },
-  groundName: { fontSize: 12, fontWeight: '800' },
-  price: { fontSize: 11, fontWeight: '900', marginTop: 5 },
-  demoCard: { borderWidth: 1, padding: 16, marginBottom: 18 },
-  manageButton: { marginBottom: 16 },
-  toolsCard: { borderWidth: 1, padding: 14, marginBottom: 16 },
-  toolsTitle: { fontSize: 15, fontWeight: '900' },
-  toolsRow: { flexDirection: 'row', gap: 8, marginTop: 9 },
-  toolButton: { flex: 1, minHeight: 44, paddingHorizontal: 6 },
-  toolButtonText: { fontSize: 11 },
-  demoEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  demoTitle: { fontSize: 15, fontWeight: '800', marginTop: 7 },
-  demoCopy: { fontSize: 12, lineHeight: 18, marginTop: 5 },
-  error: { fontSize: 12, marginBottom: 10 },
-  footer: { textAlign: 'center', fontSize: 10, lineHeight: 15, marginTop: 12 },
+  content: { padding: 20, paddingTop: 10, paddingBottom: 28, gap: 14 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
+  brandMark: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  brandBall: { fontSize: 18, fontWeight: '900' },
+  brandCopy: { flex: 1 },
+  brand: { fontSize: 21, fontWeight: '900', letterSpacing: -0.6 },
+  brandMeta: { fontSize: 8, fontWeight: '900', letterSpacing: 1, marginTop: 2 },
+  avatar: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 16, fontWeight: '900' },
+  hero: { minHeight: 135, justifyContent: 'center', padding: 20 },
+  eyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', marginTop: 8 },
+  subtitle: { color: '#E7F6ED', fontSize: 11, marginTop: 5 },
+  notice: { padding: 12 },
+  noticeText: { fontSize: 11, lineHeight: 17 },
+  snapshotCard: { borderWidth: 1, padding: 14 },
+  snapshotHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardTitle: { fontSize: 15, fontWeight: '900' },
+  cardMeta: { fontSize: 10, lineHeight: 16, marginTop: 4 },
+  period: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  metricsRow: { flexDirection: 'row', gap: 7, marginTop: 14 },
+  metric: { flex: 1, minHeight: 67, padding: 9, justifyContent: 'center' },
+  metricValue: { fontSize: 15, fontWeight: '900' },
+  metricLabel: { fontSize: 7, fontWeight: '800', marginTop: 4 },
+  actionRow: { flexDirection: 'row', gap: 9, marginTop: 14 },
+  halfButton: { flex: 1 },
+  communityCard: { borderWidth: 1, padding: 15 },
+  footer: { fontSize: 9, lineHeight: 15, textAlign: 'center', marginTop: 2 },
 });

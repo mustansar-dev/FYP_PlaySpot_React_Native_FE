@@ -18,6 +18,7 @@ import ChoiceChips from '../components/ChoiceChips';
 import FormField from '../components/FormField';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { DEFAULT_GROUND_DAYS, WEEK_DAYS } from '../utils/booking';
 import { registerAccount } from '../services/authRepository';
 import { accountRegistered } from '../store/authSlice';
 import { venueCreated } from '../store/venueSlice';
@@ -49,6 +50,9 @@ function blankGround() {
     conditionRating: '',
     hourlyPricePKR: '',
     slotDurationMinutes: '60',
+    openingTime: '09:00',
+    closingTime: '17:00',
+    availableDays: [...DEFAULT_GROUND_DAYS],
   };
 }
 
@@ -93,6 +97,8 @@ export default function VendorRegistrationScreen({ navigation }) {
   const [draft, setDraft] = useState(makeInitialDraft);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
+  const [groundAddedNotice, setGroundAddedNotice] = useState('');
+  const [equipmentAddedNotice, setEquipmentAddedNotice] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [mediaError, setMediaError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -159,7 +165,8 @@ export default function VendorRegistrationScreen({ navigation }) {
   };
 
   const addGround = () => {
-    setDraft(previous => ({ ...previous, grounds: [...previous.grounds, blankGround()] }));
+    setDraft(previous => ({ ...previous, grounds: [blankGround(), ...previous.grounds] }));
+    setGroundAddedNotice('New ground added at the top of the list. Complete its details below.');
   };
 
   const removeGround = index => {
@@ -175,7 +182,6 @@ export default function VendorRegistrationScreen({ navigation }) {
     setDraft(previous => ({
       ...previous,
       equipment: [
-        ...previous.equipment,
         {
           id: `equipment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
           name: '',
@@ -183,8 +189,10 @@ export default function VendorRegistrationScreen({ navigation }) {
           unitPricePKR: '',
           quantityAvailable: '1',
         },
+        ...previous.equipment,
       ],
     }));
+    setEquipmentAddedNotice('New add-on added at the top of the list. Complete its details below.');
   };
 
   const removeEquipment = index => {
@@ -285,6 +293,9 @@ export default function VendorRegistrationScreen({ navigation }) {
           conditionRating: Number(ground.conditionRating),
           hourlyPricePKR: Number(ground.hourlyPricePKR),
           slotDurationMinutes: Number(ground.slotDurationMinutes),
+          openingTime: ground.openingTime || '09:00',
+          closingTime: ground.closingTime || '17:00',
+          availableDays: Array.isArray(ground.availableDays) && ground.availableDays.length ? [...ground.availableDays] : [...DEFAULT_GROUND_DAYS],
         })),
         facilities: [...draft.facilities],
         parkingAvailable: draft.parkingAvailable,
@@ -475,6 +486,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         />
       </View>
       {errors.grounds ? <Text style={[styles.error, { color: colors.error }]}>{errors.grounds}</Text> : null}
+      {groundAddedNotice ? <Text accessibilityLiveRegion="polite" style={[styles.helper, { color: colors.success }]}>{groundAddedNotice}</Text> : null}
       {draft.grounds.map((ground, index) => (
         <View key={ground.id} style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
           <View style={styles.groundCardHeader}>
@@ -566,6 +578,11 @@ export default function VendorRegistrationScreen({ navigation }) {
             testID={`vendor-ground-duration-${index + 1}`}
             error={errors[`grounds.${index}.slotDurationMinutes`]}
           />
+          <View style={styles.twoColumn}>
+            <FormField label="Opens (HH:MM)" value={ground.openingTime} onChangeText={value => updateGround(index, 'openingTime', value)} placeholder="09:00" testID={`vendor-ground-opening-${index + 1}`} error={errors[`grounds.${index}.openingTime`]} style={styles.column} />
+            <FormField label="Closes (HH:MM)" value={ground.closingTime} onChangeText={value => updateGround(index, 'closingTime', value)} placeholder="17:00" testID={`vendor-ground-closing-${index + 1}`} error={errors[`grounds.${index}.closingTime`]} style={styles.column} />
+          </View>
+          <ChoiceChips label="Days available" options={WEEK_DAYS} selected={ground.availableDays || DEFAULT_GROUND_DAYS} onSelect={day => updateGround(index, 'availableDays', (ground.availableDays || DEFAULT_GROUND_DAYS).includes(day) ? (ground.availableDays || DEFAULT_GROUND_DAYS).filter(item => item !== day) : [...(ground.availableDays || DEFAULT_GROUND_DAYS), day])} multiple testID={`vendor-ground-days-${index + 1}`} error={errors[`grounds.${index}.availableDays`]} />
         </View>
       ))}
     </>
@@ -623,6 +640,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         onPress={addEquipment}
         style={styles.addRowButton}
       />
+      {equipmentAddedNotice ? <Text accessibilityLiveRegion="polite" style={[styles.helper, { color: colors.success }]}>{equipmentAddedNotice}</Text> : null}
       {draft.equipment.map((item, index) => (
         <View key={item.id} style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
           <View style={styles.groundCardHeader}>

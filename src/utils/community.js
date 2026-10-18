@@ -80,7 +80,7 @@ export function canJoinTournament(tournament, userId) {
     return { ok: false, error: 'You have already joined this tournament.' };
   }
   const remaining = Number(tournament.capacity) - (tournament.participants || []).length;
-  if (remaining < 1) return { ok: false, error: 'This tournament has reached capacity.' };
+  if (remaining < 1) return { ok: false, error: Number(tournament.teamSize) > 1 ? 'This tournament has reached its team capacity.' : 'This tournament has reached capacity.' };
   return { ok: true };
 }
 
@@ -127,7 +127,17 @@ export function validateTournamentDraft(values) {
   if (!String(values.location || '').trim()) errors.location = 'Enter the venue or area.';
   if (!isValidFutureDate(values.date, values.startTime)) errors.date = 'Choose a future date and a time in HH:MM format.';
   const capacity = Number(values.capacity);
-  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 128) errors.capacity = 'Capacity must be from 2 to 128 players.';
+  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 128) errors.capacity = Number(values.teamSize || 1) > 1 ? 'Capacity must be from 2 to 128 teams.' : 'Capacity must be from 2 to 128 players.';
+  if (values.teamSize !== undefined) {
+    const teamSize = Number(values.teamSize);
+    if (!Number.isInteger(teamSize) || teamSize < 2 || teamSize > 30) errors.teamSize = 'Team size must be from 2 to 30 players.';
+  }
+  if (values.entryFeePKR !== undefined && (!Number.isInteger(Number(values.entryFeePKR)) || Number(values.entryFeePKR) < 0)) {
+    errors.entryFeePKR = 'Entry fee must be a whole PKR amount of zero or more.';
+  }
+  if (values.prizePKR !== undefined && (!Number.isInteger(Number(values.prizePKR)) || Number(values.prizePKR) < 0)) {
+    errors.prizePKR = 'Winning prize must be a whole PKR amount of zero or more.';
+  }
   return errors;
 }
 

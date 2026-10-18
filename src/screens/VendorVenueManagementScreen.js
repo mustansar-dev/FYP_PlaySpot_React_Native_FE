@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,6 +15,7 @@ import {
   selectVendorProfileById,
 } from '../store/selectors/venueSelectors';
 import { venuePublicationChanged, venueUpdated } from '../store/venueSlice';
+import { createSlotsForGround, DEFAULT_GROUND_DAYS, timeToMinutes, WEEK_DAYS } from '../utils/booking';
 
 export default function VendorVenueManagementScreen({ navigation, route }) {
   const dispatch = useDispatch();
@@ -24,6 +25,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
   const venue = useSelector(state => selectVenueById(state, venueId));
   const grounds = useSelector(state => selectGroundsByVenueId(state, venueId));
   const equipment = useSelector(state => selectEquipmentByVenueId(state, venueId));
+  const { slots: storedSlots, bookings } = useSelector(state => state.venues);
   const vendorProfile = useSelector(state => venue ? selectVendorProfileById(state, venue.vendorId) : null);
   const [draft, setDraft] = useState(() => ({
     venueName: venue?.name || '',
@@ -40,13 +42,20 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
     longitude: venue?.longitude == null ? '' : String(venue.longitude),
     photoUris: [...(venue?.photoUris || [])],
     videoUri: venue?.videoUri || null,
-    grounds: grounds.map(ground => ({ ...ground })),
+    grounds: grounds.map(ground => ({
+      ...ground,
+      openingTime: ground.openingTime || '09:00',
+      closingTime: ground.closingTime || '17:00',
+      availableDays: Array.isArray(ground.availableDays) && ground.availableDays.length ? [...ground.availableDays] : [...DEFAULT_GROUND_DAYS],
+    })),
     equipment: equipment.map(item => ({ ...item })),
   }));
   const [error, setError] = useState('');
   const [mediaError, setMediaError] = useState('');
   const [pickerBusy, setPickerBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [groundAddedNotice, setGroundAddedNotice] = useState('');
+  const [equipmentAddedNotice, setEquipmentAddedNotice] = useState('');
 
   const setField = (key, value) => {
     setDraft(previous => ({ ...previous, [key]: value }));
@@ -67,20 +76,32 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       ? draft[collection].filter(item => item !== value)
       : [...draft[collection], value]);
   };
-  const addGround = () => setField('grounds', [...draft.grounds, {
-    id: `ground-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-    venueId,
-    name: '',
-    sport: draft.sports[0] || '',
-    widthMeters: '',
-    lengthMeters: '',
-    indoorOutdoor: '',
-    surface: '',
-    conditionRating: '',
-    hourlyPricePKR: '',
-    slotDurationMinutes: 60,
-    isActive: true,
-  }]);
+  const addGround = () => {
+    const ground = {
+      id: `ground-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      venueId,
+      name: '',
+      sport: draft.sports[0] || '',
+      widthMeters: '',
+      lengthMeters: '',
+      indoorOutdoor: '',
+      surface: '',
+      conditionRating: '',
+      hourlyPricePKR: '',
+      slotDurationMinutes: 60,
+      openingTime: '09:00',
+      closingTime: '17:00',
+      availableDays: [...DEFAULT_GROUND_DAYS],
+      isActive: true,
+    };
+    setField('grounds', [ground, ...draft.grounds]);
+    setGroundAddedNotice('Ground added at the top of the list. Complete its details below.');
+  };
+  const addEquipment = () => {
+    const item = { id: `equipment-${Date.now().toString(36)}`, venueId: venue?.id, name: '', sport: draft.sports[0] || '', priceMode: 'rental', unitPricePKR: '', quantityAvailable: 1, active: true };
+    setField('equipment', [item, ...draft.equipment]);
+    setEquipmentAddedNotice('Add-on added at the top of the list. Complete its details below.');
+  };
   const pickPhotos = async () => {
     if (pickerBusy) return;
     if (draft.photoUris.length >= 5) {
@@ -168,11 +189,42 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
         : 'Each ground needs a name, sport, type, surface, condition, positive dimensions and hourly price, and a valid slot duration.');
       return;
     }
+    if (draft.grounds.some(ground => {
+      const opening = timeToMinutes(ground.openingTime || '09:00');
+      const closing = timeToMinutes(ground.closingTime || '17:00');
+      return opening === null || closing === null || closing <= opening || !ground.availableDays?.length;
+    })) {
+      setError('Each ground needs a valid opening and closing time, and at least one available day.');
+      return;
+    }
     if (draft.equipment.some(item => !item.name.trim() || !Number(item.unitPricePKR) || Number(item.unitPricePKR) < 1 || !Number.isInteger(Number(item.quantityAvailable)) || Number(item.quantityAvailable) < 0)) {
       setError('Each equipment item needs a name, price, and whole-number quantity.');
       return;
     }
     const timestamp = new Date().toISOString();
+    const savedGrounds = draft.grounds.map(ground => ({
+      ...ground,
+      name: ground.name.trim(),
+      widthMeters: Number(ground.widthMeters),
+      lengthMeters: Number(ground.lengthMeters),
+      hourlyPricePKR: Number(ground.hourlyPricePKR),
+      slotDurationMinutes: Number(ground.slotDurationMinutes),
+      openingTime: ground.openingTime || '09:00',
+      closingTime: ground.closingTime || '17:00',
+      availableDays: [...ground.availableDays],
+    }));
+    const previousSlots = storedSlots.filter(slot => grounds.some(ground => ground.id === slot.groundId));
+    const generatedSlots = savedGrounds.flatMap(ground => createSlotsForGround(ground, 8, null, null, new Date()));
+    const generatedIds = new Set(generatedSlots.map(slot => slot.id));
+    const previousById = new Map(previousSlots.map(slot => [slot.id, slot]));
+    const scheduleSlots = generatedSlots.map(slot => {
+      const previous = previousById.get(slot.id);
+      return previous ? { ...slot, status: previous.status, reservedByBookingId: previous.reservedByBookingId } : slot;
+    });
+    const bookedSlotsOutsideSchedule = previousSlots.filter(slot =>
+      !generatedIds.has(slot.id) && bookings.some(booking => booking.slotId === slot.id),
+    );
+    scheduleSlots.push(...bookedSlotsOutsideSchedule);
     dispatch(venueUpdated({
       venue: {
         ...venue,
@@ -191,14 +243,8 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
         updatedAt: timestamp,
       },
       vendorProfile: { ...vendorProfile, businessName: draft.businessName.trim(), contactPhone: draft.contactPhone.trim() },
-      grounds: draft.grounds.map(ground => ({
-        ...ground,
-        name: ground.name.trim(),
-        widthMeters: Number(ground.widthMeters),
-        lengthMeters: Number(ground.lengthMeters),
-        hourlyPricePKR: Number(ground.hourlyPricePKR),
-        slotDurationMinutes: Number(ground.slotDurationMinutes),
-      })),
+      grounds: savedGrounds,
+      slots: scheduleSlots,
       equipment: draft.equipment.map(item => ({
         ...item,
         name: item.name.trim(),
@@ -208,6 +254,8 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
     }));
     setSaved(true);
     setError('');
+    navigation.navigate('VendorDashboard');
+    Alert.alert('Saved successfully', 'Venue, grounds, add-ons and custom availability have been saved.');
   };
 
   if (!ready) {
@@ -252,6 +300,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
 
           <Text style={[styles.sectionTitle, { color: colors.ink }]}>Grounds and courts</Text>
           <AppButton title="Add another ground or court" variant="secondary" testID="manage-ground-add" onPress={addGround} style={styles.addButton} />
+          {groundAddedNotice ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>{groundAddedNotice}</Text> : null}
           {draft.grounds.map((ground, index) => (
             <View key={ground.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
               <AppButton
@@ -270,9 +319,16 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
                 <FormField label="Length (m)" value={String(ground.lengthMeters)} onChangeText={value => updateListItem('grounds', index, 'lengthMeters', value)} keyboardType="decimal-pad" style={styles.column} testID={`manage-ground-length-${index + 1}`} />
               </View>
               <View style={styles.row}>
-                <FormField label="Price / hour (PKR)" value={String(ground.hourlyPricePKR)} onChangeText={value => updateListItem('grounds', index, 'hourlyPricePKR', value)} keyboardType="number-pad" style={styles.column} testID={`manage-ground-price-${index + 1}`} />
+              <FormField label="Price / hour (PKR)" value={String(ground.hourlyPricePKR)} onChangeText={value => updateListItem('grounds', index, 'hourlyPricePKR', value)} keyboardType="number-pad" style={styles.column} testID={`manage-ground-price-${index + 1}`} />
                 <FormField label="Slot minutes" value={String(ground.slotDurationMinutes)} onChangeText={value => updateListItem('grounds', index, 'slotDurationMinutes', value)} keyboardType="number-pad" style={styles.column} testID={`manage-ground-duration-${index + 1}`} />
               </View>
+              <Text style={[styles.scheduleLabel, { color: colors.ink }]}>Custom court availability</Text>
+              <Text style={[styles.hint, { color: colors.inkSoft }]}>Slots are generated from these hours, days and duration for the next 8 days.</Text>
+              <View style={styles.row}>
+                <FormField label="Opens (HH:MM)" value={ground.openingTime || '09:00'} onChangeText={value => updateListItem('grounds', index, 'openingTime', value)} placeholder="09:00" testID={`manage-ground-opening-${index + 1}`} style={styles.column} />
+                <FormField label="Closes (HH:MM)" value={ground.closingTime || '17:00'} onChangeText={value => updateListItem('grounds', index, 'closingTime', value)} placeholder="17:00" testID={`manage-ground-closing-${index + 1}`} style={styles.column} />
+              </View>
+              <ChoiceChips label="Days available" options={WEEK_DAYS} selected={ground.availableDays || DEFAULT_GROUND_DAYS} onSelect={day => updateListItem('grounds', index, 'availableDays', (ground.availableDays || DEFAULT_GROUND_DAYS).includes(day) ? (ground.availableDays || DEFAULT_GROUND_DAYS).filter(item => item !== day) : [...(ground.availableDays || DEFAULT_GROUND_DAYS), day])} multiple testID={`manage-ground-days-${index + 1}`} />
               <Text style={[styles.hint, { color: colors.inkSoft }]}>{ground.surface} · condition {ground.conditionRating}/5</Text>
               <ChoiceChips label="Sport" options={['Futsal', 'Football', 'Cricket', 'Padel', 'Badminton']} selected={ground.sport} onSelect={value => updateListItem('grounds', index, 'sport', value)} testID={`manage-ground-sport-${index + 1}`} />
               <ChoiceChips label="Indoor/outdoor" options={['Indoor', 'Outdoor']} selected={ground.indoorOutdoor} onSelect={value => updateListItem('grounds', index, 'indoorOutdoor', value)} testID={`manage-ground-type-${index + 1}`} />
@@ -307,7 +363,8 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
           {mediaError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{mediaError}</Text> : null}
 
           <Text style={[styles.sectionTitle, { color: colors.ink }]}>Equipment and add-ons</Text>
-          <AppButton title="Add equipment" variant="secondary" testID="manage-item-add" onPress={() => setField('equipment', [...draft.equipment, { id: `equipment-${Date.now().toString(36)}`, venueId: venue.id, name: '', sport: draft.sports[0] || '', priceMode: 'rental', unitPricePKR: '', quantityAvailable: 1, active: true }])} style={styles.addButton} />
+          <AppButton title="Add equipment" variant="secondary" testID="manage-item-add" onPress={addEquipment} style={styles.addButton} />
+          {equipmentAddedNotice ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>{equipmentAddedNotice}</Text> : null}
           {draft.equipment.length ? draft.equipment.map((item, index) => (
             <View key={item.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
               <FormField label="Item name" value={item.name} onChangeText={value => updateListItem('equipment', index, 'name', value)} testID={`manage-item-name-${index + 1}`} />
@@ -349,6 +406,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: '800', marginTop: 10, marginBottom: 10 },
   card: { padding: 13, borderWidth: 1, marginBottom: 12 },
   cardHeading: { fontSize: 14, fontWeight: '800', marginBottom: 10 },
+  scheduleLabel: { fontSize: 12, fontWeight: '800', marginTop: 2 },
   addButton: { marginBottom: 12 },
   removeGroundButton: { minHeight: 36, alignSelf: 'flex-start', paddingHorizontal: 10, marginBottom: 8 },
   removeGroundText: { fontSize: 12 },

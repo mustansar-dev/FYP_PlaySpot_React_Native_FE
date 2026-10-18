@@ -26,6 +26,7 @@ import AddReviewScreen from './AddReviewScreen';
 import VenueMapScreen from './VenueMapScreen';
 import VenueSearchScreen from './VenueSearchScreen';
 import PlayerHomeScreen from './PlayerHomeScreen';
+import VendorDashboardScreen from './VendorDashboardScreen';
 import { EditProfileScreen } from './AccountScreens';
 
 jest.setTimeout(30000);
@@ -48,6 +49,9 @@ beforeEach(() => { Object.keys(mockValues).forEach(key => delete mockValues[key]
 test('search filters and empty state react to user input', async () => {
   const navigation = { navigate: jest.fn() };
   const screen = await renderScreen(<VenueSearchScreen navigation={navigation} route={{ params: {} }} />);
+  expect(screen.getByTestId('venue-filters-toggle')).toBeTruthy();
+  expect(screen.queryByTestId('filter-sport-all')).toBeNull();
+  await fireEvent.press(screen.getByTestId('venue-filters-toggle'));
   await fireEvent.press(screen.getByTestId('filter-sport-cricket'));
   expect(screen.getByText('2 venues found · approximate distance')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('venue-search-input'), 'no matching venue');
@@ -70,11 +74,43 @@ test('player profile icon opens the profile screen in the drawer and keeps its s
   await waitFor(() => expect(screen.queryByTestId('profile-edit')).toBeNull());
 });
 
+test('vendor profile button opens venue details and profile actions in the drawer', async () => {
+  const store = makeStore();
+  store.dispatch(authHydrated({
+    accounts: [],
+    user: { id: 'demo-vendor-001', name: 'Bilal Ahmed', email: 'vendor@playspot.pk', role: 'vendor' },
+    storageNotice: null,
+  }));
+  const navigation = { navigate: jest.fn() };
+  const screen = await renderScreen(<VendorDashboardScreen navigation={navigation} />, store);
+  await fireEvent.press(screen.getByTestId('vendor-open-profile'));
+  expect(await screen.findByTestId('profile-vendor-venue')).toBeTruthy();
+  expect(screen.getByText('Greenline Futsal Club')).toBeTruthy();
+  expect(screen.getByTestId('profile-edit')).toBeTruthy();
+  expect(screen.getByTestId('profile-settings')).toBeTruthy();
+  expect(screen.queryByTestId('profile-analytics')).toBeNull();
+  expect(screen.queryByTestId('profile-inventory')).toBeNull();
+  await fireEvent.press(screen.getByTestId('profile-settings'));
+  expect(navigation.navigate).toHaveBeenCalledWith('Settings');
+});
+
 test('player navigation replaces Profile with Notifications and shows the unread dot', async () => {
   const screen = await renderScreen(<BottomNavBar role="player" routeName="PlayerHome" onNavigate={jest.fn()} hasNotifications />);
   expect(screen.getByTestId('bottom-nav-notifications')).toBeTruthy();
   expect(screen.getByTestId('notification-dot')).toBeTruthy();
   expect(screen.queryByTestId('bottom-nav-profile')).toBeNull();
+});
+
+test('vendor navigation keeps venue, bookings, availability, and notifications in the tabs', async () => {
+  const onNavigate = jest.fn();
+  const screen = await renderScreen(<BottomNavBar role="vendor" routeName="VendorDashboard" onNavigate={onNavigate} />);
+  expect(screen.getByTestId('bottom-nav-venue')).toBeTruthy();
+  expect(screen.getByTestId('bottom-nav-bookings')).toBeTruthy();
+  expect(screen.getByTestId('bottom-nav-availability')).toBeTruthy();
+  expect(screen.getByTestId('bottom-nav-notifications')).toBeTruthy();
+  expect(screen.queryByTestId('bottom-nav-profile')).toBeNull();
+  await fireEvent.press(screen.getByTestId('bottom-nav-availability'));
+  expect(onNavigate).toHaveBeenCalledWith('VendorAvailability');
 });
 
 test('password fields can toggle visibility with an accessible eye control', async () => {

@@ -24,6 +24,7 @@ export default function VenueSearchScreen({ navigation, route }) {
   const [distance, setDistance] = useState('Any');
   const [indoor, setIndoor] = useState('Any');
   const [sort, setSort] = useState('Nearest');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const origin = initial.origin || DEFAULT_ORIGIN;
   const results = useMemo(() => filterAndSortVenues({
     venues: venues.filter(item => item.published), grounds, reviews, query, sport,
@@ -33,18 +34,27 @@ export default function VenueSearchScreen({ navigation, route }) {
     indoorOutdoor: indoor, sort: sort.toLowerCase(), origin,
   }), [venues, grounds, reviews, query, sport, budget, rating, distance, indoor, sort, origin]);
   const reset = () => { setQuery(''); setSport('All'); setBudget('Any'); setRating('Any'); setDistance('Any'); setIndoor('Any'); setSort('Nearest'); };
+  const activeFilterCount = [sport !== 'All', budget !== 'Any', rating !== 'Any', distance !== 'Any', indoor !== 'Any', sort !== 'Nearest'].filter(Boolean).length;
 
   const header = (
     <View>
       <View style={styles.titleRow}><View><Text style={[styles.title, { color: colors.ink }]}>Find a venue</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>Browse fictional Lahore demo listings</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open offline venue map" testID="search-open-map" onPress={() => navigation.navigate('VenueMap', { origin })} style={[styles.mapButton, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={{ color: colors.primary, fontWeight: '800' }}>⌖ Map</Text></Pressable></View>
       <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={{ color: colors.inkSoft, fontSize: 18 }}>⌕</Text><TextInput accessibilityLabel="Search by venue, area or sport" testID="venue-search-input" value={query} onChangeText={setQuery} placeholder="Search sport, venue or area" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.ink }]} returnKeyType="search" /></View>
-      <View style={styles.filterHead}><Text style={[styles.filterTitle, { color: colors.ink }]}>Filters</Text><Pressable accessibilityRole="button" testID="venue-filters-reset" onPress={reset}><Text style={[styles.reset, { color: colors.primary }]}>Reset all</Text></Pressable></View>
-      <ChoiceChips label="Sport" options={SPORTS} selected={sport} onSelect={setSport} testID="filter-sport" />
-      <ChoiceChips label="Budget per hour" options={priceFilters} selected={budget} onSelect={setBudget} testID="filter-budget" />
-      <ChoiceChips label="Minimum rating" options={ratingFilters} selected={rating} onSelect={setRating} testID="filter-rating" />
-      <ChoiceChips label="Approx. distance from Lahore" options={distanceFilters} selected={distance} onSelect={setDistance} testID="filter-distance" />
-      <ChoiceChips label="Venue type" options={['Any', 'Indoor', 'Outdoor']} selected={indoor} onSelect={setIndoor} testID="filter-indoor-outdoor" />
-      <ChoiceChips label="Sort by" options={['Nearest', 'Rating', 'Price']} selected={sort} onSelect={setSort} testID="filter-sort" />
+      <View style={styles.filterHead}>
+        <Pressable accessibilityRole="button" accessibilityState={{ expanded: filtersOpen }} testID="venue-filters-toggle" onPress={() => setFiltersOpen(open => !open)} style={[styles.filterToggle, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+          <Text style={[styles.filterTitle, { color: colors.ink }]}>Filters{activeFilterCount ? ` · ${activeFilterCount}` : ''}</Text>
+          <Text style={[styles.filterChevron, { color: colors.primary }]}>{filtersOpen ? '⌃' : '⌄'}</Text>
+        </Pressable>
+        {filtersOpen ? <Pressable accessibilityRole="button" testID="venue-filters-reset" onPress={reset}><Text style={[styles.reset, { color: colors.primary }]}>Reset all</Text></Pressable> : null}
+      </View>
+      {filtersOpen ? <>
+        <ChoiceChips label="Sport" options={SPORTS} selected={sport} onSelect={setSport} testID="filter-sport" />
+        <ChoiceChips label="Budget per hour" options={priceFilters} selected={budget} onSelect={setBudget} testID="filter-budget" />
+        <ChoiceChips label="Minimum rating" options={ratingFilters} selected={rating} onSelect={setRating} testID="filter-rating" />
+        <ChoiceChips label="Approx. distance from Lahore" options={distanceFilters} selected={distance} onSelect={setDistance} testID="filter-distance" />
+        <ChoiceChips label="Venue type" options={['Any', 'Indoor', 'Outdoor']} selected={indoor} onSelect={setIndoor} testID="filter-indoor-outdoor" />
+        <ChoiceChips label="Sort by" options={['Nearest', 'Rating', 'Price']} selected={sort} onSelect={setSort} testID="filter-sort" />
+      </> : null}
       <Text style={[styles.resultCount, { color: colors.inkSoft }]}>{results.length} {results.length === 1 ? 'venue' : 'venues'} found · approximate distance</Text>
     </View>
   );
@@ -57,6 +67,6 @@ export default function VenueSearchScreen({ navigation, route }) {
 const styles = StyleSheet.create({ safe: { flex: 1 }, content: { padding: 18, paddingBottom: 28 },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }, title: { fontSize: 24, fontWeight: '900' }, subtitle: { fontSize: 11, marginTop: 4 },
   mapButton: { paddingHorizontal: 14, paddingVertical: 11 }, inputWrap: { height: 50, borderWidth: 1, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 }, input: { flex: 1, fontSize: 13 },
-  filterHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, filterTitle: { fontSize: 17, fontWeight: '900' }, reset: { fontSize: 12, fontWeight: '800' }, resultCount: { fontSize: 11, fontWeight: '700', marginBottom: 12 },
+  filterHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, filterToggle: { minHeight: 44, borderWidth: 1, paddingHorizontal: 12, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginRight: 10 }, filterTitle: { fontSize: 13, fontWeight: '900' }, filterChevron: { fontSize: 20, fontWeight: '900' }, reset: { fontSize: 11, fontWeight: '800' }, resultCount: { fontSize: 11, fontWeight: '700', marginBottom: 12 },
   empty: { borderWidth: 1, padding: 18, marginTop: 8 }, emptyTitle: { fontSize: 15, fontWeight: '800' }, emptyButton: { alignSelf: 'flex-start', paddingVertical: 12 },
 });
