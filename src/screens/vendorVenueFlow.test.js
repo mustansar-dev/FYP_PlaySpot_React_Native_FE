@@ -80,7 +80,7 @@ beforeEach(async () => {
   jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 });
 
-test('vendor can complete onboarding, edit the venue and equipment, and restore the saved data', async () => {
+test('vendor can complete onboarding, edit ground availability and restore the saved data', async () => {
   const testStore = createTestStore();
   const registration = await renderWithProviders(testStore, <VendorRegistrationScreen navigation={navigation} />);
 
@@ -144,18 +144,14 @@ test('vendor can complete onboarding, edit the venue and equipment, and restore 
 
   await registration.unmount();
   const management = await renderWithProviders(testStore, (
-    <VendorVenueManagementScreen navigation={navigation} route={{ params: { venueId: createdVenue.id } }} />
+    <VendorVenueManagementScreen navigation={navigation} route={{ params: { venueId: createdVenue.id, section: 'grounds' } }} />
   ));
-  await type(management, 'manage-venue-name', 'Morgan Padel Courts Updated');
   await type(management, 'manage-ground-opening-1', '10:00');
   await type(management, 'manage-ground-closing-1', '12:00');
-  await type(management, 'manage-item-quantity-1', '2');
   await press(management, 'manage-venue-save');
-  await waitFor(() => expect(testStore.getState().venues.venues.find(venue => venue.id === createdVenue.id).name).toBe('Morgan Padel Courts Updated'));
-  expect(navigation.navigate).toHaveBeenCalledWith('VendorDashboard');
   expect(Alert.alert).toHaveBeenCalledWith(
     'Saved successfully',
-    'Venue, grounds, add-ons and custom availability have been saved.',
+    'Grounds and availability have been saved.',
   );
 
   state = testStore.getState().venues;
@@ -172,6 +168,6 @@ test('vendor can complete onboarding, edit the venue and equipment, and restore 
     reviews: state.reviews,
   });
   const restored = await loadVenueData();
-  expect(restored.data.venues.find(venue => venue.id === createdVenue.id).name).toBe('Morgan Padel Courts Updated');
-  expect(restored.data.equipment.find(item => item.venueId === createdVenue.id).quantityAvailable).toBe(2);
+  expect(restored.data.venues.find(venue => venue.id === createdVenue.id).name).toBe('Morgan Padel Courts');
+  expect(restored.data.equipment.find(item => item.venueId === createdVenue.id).quantityAvailable).toBe(4);
 });

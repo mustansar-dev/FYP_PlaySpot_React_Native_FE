@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import {
   DefaultTheme,
@@ -6,7 +6,7 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import LoginScreen from '../screens/LoginScreen';
 import PlayerHomeScreen from '../screens/PlayerHomeScreen';
@@ -47,10 +47,12 @@ import {
   LeaderboardScreen,
   SplitPaymentScreen,
   TournamentDetailsScreen,
+  TournamentLeaderboardsScreen,
   TournamentsScreen,
 } from '../screens/CommunityScreens';
 import { theme } from '../theme/tokens';
 import BottomNavBar, { BOTTOM_NAV_ROUTES } from '../components/BottomNavBar';
+import { reconcileGameRoomLifecycle } from '../store/communitySlice';
 
 const Stack = createNativeStackNavigator();
 
@@ -76,11 +78,19 @@ function BootScreen() {
 }
 
 export default function RootNavigator() {
+  const dispatch = useDispatch();
   const navigationRef = useNavigationContainerRef();
   const [routeName, setRouteName] = useState(null);
   const { hydrated, currentUser } = useSelector(state => state.auth);
   const venuesHydrated = useSelector(state => state.venues.hydrated);
   const communityHydrated = useSelector(state => state.community.hydrated);
+  useEffect(() => {
+    if (!communityHydrated) return undefined;
+    const reconcile = () => dispatch(reconcileGameRoomLifecycle());
+    reconcile();
+    const timer = setInterval(reconcile, 30000);
+    return () => clearInterval(timer);
+  }, [dispatch, communityHydrated]);
   const hasNotifications = useSelector(state => Boolean(currentUser?.id &&
     state.community.notifications?.some(notification => notification.recipientId === currentUser.id && !notification.readAt)));
   const showBottomNav = currentUser && (currentUser.role === 'player'
@@ -122,6 +132,7 @@ export default function RootNavigator() {
             <Stack.Screen name="TournamentDetails" component={TournamentDetailsScreen} />
             <Stack.Screen name="CreateTournament" component={CreateTournamentScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            <Stack.Screen name="TournamentLeaderboards" component={TournamentLeaderboardsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
@@ -138,6 +149,7 @@ export default function RootNavigator() {
             <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
             <Stack.Screen name="ChatInbox" component={ChatInboxScreen} />
             <Stack.Screen name="ChatConversation" component={ChatConversationScreen} />
+            <Stack.Screen name="GameRoomDetails" component={GameRoomDetailsScreen} />
             <Stack.Screen name="VendorAnalytics" component={VendorAnalyticsScreen} />
             <Stack.Screen name="VendorReviews" component={VendorReviewsScreen} />
             <Stack.Screen name="VendorInventory" component={VendorInventoryScreen} />
@@ -145,6 +157,7 @@ export default function RootNavigator() {
             <Stack.Screen name="TournamentDetails" component={TournamentDetailsScreen} />
             <Stack.Screen name="CreateTournament" component={CreateTournamentScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            <Stack.Screen name="TournamentLeaderboards" component={TournamentLeaderboardsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />

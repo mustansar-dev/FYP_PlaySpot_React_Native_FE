@@ -25,12 +25,15 @@ import {
   formatPKR,
   formatTimeRange,
   getBookingDisplayStatus,
+  getBookingStartTimestamp,
   getNextBookableDates,
+  intervalsOverlap,
+  isBookingActive,
   getSlotAvailability,
   toLocalDateKey,
 } from '../utils/booking';
-import { bookingCancelled, reserveBooking } from '../store/venueSlice';
-import { cancelGameRoom } from '../store/communitySlice';
+import { bookingCancelled, confirmBookingAttendance, reserveBooking } from '../store/venueSlice';
+import { cancelGameRoom, recordWalkInCashRefund } from '../store/communitySlice';
 import { selectBookingsForUser, selectBookingsForVendor, selectGameRoomsForUser } from '../store/selectors/bookingSelectors';
 import { selectVenueById, selectGroundsByVenueId, selectEquipmentByVenueId, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
 import { getRoomOpenSpots } from '../utils/community';
@@ -322,7 +325,6 @@ export function BookingCheckoutScreen({ navigation, route }) {
   const addOnsTotal = calculateEquipmentSubtotal(equipment.filter(item => item.venueId === venueId), addOns);
   const total = groundFee + addOnsTotal;
   const availability = slot ? getSlotAvailability({ slotId, slots, bookings }) : { available: false };
-  const [paymentMode, setPaymentMode] = useState('pay-at-venue');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submitGuard = useRef(false);
@@ -336,17 +338,19 @@ export function BookingCheckoutScreen({ navigation, route }) {
       const result = await dispatch(reserveBooking({
         source: 'player',
         playerUserId: currentUser?.id,
+        playerName: currentUser?.name,
         venueId,
         groundId,
         slotId,
         addOns,
-        paymentMode,
+        paymentMode: 'simulated',
+        paymentStatus: 'simulated-paid',
       }));
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      navigation.replace('BookingSuccess', { bookingId: result.booking.id });
+      navigation.replace('MyBookings', { highlightBookingId: result.booking.id });
     } finally {
       submitGuard.current = false;
       setSubmitting(false);
@@ -358,10 +362,10 @@ export function BookingCheckoutScreen({ navigation, route }) {
       navigation={navigation}
       eyebrow="CHECKOUT"
       title="Confirm booking"
-      subtitle="Review the reservation and choose how you will settle the venue fee."
+      subtitle="Pay the demo total now to confirm your venue booking."
       footer={(
         <AppButton
-          title={submitting ? 'Confirming…' : `Confirm · ${formatPKR(total)}`}
+          title={submitting ? 'Processing demo payment…' : `Pay ${formatPKR(total)} & book`}
           testID="booking-confirm"
           onPress={confirm}
           loading={submitting}
@@ -385,21 +389,10 @@ export function BookingCheckoutScreen({ navigation, route }) {
         <PriceRow label="Total in PKR" amount={total} strong />
       </DesignCard>
       <SectionHeading title="Payment" />
-      <ChoiceChips
-        label="Choose a demo payment option"
-        options={['Pay at venue', 'Simulated payment']}
-        selected={paymentMode === 'pay-at-venue' ? 'Pay at venue' : 'Simulated payment'}
-        onSelect={value => setPaymentMode(value === 'Pay at venue' ? 'pay-at-venue' : 'simulated')}
-        testID="checkout-payment"
-      />
-      <InlineNotice>
-        {paymentMode === 'simulated'
-          ? 'Simulated payment — no card details are collected and no money is transferred.'
-          : 'Pay at venue — no payment is collected in this app.'}
-      </InlineNotice>
+      <InlineNotice testID="checkout-demo-payment">Demo payment is recorded before the booking is confirmed. No card details are collected and no money is transferred.</InlineNotice>
       <DesignCard>
         <Text style={[styles.cardTitle, { color: colors.ink }]}>Booking policy</Text>
-        <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>This local demo lets you cancel an active reservation to release the slot. No venue cancellation policy or refund is being applied.</Text>
+        <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Cancel before the booked start for a full demo refund. Once the session starts, player cancellation is closed. If the venue cancels, the demo payment is fully refunded.</Text>
       </DesignCard>
       {!availability.available ? <InlineNotice tone="danger">This slot is no longer available. Go back and select another time.</InlineNotice> : null}
       {error ? <InlineNotice tone="danger" testID="booking-error">{error}</InlineNotice> : null}
@@ -417,18 +410,18 @@ function PriceRow({ label, amount, strong = false }) {
   );
 }
 
-function BookingCard({ booking, onPress, testID }) {
+function BookingCard({ booking, onPress, testID, room, tournament }) {
   const { colors } = useTheme();
   const status = getBookingDisplayStatus(booking);
   const tone = status === 'Cancelled' ? 'danger' : status === 'Completed' ? 'neutral' : 'success';
   return (
     <DesignCard style={styles.bookingCard}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Open booking at ${booking.venueName}`} testID={testID} onPress={onPress}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Open booking for ${tournament?.title || room?.title || booking.customerName || booking.playerName || 'player'} at ${booking.venueName}`} testID={testID} onPress={onPress}>
         <View style={styles.rowBetween}>
-          <Text numberOfLines={1} style={[styles.cardTitle, styles.bookingTitle, { color: colors.ink }]}>{booking.venueName}</Text>
+          <Text numberOfLines={1} style={[styles.cardTitle, styles.bookingTitle, { color: colors.ink }]}>{tournament?.title || room?.title || booking.customerName || booking.playerName || 'Player booking'}</Text>
           <StatusBadge label={status} tone={tone} />
         </View>
-        <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{booking.groundName} · {formatDateKey(booking.date)} · {formatTimeRange(booking.startTime, booking.endTime)}</Text>
+        <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{tournament ? `Tournament · ${booking.groundName}` : room ? `Game room · ${booking.venueName} · ${booking.groundName}` : `${booking.venueName} · ${booking.groundName}`} · {formatDateKey(booking.date)} · {formatTimeRange(booking.startTime, booking.endTime)}</Text>
         <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(booking.totalPKR)}</Text>
       </Pressable>
     </DesignCard>
@@ -448,7 +441,7 @@ export function BookingSuccessScreen({ navigation, route }) {
           <Text style={[styles.cardTitle, styles.cardTop, { color: colors.ink }]}>{booking.venueName}</Text>
           <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{booking.groundName} · {formatDateKey(booking.date)}</Text>
           <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{formatTimeRange(booking.startTime, booking.endTime)}</Text>
-          <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(booking.totalPKR)} · {booking.paymentMode === 'simulated' ? 'simulated' : 'pay at venue'}</Text>
+          <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(booking.totalPKR)} - {booking.paymentMode === 'simulated' ? 'demo paid' : booking.paymentMode === 'group-split' ? 'player shares' : booking.paymentMode === 'manual-cash' ? 'cash record' : booking.paymentMode === 'not-applicable' ? 'hosted event' : 'payment pending'}</Text>
         </DesignCard>
       ) : <InlineNotice tone="danger">The booking details could not be found.</InlineNotice>}
       <InlineNotice>This is a local demo reservation. No payment was transferred and availability is not synchronized with a server.</InlineNotice>
@@ -459,18 +452,24 @@ export function BookingSuccessScreen({ navigation, route }) {
   );
 }
 
-export function MyBookingsScreen({ navigation }) {
+export function MyBookingsScreen({ navigation, route = { params: {} } }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const bookings = useSelector(state => selectBookingsForUser(state, currentUser?.id || ''));
   const myRooms = useSelector(state => selectGameRoomsForUser(state, currentUser?.id || ''));
+  const tournaments = useSelector(state => state.community?.tournaments);
+  const highlightBookingId = route.params?.highlightBookingId;
+  const highlightTournamentId = route.params?.highlightTournamentId;
+  const myTournaments = useMemo(() => (tournaments || []).filter(tournament =>
+    tournament.participants?.some(participant => participant.userId === currentUser?.id),
+  ).slice().sort((first, second) => Number(second.id === highlightTournamentId) - Number(first.id === highlightTournamentId) || `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)), [tournaments, currentUser?.id, highlightTournamentId]);
   const [filter, setFilter] = useState('Upcoming');
   const filtered = useMemo(() => bookings.filter(booking => {
     const status = getBookingDisplayStatus(booking);
     return filter === 'Upcoming' ? status === 'Confirmed'
       : filter === 'Past' ? status === 'Completed'
         : status === 'Cancelled';
-  }).sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)), [bookings, filter]);
+  }).sort((first, second) => Number(second.id === highlightBookingId) - Number(first.id === highlightBookingId) || `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)), [bookings, filter, highlightBookingId]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
@@ -494,6 +493,11 @@ export function MyBookingsScreen({ navigation }) {
               const member = room.members.find(item => item.userId === currentUser?.id);
               const isOrganizer = room.createdBy === currentUser?.id;
               const amount = member?.sharePKR ?? room.paymentShares?.find(share => share.userId === currentUser?.id)?.amountPKR ?? room.costPerParticipantPKR;
+              const paymentCopy = ['cancelled', 'expired'].includes(room.status)
+                ? member?.paymentStatus === 'simulated-refunded' ? 'Your recorded demo share was refunded' : 'No demo share was collected'
+                : member?.paymentStatus === 'simulated-paid' ? 'Your share is demo paid'
+                  : member?.paymentStatus === 'simulated-settled' ? 'Your share was settled after the session'
+                    : member?.paymentStatus === 'simulated-refunded' ? 'Your share was demo refunded' : `Your share: ${formatPKR(amount)} due`;
               return <Pressable key={room.id} accessibilityRole="button" accessibilityLabel={`Open game room ${room.title}`} testID={`my-game-room-${room.id}`} onPress={() => navigation.navigate('GameRoomDetails', { roomId: room.id })}>
                 <DesignCard style={styles.myRoomCard}>
                   <View style={styles.rowBetween}>
@@ -506,13 +510,36 @@ export function MyBookingsScreen({ navigation }) {
                     <Text style={[styles.cardCopy, { color: colors.ink }]}>{room.members.length}/{room.capacity} players · {getRoomOpenSpots(room)} spots left</Text>
                     <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(amount)} / player</Text>
                   </View>
-                  <Text style={[styles.roomPaymentStatus, { color: room.status === 'cancelled' ? colors.inkSoft : ['simulated-paid', 'paid-at-venue'].includes(member?.paymentStatus) ? colors.success : colors.orange }]}>{room.status === 'cancelled' ? 'Room cancelled' : member?.paymentStatus === 'simulated-paid' ? 'Your share · simulated paid' : member?.paymentStatus === 'paid-at-venue' ? 'Your share · paid at venue' : `Your share · ${formatPKR(amount)} due`}</Text>
+                  <Text style={[styles.roomPaymentStatus, { color: ['cancelled', 'expired'].includes(room.status) ? colors.inkSoft : ['simulated-paid', 'simulated-settled'].includes(member?.paymentStatus) ? colors.success : member?.paymentStatus === 'simulated-refunded' ? colors.primary : colors.orange }]}>{paymentCopy}</Text>
                 </DesignCard>
               </Pressable>;
             }) : <Pressable accessibilityRole="button" onPress={() => navigation.navigate('GameRooms')} style={[styles.noRoomsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.cardTitle, { color: colors.ink }]}>No game rooms yet</Text>
               <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Browse games or create one to see it here.</Text>
             </Pressable>}
+            <SectionHeading title="My tournaments" />
+            {myTournaments.length ? myTournaments.map(tournament => {
+              const participant = tournament.participants.find(item => item.userId === currentUser?.id);
+              const registrationClosed = tournament.status !== 'upcoming' || tournament.registrationOpen === false;
+              const justJoined = tournament.id === highlightTournamentId;
+              return <Pressable key={tournament.id} accessibilityRole="button" accessibilityLabel={`Open joined tournament ${tournament.title}`} testID={`my-tournament-${tournament.id}`} onPress={() => navigation.navigate('TournamentDetails', { tournamentId: tournament.id })}>
+                <DesignCard style={styles.myRoomCard}>
+                  <View style={styles.rowBetween}>
+                    <Text numberOfLines={1} style={[styles.cardTitle, styles.bookingTitle, { color: colors.ink }]}>{tournament.title}</Text>
+                    <StatusBadge label={justJoined ? 'Just joined' : 'Joined'} tone="success" />
+                  </View>
+                  <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{tournament.sport} · {formatDateKey(tournament.date)} · {tournament.endTime ? formatTimeRange(tournament.startTime, tournament.endTime) : tournament.startTime}</Text>
+                  <Text numberOfLines={1} style={[styles.cardCopy, { color: colors.inkSoft }]}>{participant.teamName ? `Team · ${participant.teamName}` : 'Individual registration'} · {tournament.venueName || tournament.location}</Text>
+                  <View style={styles.rowBetween}>
+                    <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{registrationClosed ? 'Registration closed' : 'Registration open'}</Text>
+                    <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(participant.totalEntryFeePKR ?? tournament.entryFeePKR ?? 0)}</Text>
+                  </View>
+                </DesignCard>
+              </Pressable>;
+            }) : <View style={[styles.noRoomsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.cardTitle, { color: colors.ink }]}>No tournament registrations yet</Text>
+              <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Tournaments you join will appear here.</Text>
+            </View>}
             <SectionHeading title="Venue bookings" />
             <ChoiceChips options={['Upcoming', 'Past', 'Cancelled']} selected={filter} onSelect={setFilter} testID="my-bookings-filter" />
           </>
@@ -542,6 +569,7 @@ export function BookingDetailsScreen({ navigation, route }) {
   const isOwner = ownedVenues.some(item => item.id === booking?.venueId);
   const canCancel = currentUser?.role === 'vendor' ? isOwner : booking?.playerUserId === currentUser?.id;
   const active = booking && getBookingDisplayStatus(booking) === 'Confirmed';
+  const beforeStart = booking && getBookingStartTimestamp(booking) > Date.now();
 
   const cancel = () => {
     if (!booking || !canCancel || !active) return;
@@ -564,22 +592,26 @@ export function BookingDetailsScreen({ navigation, route }) {
   });
 
   return (
-    <PageShell navigation={navigation} eyebrow={booking.source === 'walk-in' ? 'VENDOR WALK-IN' : 'BOOKING'} title="Booking details" subtitle="Reservation details stored on this device.">
+    <PageShell navigation={navigation} eyebrow={booking.source === 'walk-in' ? 'VENDOR WALK-IN' : booking.source === 'tournament' ? 'TOURNAMENT BOOKING' : 'BOOKING'} title="Booking details" subtitle="Reservation details stored on this device.">
       <DesignCard>
-        <View style={styles.rowBetween}><Text style={[styles.eyebrow, { color: colors.primary }]}>{booking.source === 'walk-in' ? 'SOURCE · WALK-IN' : 'SOURCE · PLAYER'}</Text><StatusBadge label={getBookingDisplayStatus(booking)} tone={active ? 'success' : booking.status === 'cancelled' ? 'danger' : 'neutral'} /></View>
+        <View style={styles.rowBetween}><Text style={[styles.eyebrow, { color: colors.primary }]}>{booking.source === 'walk-in' ? 'SOURCE · WALK-IN' : booking.source === 'tournament' ? 'SOURCE · HOSTED TOURNAMENT' : 'SOURCE · PLAYER'}</Text><StatusBadge label={getBookingDisplayStatus(booking)} tone={active ? 'success' : booking.status === 'cancelled' ? 'danger' : 'neutral'} /></View>
         <Text style={[styles.cardTitle, styles.cardTop, { color: colors.ink }]}>{venue?.name || booking.venueName}</Text>
         <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{ground?.name || booking.groundName}</Text>
         <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{formatDateKey(booking.date)} · {formatTimeRange(booking.startTime, booking.endTime)}</Text>
       </DesignCard>
       {booking.source === 'walk-in' ? <InlineNotice>Customer: {booking.customerName}{booking.customerContact ? ` · ${booking.customerContact}` : ''}</InlineNotice> : null}
+      {booking.source === 'player' && booking.attendanceStatus === 'attended' ? <InlineNotice testID="booking-attendance-confirmed">Venue attendance confirmed. This player can now review the venue.</InlineNotice> : null}
+      {booking.source === 'player' && isOwner && getBookingDisplayStatus(booking) === 'Completed' && booking.attendanceStatus !== 'attended' ? <AppButton title="Confirm player attended" variant="secondary" testID="booking-confirm-attendance" onPress={() => dispatch(confirmBookingAttendance({ bookingId: booking.id }))} style={styles.buttonGap} /> : null}
       <SectionHeading title="Charges" />
       <DesignCard>
         <PriceRow label="Ground fee" amount={booking.groundFeePKR} />
         {addOnRows.map(item => <PriceRow key={item.equipmentId} label={`${item.name} × ${item.quantity}`} amount={item.lineTotalPKR} />)}
         <PriceRow label="Total" amount={booking.totalPKR} strong />
-        <Text style={[styles.cardCopy, { color: colors.inkSoft, marginTop: 8 }]}>Payment: {booking.paymentStatus === 'simulated-paid' ? 'simulated; no money moved' : booking.paymentStatus}</Text>
+        <Text style={[styles.cardCopy, { color: colors.inkSoft, marginTop: 8 }]}>Payment: {booking.source === 'tournament' ? 'hosted tournament; no player booking payment' : booking.paymentStatus === 'simulated-paid' ? 'demo payment recorded; no money moved' : booking.paymentStatus === 'simulated-refunded' ? 'fully refunded in demo - ' + formatPKR(booking.refundAmountPKR ?? booking.totalPKR) : booking.paymentStatus === 'split-collecting' ? 'room shares are being collected in demo' : booking.paymentStatus === 'cash-refund-due' ? 'cash refund due to customer - ' + formatPKR(booking.totalPKR) : booking.paymentStatus === 'cash-refunded' ? 'cash refund recorded by vendor' : booking.paymentStatus}</Text>
+        {currentUser?.role === 'vendor' && booking.source === 'player' ? <InlineNotice>{booking.status === 'cancelled' && booking.paymentStatus === 'simulated-refunded' ? 'The demo refund is recorded; no money moved.' : getBookingDisplayStatus(booking) === 'Completed' && booking.paymentStatus === 'simulated-paid' ? 'Demo payout released to venue after the completed session. No money moved.' : 'Demo payout is pending until the completed session.'}</InlineNotice> : null}
       </DesignCard>
-      {active && canCancel ? <AppButton title="Cancel booking and release slot" variant="secondary" testID="booking-cancel" onPress={cancel} textStyle={{ color: colors.error }} /> : null}
+      {active && beforeStart && canCancel ? <AppButton title="Cancel booking · full demo refund" variant="secondary" testID="booking-cancel" onPress={cancel} textStyle={{ color: colors.error }} /> : null}
+      {currentUser?.role === 'vendor' && isOwner && booking.source === 'walk-in' && booking.status === 'cancelled' && booking.paymentStatus === 'cash-refund-due' ? <AppButton title={`Record cash refund · ${formatPKR(booking.totalPKR)}`} testID="walkin-record-refund" onPress={() => dispatch(recordWalkInCashRefund({ bookingId: booking.id }))} style={styles.buttonGap} /> : null}
       {currentUser?.role === 'vendor' ? <AppButton title="Vendor bookings" variant="quiet" testID="booking-vendor-list" onPress={() => navigation.navigate('VendorBookings')} style={styles.buttonGap} /> : <AppButton title="My bookings" variant="quiet" testID="booking-player-list" onPress={() => navigation.navigate('MyBookings')} style={styles.buttonGap} />}
     </PageShell>
   );
@@ -624,16 +656,16 @@ export function VendorAvailabilityScreen({ navigation, route }) {
         ListEmptyComponent={<EmptyState title="No slots for this date" description="This ground has no generated slots on the selected date." action={<AppButton title="Record a walk-in" testID="availability-empty-walkin" onPress={() => navigation.navigate('ManualWalkInBooking', { venueId: venue?.id, groundId: ground?.id, date })} />} />}
         renderItem={({ item }) => {
           const state = getSlotAvailability({ slotId: item.id, slots, bookings });
-          const related = bookings.find(booking => booking.slotId === item.id && getBookingDisplayStatus(booking) === 'Confirmed');
+          const related = bookings.find(booking => booking.groundId === item.groundId && booking.date === item.date && isBookingActive(booking) && intervalsOverlap(booking.startTime, booking.endTime, item.startTime, item.endTime));
           const isFuture = isSlotInFuture(item);
           const available = state.available && isFuture;
-          const label = available ? 'Available' : related ? (related.source === 'walk-in' ? 'Walk-in' : 'Player booking') : isFuture ? 'Unavailable' : 'Past';
+          const label = available ? 'Available' : related ? (related.source === 'walk-in' ? 'Walk-in' : related.source === 'tournament' ? 'Tournament' : 'Player booking') : isFuture ? 'Unavailable' : 'Past';
           return (
             <DesignCard style={styles.availabilityCard}>
               <View style={styles.rowBetween}>
                 <View style={styles.slotCopy}>
                   <Text style={[styles.slotTime, { color: colors.ink }]}>{formatTimeRange(item.startTime, item.endTime)}</Text>
-                  <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{label}{related ? ` · ${related.customerName || 'player'}` : ''}</Text>
+                  <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{label}{related ? ` · ${related.tournamentTitle || related.customerName || related.playerName || 'reserved'}` : ''}</Text>
                 </View>
                 <StatusBadge label={label} tone={available ? 'success' : related ? 'warning' : 'neutral'} />
               </View>
@@ -646,17 +678,21 @@ export function VendorAvailabilityScreen({ navigation, route }) {
   );
 }
 
-export function VendorBookingsScreen({ navigation }) {
+export function VendorBookingsScreen({ navigation, route = { params: {} } }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const bookings = useSelector(state => selectBookingsForVendor(state, currentUser?.id || ''));
+  const rooms = useSelector(state => state.community.rooms);
+  const tournaments = useSelector(state => state.community.tournaments);
   const [filter, setFilter] = useState('All');
+  const highlightBookingId = route.params?.highlightBookingId;
   const filtered = useMemo(() => bookings.filter(booking => {
     if (filter === 'Player') return booking.source === 'player' && booking.status !== 'cancelled';
     if (filter === 'Walk-in') return booking.source === 'walk-in' && booking.status !== 'cancelled';
+    if (filter === 'Tournament') return booking.source === 'tournament' && booking.status !== 'cancelled';
     if (filter === 'Cancelled') return booking.status === 'cancelled';
     return true;
-  }).sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)), [bookings, filter]);
+  }).sort((first, second) => Number(second.id === highlightBookingId) - Number(first.id === highlightBookingId) || `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)), [bookings, filter, highlightBookingId]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
@@ -666,19 +702,26 @@ export function VendorBookingsScreen({ navigation }) {
         keyExtractor={item => item.id}
         ListHeaderComponent={(
           <>
-            <ScreenHeader title="Vendor bookings" subtitle="Player reservations and manual walk-ins in one list." eyebrow="BOOKING MANAGER" onBack={() => navigation.goBack()} />
-            <ChoiceChips options={['All', 'Player', 'Walk-in', 'Cancelled']} selected={filter} onSelect={setFilter} testID="vendor-bookings-filter" />
+            <ScreenHeader title="Vendor bookings" subtitle="Player reservations, hosted tournaments and walk-ins in one list." eyebrow="BOOKING MANAGER" onBack={() => navigation.goBack()} />
+            <ChoiceChips options={['All', 'Player', 'Tournament', 'Walk-in', 'Cancelled']} selected={filter} onSelect={setFilter} testID="vendor-bookings-filter" />
             <AppButton title="Record a walk-in" testID="vendor-bookings-walkin" onPress={() => navigation.navigate('ManualWalkInBooking')} style={styles.listAction} />
           </>
         )}
         ListEmptyComponent={<EmptyState title="No bookings yet" description="New player reservations and vendor walk-ins will appear here." />}
-        renderItem={({ item }) => (
-          <BookingCard
+        renderItem={({ item }) => {
+          const room = rooms.find(candidate => candidate.id === item.roomId || candidate.bookingId === item.id);
+          const tournament = tournaments.find(candidate => candidate.id === item.tournamentId);
+          return <BookingCard
             booking={item}
+            room={room}
+            tournament={tournament}
             testID={`vendor-booking-${item.id}`}
-            onPress={() => navigation.navigate('BookingDetails', { bookingId: item.id })}
-          />
-        )}
+            onPress={() => tournament
+              ? navigation.navigate('TournamentDetails', { tournamentId: tournament.id })
+              : room ? navigation.navigate('GameRoomDetails', { roomId: room.id })
+                : navigation.navigate('BookingDetails', { bookingId: item.id })}
+          />;
+        }}
       />
     </SafeAreaView>
   );
@@ -738,7 +781,7 @@ export function ManualWalkInBookingScreen({ navigation, route }) {
         setError(result.error);
         return;
       }
-      navigation.replace('BookingDetails', { bookingId: result.booking.id });
+      navigation.replace('VendorBookings', { highlightBookingId: result.booking.id });
     } finally {
       setSaving(false);
     }

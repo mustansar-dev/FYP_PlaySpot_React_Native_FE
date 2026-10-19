@@ -13,6 +13,7 @@ describe('local community rules and totals', () => {
   test('room join validates private codes and never exceeds capacity', () => {
     const room = {
       id: 'room-1', status: 'open', visibility: 'private', joinCode: 'PLAY24', capacity: 2,
+      date: '2099-06-01', startTime: '16:00',
       members: [{ userId: 'host', name: 'Host' }],
     };
     expect(getRoomOpenSpots(room)).toBe(1);

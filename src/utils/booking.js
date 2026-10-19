@@ -94,6 +94,14 @@ function bookingEndTimestamp(booking) {
   return date.getTime();
 }
 
+export function getBookingStartTimestamp(booking) {
+  const date = parseLocalDateKey(booking?.date);
+  const startMinutes = timeToMinutes(booking?.startTime);
+  if (!date || startMinutes === null) return Number.POSITIVE_INFINITY;
+  date.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+  return date.getTime();
+}
+
 export function isBookingActive(booking, now = new Date()) {
   if (!booking || !['confirmed', 'pending'].includes(booking.status)) return false;
   return bookingEndTimestamp(booking) > now.getTime();
@@ -195,10 +203,10 @@ export function prepareBooking(venueState, request, now = new Date()) {
 
   const groundFeePKR = calculateGroundFee(ground, slot);
   const addOnsTotalPKR = addOns.reduce((total, item) => total + item.lineTotalPKR, 0);
-  const paymentMode = request.paymentMode || 'pay-at-venue';
-  const paymentStatus = request.source === 'walk-in'
+  const paymentMode = request.paymentMode || 'simulated';
+  const paymentStatus = request.paymentStatus || (request.source === 'walk-in'
     ? (request.paymentStatus === 'paid' ? 'paid' : 'unpaid')
-    : paymentMode === 'simulated' ? 'simulated-paid' : 'due-at-venue';
+      : paymentMode === 'simulated' ? 'simulated-paid' : 'due-at-venue');
   const booking = {
     id: request.id,
     source: request.source,
@@ -216,6 +224,7 @@ export function prepareBooking(venueState, request, now = new Date()) {
     endTime: slot.endTime,
     durationMinutes: timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime),
     playerUserId: request.playerUserId || null,
+    playerName: request.playerName?.trim() || null,
     vendorUserId: request.vendorUserId || null,
     customerName: request.customerName?.trim() || null,
     customerContact: request.customerContact?.trim() || null,

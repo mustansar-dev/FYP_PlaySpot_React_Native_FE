@@ -76,7 +76,7 @@ export function createDemoCommunityState() {
 
   rooms.forEach(room => {
     room.totalCostPKR = room.costPerParticipantPKR * room.capacity;
-    room.paymentMode = 'pay-at-venue';
+    room.paymentMode = 'simulated';
     room.bookingId = null;
     room.paymentShares = createRoomPaymentShares(
       room.totalCostPKR,

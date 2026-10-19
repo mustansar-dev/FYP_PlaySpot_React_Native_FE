@@ -25,22 +25,52 @@ export default function VendorVenueScreen({ navigation }) {
             <Text style={styles.summaryName}>{venue.name}</Text>
             <Text style={styles.summaryMeta}>{venue.locationNote || venue.city} · {grounds.length} grounds · {equipment.length} add-ons</Text>
           </View>
-          <Pressable accessibilityRole="button" testID="vendor-venue-manage-card" onPress={() => navigation.navigate('VendorVenueManagement', { venueId: venue.id })}>
+          <Pressable accessibilityRole="button" testID="vendor-venue-manage-card" onPress={() => navigation.push('VendorVenueManagement', { venueId: venue.id, section: 'details' })}>
             <DesignCard style={styles.actionCard}>
               <View style={[styles.iconWrap, { backgroundColor: colors.limePale }]}><Text style={[styles.icon, { color: colors.primary }]}>⌂</Text></View>
               <View style={styles.copy}>
-                <Text style={[styles.cardTitle, { color: colors.ink }]}>Venue and grounds</Text>
-                <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Update venue details, courts, opening hours and available days.</Text>
+                <Text style={[styles.cardTitle, { color: colors.ink }]}>Venue details</Text>
+                <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Update business, venue address, sports, facilities and parking.</Text>
               </View>
               <Text style={[styles.chevron, { color: colors.primary }]}>›</Text>
             </DesignCard>
           </Pressable>
-          <Pressable accessibilityRole="button" testID="vendor-venue-addons-card" onPress={() => navigation.navigate('VendorInventory', { venueId: venue.id })}>
+          <Pressable accessibilityRole="button" testID="vendor-venue-grounds-card" onPress={() => navigation.push('VendorVenueManagement', { venueId: venue.id, section: 'grounds' })}>
+            <DesignCard style={styles.actionCard}>
+              <View style={[styles.iconWrap, { backgroundColor: colors.limePale }]}><Text style={[styles.icon, { color: colors.primary }]}>▦</Text></View>
+              <View style={styles.copy}>
+                <Text style={[styles.cardTitle, { color: colors.ink }]}>Grounds and courts</Text>
+                <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Edit sport, court size, surface, hourly rate and booking hours.</Text>
+              </View>
+              <Text style={[styles.chevron, { color: colors.primary }]}>›</Text>
+            </DesignCard>
+          </Pressable>
+          <Pressable accessibilityRole="button" testID="vendor-venue-facilities-card" onPress={() => navigation.push('VendorVenueManagement', { venueId: venue.id, section: 'facilities' })}>
+            <DesignCard style={styles.actionCard}>
+              <View style={[styles.iconWrap, { backgroundColor: colors.limePale }]}><Text style={[styles.icon, { color: colors.primary }]}>✚</Text></View>
+              <View style={styles.copy}>
+                <Text style={[styles.cardTitle, { color: colors.ink }]}>Facilities and parking</Text>
+                <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Choose venue facilities and update parking availability and spaces.</Text>
+              </View>
+              <Text style={[styles.chevron, { color: colors.primary }]}>›</Text>
+            </DesignCard>
+          </Pressable>
+          <Pressable accessibilityRole="button" testID="vendor-venue-media-card" onPress={() => navigation.push('VendorVenueManagement', { venueId: venue.id, section: 'media' })}>
+            <DesignCard style={styles.actionCard}>
+              <View style={[styles.iconWrap, { backgroundColor: colors.limePale }]}><Text style={[styles.icon, { color: colors.primary }]}>▧</Text></View>
+              <View style={styles.copy}>
+                <Text style={[styles.cardTitle, { color: colors.ink }]}>Photos and video</Text>
+                <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Add a required venue photo and optional video for your profile.</Text>
+              </View>
+              <Text style={[styles.chevron, { color: colors.primary }]}>›</Text>
+            </DesignCard>
+          </Pressable>
+          <Pressable accessibilityRole="button" testID="vendor-venue-addons-card" onPress={() => navigation.push('VendorInventory', { venueId: venue.id })}>
             <DesignCard style={styles.actionCard}>
               <View style={[styles.iconWrap, { backgroundColor: colors.limePale }]}><Text style={[styles.icon, { color: colors.primary }]}>＋</Text></View>
               <View style={styles.copy}>
                 <Text style={[styles.cardTitle, { color: colors.ink }]}>Equipment and add-ons</Text>
-                <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Manage rentals, supplies, prices and available quantities.</Text>
+              <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Open a separate form to edit rentals, prices and quantities.</Text>
               </View>
               <Text style={[styles.chevron, { color: colors.primary }]}>›</Text>
             </DesignCard>

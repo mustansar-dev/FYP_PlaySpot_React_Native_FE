@@ -15,13 +15,14 @@ import {
   selectVendorProfileById,
 } from '../store/selectors/venueSelectors';
 import { venuePublicationChanged, venueUpdated } from '../store/venueSlice';
-import { createSlotsForGround, DEFAULT_GROUND_DAYS, timeToMinutes, WEEK_DAYS } from '../utils/booking';
+import { createSlotsForGround, DEFAULT_GROUND_DAYS, isBookingActive, timeToMinutes, WEEK_DAYS } from '../utils/booking';
 
 export default function VendorVenueManagementScreen({ navigation, route }) {
   const dispatch = useDispatch();
   const { currentUser } = useSelector(state => state.auth);
   const { colors, radius } = useTheme();
   const { venueId } = route.params || {};
+  const section = route.params?.section || 'details';
   const venue = useSelector(state => selectVenueById(state, venueId));
   const grounds = useSelector(state => selectGroundsByVenueId(state, venueId));
   const equipment = useSelector(state => selectEquipmentByVenueId(state, venueId));
@@ -48,14 +49,12 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       closingTime: ground.closingTime || '17:00',
       availableDays: Array.isArray(ground.availableDays) && ground.availableDays.length ? [...ground.availableDays] : [...DEFAULT_GROUND_DAYS],
     })),
-    equipment: equipment.map(item => ({ ...item })),
   }));
   const [error, setError] = useState('');
   const [mediaError, setMediaError] = useState('');
   const [pickerBusy, setPickerBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [groundAddedNotice, setGroundAddedNotice] = useState('');
-  const [equipmentAddedNotice, setEquipmentAddedNotice] = useState('');
 
   const setField = (key, value) => {
     setDraft(previous => ({ ...previous, [key]: value }));
@@ -77,6 +76,10 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       : [...draft[collection], value]);
   };
   const addGround = () => {
+    if (!draft.sports.length) {
+      setError('Select at least one sport in Venue details before adding a ground.');
+      return;
+    }
     const ground = {
       id: `ground-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       venueId,
@@ -96,11 +99,6 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
     };
     setField('grounds', [ground, ...draft.grounds]);
     setGroundAddedNotice('Ground added at the top of the list. Complete its details below.');
-  };
-  const addEquipment = () => {
-    const item = { id: `equipment-${Date.now().toString(36)}`, venueId: venue?.id, name: '', sport: draft.sports[0] || '', priceMode: 'rental', unitPricePKR: '', quantityAvailable: 1, active: true };
-    setField('equipment', [item, ...draft.equipment]);
-    setEquipmentAddedNotice('Add-on added at the top of the list. Complete its details below.');
   };
   const pickPhotos = async () => {
     if (pickerBusy) return;
@@ -164,32 +162,51 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       setError('This venue is not attached to the signed-in vendor profile.');
       return;
     }
-    if (!draft.venueName.trim() || !draft.businessName.trim() || !draft.address.trim() || !draft.city.trim()) {
+    if (section === 'details' && (!draft.venueName.trim() || !draft.businessName.trim() || !draft.address.trim() || !draft.city.trim())) {
       setError('Venue, business, address, and city are required.');
       return;
     }
-    if (coordsError) {
+    if (section === 'details' && draft.grounds.some(ground => !draft.sports.includes(ground.sport))) {
+      setError('A ground uses a sport that is not selected for the venue. Update that ground first, or keep its sport selected.');
+      return;
+    }
+    if (section === 'details' && !draft.photoUris.length) {
+      setError('Add at least one venue photo in Photos and video before saving venue details.');
+      return;
+    }
+    if (section === 'details' && coordsError) {
       setError(coordsError);
       return;
     }
-    if (draft.parkingAvailable && (!Number.isInteger(Number(draft.parkingSpaces)) || Number(draft.parkingSpaces) < 0)) {
+    if (section === 'facilities' && draft.parkingAvailable && (!Number.isInteger(Number(draft.parkingSpaces)) || Number(draft.parkingSpaces) < 0)) {
       setError('Parking spaces must be a whole number of zero or more.');
       return;
     }
-    if (draft.grounds.length === 0 || draft.grounds.some(ground =>
+    if (section === 'grounds' && (draft.grounds.length === 0 || draft.grounds.some(ground =>
       !ground.name.trim() || !ground.sport || !ground.indoorOutdoor || !ground.surface ||
+      !venue.sports.includes(ground.sport) ||
       !Number.isFinite(Number(ground.widthMeters)) || Number(ground.widthMeters) <= 0 ||
       !Number.isFinite(Number(ground.lengthMeters)) || Number(ground.lengthMeters) <= 0 ||
       !Number.isInteger(Number(ground.conditionRating)) || Number(ground.conditionRating) < 1 || Number(ground.conditionRating) > 5 ||
       !Number.isFinite(Number(ground.hourlyPricePKR)) || Number(ground.hourlyPricePKR) <= 0 ||
       !Number.isInteger(Number(ground.slotDurationMinutes)) || Number(ground.slotDurationMinutes) < 15 || Number(ground.slotDurationMinutes) > 240
-    )) {
+    ))) {
       setError(draft.grounds.length === 0
         ? 'Keep at least one ground or court in the venue.'
         : 'Each ground needs a name, sport, type, surface, condition, positive dimensions and hourly price, and a valid slot duration.');
       return;
     }
-    if (draft.grounds.some(ground => {
+    if (section === 'grounds') {
+      const retainedIds = new Set(draft.grounds.map(ground => ground.id));
+      const removedGroundsWithBookings = grounds.filter(ground =>
+        !retainedIds.has(ground.id) && bookings.some(booking => booking.groundId === ground.id && isBookingActive(booking)),
+      );
+      if (removedGroundsWithBookings.length) {
+        setError(`Cancel active reservations before removing ${removedGroundsWithBookings.map(ground => ground.name).join(', ')}.`);
+        return;
+      }
+    }
+    if (section === 'grounds' && draft.grounds.some(ground => {
       const opening = timeToMinutes(ground.openingTime || '09:00');
       const closing = timeToMinutes(ground.closingTime || '17:00');
       return opening === null || closing === null || closing <= opening || !ground.availableDays?.length;
@@ -197,8 +214,8 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       setError('Each ground needs a valid opening and closing time, and at least one available day.');
       return;
     }
-    if (draft.equipment.some(item => !item.name.trim() || !Number(item.unitPricePKR) || Number(item.unitPricePKR) < 1 || !Number.isInteger(Number(item.quantityAvailable)) || Number(item.quantityAvailable) < 0)) {
-      setError('Each equipment item needs a name, price, and whole-number quantity.');
+    if (section === 'media' && !draft.photoUris.length) {
+      setError('Add at least one venue photo before saving this section.');
       return;
     }
     const timestamp = new Date().toISOString();
@@ -213,49 +230,44 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       closingTime: ground.closingTime || '17:00',
       availableDays: [...ground.availableDays],
     }));
-    const previousSlots = storedSlots.filter(slot => grounds.some(ground => ground.id === slot.groundId));
-    const generatedSlots = savedGrounds.flatMap(ground => createSlotsForGround(ground, 8, null, null, new Date()));
-    const generatedIds = new Set(generatedSlots.map(slot => slot.id));
-    const previousById = new Map(previousSlots.map(slot => [slot.id, slot]));
-    const scheduleSlots = generatedSlots.map(slot => {
-      const previous = previousById.get(slot.id);
-      return previous ? { ...slot, status: previous.status, reservedByBookingId: previous.reservedByBookingId } : slot;
-    });
-    const bookedSlotsOutsideSchedule = previousSlots.filter(slot =>
-      !generatedIds.has(slot.id) && bookings.some(booking => booking.slotId === slot.id),
-    );
-    scheduleSlots.push(...bookedSlotsOutsideSchedule);
-    dispatch(venueUpdated({
-      venue: {
-        ...venue,
-        name: draft.venueName.trim(),
-        address: draft.address.trim(),
-        city: draft.city.trim(),
-        locationNote: draft.locationNote.trim(),
-        sports: draft.sports,
-        facilities: draft.facilities,
+    let scheduleSlots;
+    if (section === 'grounds') {
+      const previousSlots = storedSlots.filter(slot => grounds.some(ground => ground.id === slot.groundId));
+      const generatedSlots = savedGrounds.flatMap(ground => createSlotsForGround(ground, 8, null, null, new Date()));
+      const generatedIds = new Set(generatedSlots.map(slot => slot.id));
+      const previousById = new Map(previousSlots.map(slot => [slot.id, slot]));
+      scheduleSlots = generatedSlots.map(slot => {
+        const previous = previousById.get(slot.id);
+        return previous ? { ...slot, status: previous.status, reservedByBookingId: previous.reservedByBookingId } : slot;
+      });
+      scheduleSlots.push(...previousSlots.filter(slot => !generatedIds.has(slot.id) && bookings.some(booking => booking.slotId === slot.id)));
+    }
+    const nextVenue = {
+      ...venue,
+      ...(section === 'details' ? {
+        name: draft.venueName.trim(), address: draft.address.trim(), city: draft.city.trim(),
+        locationNote: draft.locationNote.trim(), sports: draft.sports,
+        latitude: draft.latitude ? Number(draft.latitude) : null, longitude: draft.longitude ? Number(draft.longitude) : null,
+      } : {}),
+      ...(section === 'facilities' ? {
+        facilities: [...draft.facilities],
         parkingAvailable: draft.parkingAvailable,
         parkingSpaces: draft.parkingAvailable ? Number(draft.parkingSpaces) : 0,
-        photoUris: [...draft.photoUris],
-        videoUri: draft.videoUri,
-        latitude: draft.latitude ? Number(draft.latitude) : null,
-        longitude: draft.longitude ? Number(draft.longitude) : null,
-        updatedAt: timestamp,
-      },
-      vendorProfile: { ...vendorProfile, businessName: draft.businessName.trim(), contactPhone: draft.contactPhone.trim() },
+      } : {}),
+      ...(section === 'media' ? { photoUris: [...draft.photoUris], videoUri: draft.videoUri } : {}),
+      updatedAt: timestamp,
+    };
+    dispatch(venueUpdated({
+      venue: nextVenue,
+      vendorProfile: section === 'details' ? { ...vendorProfile, businessName: draft.businessName.trim(), contactPhone: draft.contactPhone.trim() } : vendorProfile,
       grounds: savedGrounds,
       slots: scheduleSlots,
-      equipment: draft.equipment.map(item => ({
-        ...item,
-        name: item.name.trim(),
-        unitPricePKR: Number(item.unitPricePKR),
-        quantityAvailable: Number(item.quantityAvailable),
-      })),
+      equipment,
     }));
     setSaved(true);
     setError('');
-    navigation.navigate('VendorDashboard');
-    Alert.alert('Saved successfully', 'Venue, grounds, add-ons and custom availability have been saved.');
+    navigation.goBack();
+    Alert.alert('Saved successfully', `${section === 'details' ? 'Venue details' : section === 'grounds' ? 'Grounds and availability' : section === 'facilities' ? 'Facilities and parking' : 'Venue photos'} have been saved.`);
   };
 
   if (!ready) {
@@ -275,10 +287,11 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <ScreenHeader
             eyebrow="VENDOR TOOLS"
-            title="Venue management"
-            subtitle="Changes are saved locally and remain demo data."
+            title={section === 'details' ? 'Venue details' : section === 'grounds' ? 'Grounds and courts' : section === 'facilities' ? 'Facilities and parking' : 'Photos and video'}
+            subtitle="Edit one section at a time. Changes are saved locally as demo data."
             onBack={() => navigation.goBack()}
           />
+          {section === 'details' ? <>
           <FormField label="Business name" value={draft.businessName} onChangeText={value => setField('businessName', value)} testID="manage-business-name" />
           <FormField label="Contact phone" value={draft.contactPhone} onChangeText={value => setField('contactPhone', value)} keyboardType="phone-pad" testID="manage-vendor-phone" />
           <FormField label="Venue name" value={draft.venueName} onChangeText={value => setField('venueName', value)} testID="manage-venue-name" />
@@ -291,14 +304,21 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
           </View>
           <Text style={[styles.hint, { color: colors.inkSoft }]}>Leave both coordinates blank to continue using the manual address fallback.</Text>
           <ChoiceChips label="Sports offered" options={['Futsal', 'Football', 'Cricket', 'Padel', 'Badminton']} selected={draft.sports} onSelect={value => toggleListValue('sports', value)} multiple testID="manage-venue-sport" />
+          </> : null}
+
+          {section === 'facilities' ? <>
+          <Text style={[styles.sectionTitle, { color: colors.ink }]}>Facilities and parking</Text>
           <ChoiceChips label="Facilities" options={['Changing rooms', 'Washrooms', 'Floodlights', 'Seating', 'Cafe', 'Showers']} selected={draft.facilities} onSelect={value => toggleListValue('facilities', value)} multiple testID="manage-venue-facility" />
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
             <Text style={[styles.cardHeading, { color: colors.ink }]}>Parking</Text>
             <AppButton title={draft.parkingAvailable ? 'Parking available' : 'No parking'} variant="secondary" testID="manage-parking-toggle" onPress={() => setField('parkingAvailable', !draft.parkingAvailable)} />
             {draft.parkingAvailable ? <FormField label="Parking spaces" value={draft.parkingSpaces} onChangeText={value => setField('parkingSpaces', value)} keyboardType="number-pad" testID="manage-parking-spaces" /> : null}
           </View>
+          </> : null}
 
+          {section === 'grounds' ? <>
           <Text style={[styles.sectionTitle, { color: colors.ink }]}>Grounds and courts</Text>
+          <Text style={[styles.hint, { color: colors.inkSoft }]}>Ground sports must be included in the venue’s selected sports: {venue.sports.join(', ') || 'none'}.</Text>
           <AppButton title="Add another ground or court" variant="secondary" testID="manage-ground-add" onPress={addGround} style={styles.addButton} />
           {groundAddedNotice ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>{groundAddedNotice}</Text> : null}
           {draft.grounds.map((ground, index) => (
@@ -330,15 +350,17 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
               </View>
               <ChoiceChips label="Days available" options={WEEK_DAYS} selected={ground.availableDays || DEFAULT_GROUND_DAYS} onSelect={day => updateListItem('grounds', index, 'availableDays', (ground.availableDays || DEFAULT_GROUND_DAYS).includes(day) ? (ground.availableDays || DEFAULT_GROUND_DAYS).filter(item => item !== day) : [...(ground.availableDays || DEFAULT_GROUND_DAYS), day])} multiple testID={`manage-ground-days-${index + 1}`} />
               <Text style={[styles.hint, { color: colors.inkSoft }]}>{ground.surface} · condition {ground.conditionRating}/5</Text>
-              <ChoiceChips label="Sport" options={['Futsal', 'Football', 'Cricket', 'Padel', 'Badminton']} selected={ground.sport} onSelect={value => updateListItem('grounds', index, 'sport', value)} testID={`manage-ground-sport-${index + 1}`} />
+              <ChoiceChips label="Sport" options={draft.sports} selected={ground.sport} onSelect={value => updateListItem('grounds', index, 'sport', value)} testID={`manage-ground-sport-${index + 1}`} />
               <ChoiceChips label="Indoor/outdoor" options={['Indoor', 'Outdoor']} selected={ground.indoorOutdoor} onSelect={value => updateListItem('grounds', index, 'indoorOutdoor', value)} testID={`manage-ground-type-${index + 1}`} />
               <ChoiceChips label="Surface" options={['Real grass', 'Artificial turf', 'Wood', 'Synthetic', 'Other']} selected={ground.surface} onSelect={value => updateListItem('grounds', index, 'surface', value)} testID={`manage-ground-surface-${index + 1}`} />
               <ChoiceChips label="Condition (1 to 5)" options={['1', '2', '3', '4', '5']} selected={String(ground.conditionRating)} onSelect={value => updateListItem('grounds', index, 'conditionRating', Number(value))} testID={`manage-ground-condition-${index + 1}`} />
             </View>
           ))}
+          </> : null}
 
+          {section === 'media' ? <>
           <Text style={[styles.sectionTitle, { color: colors.ink }]}>Venue photos and video</Text>
-          <Text style={[styles.hint, { color: colors.inkSoft }]}>Photos and video are optional. A local illustration is used when no photo is selected.</Text>
+          <Text style={[styles.hint, { color: colors.inkSoft }]}>At least one photo is required. Video is optional.</Text>
           <AppButton title={pickerBusy ? 'Opening gallery…' : 'Choose venue photos'} variant="secondary" testID="manage-pick-photos" onPress={pickPhotos} disabled={pickerBusy} loading={pickerBusy} style={styles.addButton} />
           {draft.photoUris.length > 0 ? (
             <View style={styles.photoGrid}>
@@ -361,26 +383,14 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
             </View>
           ) : null}
           {mediaError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{mediaError}</Text> : null}
+          </> : null}
 
-          <Text style={[styles.sectionTitle, { color: colors.ink }]}>Equipment and add-ons</Text>
-          <AppButton title="Add equipment" variant="secondary" testID="manage-item-add" onPress={addEquipment} style={styles.addButton} />
-          {equipmentAddedNotice ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>{equipmentAddedNotice}</Text> : null}
-          {draft.equipment.length ? draft.equipment.map((item, index) => (
-            <View key={item.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-              <FormField label="Item name" value={item.name} onChangeText={value => updateListItem('equipment', index, 'name', value)} testID={`manage-item-name-${index + 1}`} />
-              <View style={styles.row}>
-                <FormField label="Price (PKR)" value={String(item.unitPricePKR)} onChangeText={value => updateListItem('equipment', index, 'unitPricePKR', value)} keyboardType="number-pad" style={styles.column} testID={`manage-item-price-${index + 1}`} />
-                <FormField label="Quantity" value={String(item.quantityAvailable)} onChangeText={value => updateListItem('equipment', index, 'quantityAvailable', value)} keyboardType="number-pad" style={styles.column} testID={`manage-item-quantity-${index + 1}`} />
-              </View>
-              <ChoiceChips label="Price mode" options={['rental', 'sale']} selected={item.priceMode} onSelect={value => updateListItem('equipment', index, 'priceMode', value)} testID={`manage-item-mode-${index + 1}`} />
-              <AppButton title="× Remove item" variant="quiet" testID={`manage-item-remove-${index + 1}`} onPress={() => setField('equipment', draft.equipment.filter((_, itemIndex) => itemIndex !== index))} textStyle={{ color: colors.error }} />
-            </View>
-          )) : <Text style={[styles.hint, { color: colors.inkSoft }]}>No add-ons have been added.</Text>}
+
 
           {error ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
-          {saved ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>Venue and equipment changes saved on this device.</Text> : null}
-          <AppButton title="Save venue changes" testID="manage-venue-save" onPress={save} />
-          <View style={[styles.publishCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+          {saved ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>Changes saved on this device.</Text> : null}
+          <AppButton title={section === 'details' ? 'Save venue details' : section === 'grounds' ? 'Save grounds and availability' : section === 'facilities' ? 'Save facilities and parking' : 'Save photos and video'} testID="manage-venue-save" onPress={save} />
+          {section === 'details' ? <View style={[styles.publishCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
             <Text style={[styles.cardHeading, { color: colors.ink }]}>{venue.published ? 'Published in local discovery' : 'Hidden from local discovery'}</Text>
             <Text style={[styles.hint, { color: colors.inkSoft }]}>Publishing only changes this local demo. No real approval or server listing exists.</Text>
             <AppButton
@@ -389,7 +399,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
               testID="manage-venue-publish"
               onPress={() => dispatch(venuePublicationChanged({ venueId: venue.id, published: !venue.published }))}
             />
-          </View>
+          </View> : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

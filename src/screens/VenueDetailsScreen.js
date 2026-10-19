@@ -7,14 +7,14 @@ import VenueArtwork from '../components/VenueArtwork';
 import VenuePhotoSlider from '../components/VenuePhotoSlider';
 import { useTheme } from '../context/ThemeContext';
 import { conversationCreated, createCommunityId } from '../store/communitySlice';
-import { getVenueRating, haversineDistanceKm } from '../utils/venueDiscovery';
+import { canReviewVenue, getVenueRating, haversineDistanceKm } from '../utils/venueDiscovery';
 import { createVenueVendorConversation, findVenueVendorConversation } from '../utils/venueConversations';
 
 export default function VenueDetailsScreen({ navigation, route }) {
   const dispatch = useDispatch();
   const { colors, radius } = useTheme();
   const { venueId } = route.params || {};
-  const { venues, grounds, equipment, reviews } = useSelector(state => state.venues);
+  const { venues, grounds, equipment, reviews, bookings } = useSelector(state => state.venues);
   const currentUser = useSelector(state => state.auth.currentUser);
   const vendorProfile = useSelector(state => state.venues.vendorProfiles.find(item => item.id === venueVendorId(state, venueId)) || null);
   const conversations = useSelector(state => state.community.conversations);
@@ -23,6 +23,7 @@ export default function VenueDetailsScreen({ navigation, route }) {
   const venueEquipment = useMemo(() => equipment.filter(item => item.venueId === venueId && item.active), [equipment, venueId]);
   const venueReviews = useMemo(() => reviews.filter(item => item.venueId === venueId), [reviews, venueId]);
   const rating = getVenueRating(venueReviews);
+  const canReview = canReviewVenue({ user: currentUser, bookings, venueId });
   const distance = venue ? haversineDistanceKm({ latitude: 31.5204, longitude: 74.3587 }, venue) : null;
   const photoUris = venue?.photoUris?.filter(uri => typeof uri === 'string' && uri.length > 0) || [];
 
@@ -31,7 +32,7 @@ export default function VenueDetailsScreen({ navigation, route }) {
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]} edges={['top']}>
     <ScrollView contentContainerStyle={styles.content}>
       <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => navigation.goBack()} style={styles.back}><Text style={[styles.backText, { color: colors.primary }]}>‹  Explore venues</Text></Pressable>
-      {photoUris.length ? <VenuePhotoSlider photos={photoUris} venueName={venue.name} radius={radius.lg} /> : <VenueArtwork sport={venue.sports[0]} />}
+      {photoUris.length || venue.videoUri ? <VenuePhotoSlider photos={photoUris} videos={venue.videoUri ? [venue.videoUri] : []} venueName={venue.name} radius={radius.lg} /> : <VenueArtwork sport={venue.sports[0]} />}
       <View style={styles.titleRow}><View style={{ flex: 1 }}><Text style={[styles.title, { color: colors.ink }]}>{venue.name}</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>{venue.locationNote || venue.city} · {venue.city}</Text></View><View style={[styles.ratingPill, { backgroundColor: colors.surface, borderRadius: radius.md }]}><Text style={{ color: colors.orange, fontWeight: '900' }}>★ {rating.count ? rating.average.toFixed(1) : 'New'}</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} reviews</Text></View></View>
       <View style={[styles.quickFacts, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
         <Fact label="SPORTS" value={venue.sports.join(', ')} colors={colors} />
@@ -51,7 +52,7 @@ export default function VenueDetailsScreen({ navigation, route }) {
       <Text style={[styles.sectionTitle, { color: colors.ink }]}>Equipment add-ons</Text>
       {venueEquipment.length ? venueEquipment.map(item => <View key={item.id} style={styles.equipmentRow}><Text style={[styles.body, { color: colors.ink }]}>{item.name} · {item.priceMode}</Text><Text style={[styles.body, { color: colors.primary, fontWeight: '800' }]}>PKR {item.unitPricePKR.toLocaleString()}</Text></View>) : <Text style={[styles.body, { color: colors.inkSoft }]}>No add-ons listed.</Text>}
       <View style={styles.reviewsHead}><Text style={[styles.sectionTitle, { color: colors.ink, marginBottom: 0 }]}>Reviews</Text><Pressable accessibilityRole="button" testID="venue-see-reviews" onPress={() => navigation.navigate('VenueReviews', { venueId })}><Text style={{ color: colors.primary, fontWeight: '800', fontSize: 12 }}>See all</Text></Pressable></View>
-      <View style={[styles.ratingSummary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.bigRating, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} local demo reviews</Text></View><Pressable accessibilityRole="button" testID="venue-add-review" onPress={() => navigation.navigate('AddReview', { venueId })}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '900' }}>Write a review</Text></Pressable></View>
+      <View style={[styles.ratingSummary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.bigRating, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} local demo reviews</Text></View>{canReview ? <Pressable accessibilityRole="button" testID="venue-add-review" onPress={() => navigation.navigate('AddReview', { venueId })}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '900' }}>Write a review</Text></Pressable> : <Text testID="venue-review-eligibility" style={[styles.small, { color: colors.inkSoft, maxWidth: 95 }]}>Available after vendor confirms a completed visit</Text>}</View>
       {venueReviews.slice(0, 2).map(review => <View key={review.id} style={styles.reviewRow}><Text style={[styles.cardTitle, { color: colors.ink }]}>{review.playerName}  <Text style={{ color: colors.orange }}>★ {review.stars}</Text></Text><Text style={[styles.body, { color: colors.inkSoft }]}>{review.comment}</Text></View>)}
       <Text style={[styles.small, { color: colors.inkSoft, marginTop: 12 }]}>Approximate location: {venue.address}. {venue.demoLabel}</Text>
       {currentUser?.role === 'player' && vendorProfile?.ownerUserId ? <AppButton title="Chat with vendor" testID="venue-chat-with-vendor" variant="secondary" onPress={() => {

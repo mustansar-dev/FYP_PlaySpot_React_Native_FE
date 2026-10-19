@@ -5,6 +5,8 @@ import { useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
 import DesignCard from '../components/DesignPrimitives';
 import PlayerProfileDrawer from '../components/PlayerProfileDrawer';
+import VenueArtwork from '../components/VenueArtwork';
+import VenuePhotoSlider from '../components/VenuePhotoSlider';
 import { useTheme } from '../context/ThemeContext';
 import { selectBookingsForVendor } from '../store/selectors/bookingSelectors';
 import { selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
@@ -53,6 +55,17 @@ export default function VendorDashboardScreen({ navigation }) {
           <Text style={styles.title}>Welcome, {currentUser?.name || 'Provider'}.</Text>
           <Text style={styles.subtitle}>Your local venue activity at a glance.</Text>
         </View>
+
+        {venues[0] ? <View style={[styles.venueMediaCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
+          <Text style={[styles.cardTitle, { color: colors.ink }]}>Venue photos and videos</Text>
+          {venues[0].photoUris?.length || venues[0].videoUri ? <VenuePhotoSlider
+            photos={venues[0].photoUris || []}
+            videos={venues[0].videoUri ? [venues[0].videoUri] : []}
+            venueName="Your venue"
+            radius={radius.md}
+            autoPlayIntervalMs={5000}
+          /> : <VenueArtwork sport={venues[0].sports?.[0]} />}
+        </View> : null}
 
         {storageNotice ? <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.noticeText, { color: colors.ink }]}>{storageNotice}</Text></View> : null}
         {venues.length === 0 ? <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.noticeText, { color: colors.ink }]}>No venue is connected to this local account yet. Use the Venue tab to review your setup.</Text></View> : null}
@@ -115,6 +128,7 @@ const styles = StyleSheet.create({
   avatar: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 16, fontWeight: '900' },
   hero: { minHeight: 135, justifyContent: 'center', padding: 20 },
+  venueMediaCard: { borderWidth: 1, padding: 12 },
   eyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
   title: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', marginTop: 8 },
   subtitle: { color: '#E7F6ED', fontSize: 11, marginTop: 5 },

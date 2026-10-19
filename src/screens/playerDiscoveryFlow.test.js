@@ -20,7 +20,7 @@ import BottomNavBar from '../components/BottomNavBar';
 import FormField from '../components/FormField';
 import { createDemoVenueState } from '../data/demoVenueData';
 import authReducer, { authHydrated } from '../store/authSlice';
-import venueReducer, { venuesHydrated } from '../store/venueSlice';
+import venueReducer, { confirmBookingAttendance, venuesHydrated } from '../store/venueSlice';
 import { loadVenueData, saveVenueData } from '../services/venueStorage';
 import AddReviewScreen from './AddReviewScreen';
 import VenueMapScreen from './VenueMapScreen';
@@ -165,6 +165,12 @@ test('map continues with a manually selected area when device location is unavai
 
 test('valid review updates rating data and survives the venue storage adapter', async () => {
   const store = makeStore();
+  const venueData = createDemoVenueState();
+  venueData.bookings = [{
+    id: 'completed-player-visit', playerUserId: 'player-test', venueId: 'venue-demo-gulberg',
+    status: 'confirmed', attendanceStatus: 'attended', date: '2020-01-01', startTime: '09:00', endTime: '10:00', addOns: [],
+  }];
+  store.dispatch(venuesHydrated({ data: venueData, notice: null }));
   const screen = await renderScreen(<AddReviewScreen navigation={{ goBack: jest.fn() }} route={{ params: { venueId: 'venue-demo-gulberg' } }} />, store);
   await fireEvent.press(screen.getByTestId('review-star-5'));
   await fireEvent.changeText(screen.getByTestId('review-comment'), 'A useful review from this test.');
@@ -174,4 +180,28 @@ test('valid review updates rating data and survives the venue storage adapter', 
   await saveVenueData({ version: venueState.version, vendorProfiles: venueState.vendorProfiles, venues: venueState.venues, grounds: venueState.grounds, equipment: venueState.equipment, slots: venueState.slots, reviews: venueState.reviews });
   const restored = await loadVenueData();
   expect(restored.data.reviews.filter(item => item.venueId === 'venue-demo-gulberg')).toHaveLength(3);
+});
+
+test('review form blocks players without a completed booking at that venue', async () => {
+  const store = makeStore();
+  const navigation = { goBack: jest.fn() };
+  const screen = await renderScreen(<AddReviewScreen navigation={navigation} route={{ params: { venueId: 'venue-demo-gulberg' } }} />, store);
+  expect(screen.queryByTestId('review-submit')).toBeNull();
+  expect(screen.getByText(/finish your booking and have the venue confirm your attendance/i)).toBeTruthy();
+});
+
+test('only the venue owner can confirm attendance after the booking has ended', () => {
+  const store = makeStore();
+  const venueData = createDemoVenueState();
+  const venue = venueData.venues.find(item => item.id === 'venue-demo-gulberg');
+  const profile = venueData.vendorProfiles.find(item => item.id === venue.vendorId);
+  venueData.bookings = [{
+    id: 'attendance-booking', source: 'player', playerUserId: 'player-test', venueId: venue.id,
+    status: 'confirmed', date: '2020-01-01', startTime: '09:00', endTime: '10:00', addOns: [],
+  }];
+  store.dispatch(venuesHydrated({ data: venueData, notice: null }));
+  expect(store.dispatch(confirmBookingAttendance({ bookingId: 'attendance-booking' }))).toMatchObject({ ok: false });
+  store.dispatch(authHydrated({ accounts: [], user: { id: profile.ownerUserId, name: 'Venue owner', role: 'vendor' }, storageNotice: null }));
+  expect(store.dispatch(confirmBookingAttendance({ bookingId: 'attendance-booking' }))).toMatchObject({ ok: true });
+  expect(store.getState().venues.bookings[0].attendanceStatus).toBe('attended');
 });

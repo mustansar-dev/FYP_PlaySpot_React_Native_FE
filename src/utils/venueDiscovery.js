@@ -1,3 +1,5 @@
+import { getBookingDisplayStatus } from './booking';
+
 const EARTH_RADIUS_KM = 6371;
 
 export function haversineDistanceKm(from, to) {
@@ -65,4 +67,14 @@ export function validateReview(stars, comment) {
   if (!Number.isInteger(stars) || stars < 1 || stars > 5) errors.stars = 'Choose a rating from 1 to 5 stars.';
   if (typeof comment !== 'string' || comment.trim().length < 8) errors.comment = 'Write at least 8 characters about your visit.';
   return errors;
+}
+export function canReviewVenue({ user, bookings = [], venueId, now = new Date() }) {
+  if (user?.role !== 'player' || !user.id || !venueId) return false;
+  return bookings.some(booking =>
+    booking.playerUserId === user.id &&
+    booking.venueId === venueId &&
+    booking.status !== 'cancelled' &&
+    booking.attendanceStatus === 'attended' &&
+    getBookingDisplayStatus(booking, now) === 'Completed',
+  );
 }

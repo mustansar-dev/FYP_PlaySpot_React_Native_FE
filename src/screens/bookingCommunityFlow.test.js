@@ -21,9 +21,9 @@ import { NotificationsScreen } from './AccountScreens';
 import { createDemoVenueState } from '../data/demoVenueData';
 import authReducer, { authHydrated } from '../store/authSlice';
 import communityReducer from '../store/communitySlice';
-import venueReducer, { reserveBooking, venuesHydrated } from '../store/venueSlice';
+import venueReducer, { bookingCancelled, reserveBooking, venuesHydrated } from '../store/venueSlice';
 import { createRoomPaymentShares } from '../utils/community';
-import { gameRoomUpdated, messageSent, updateGameRoomPaymentShares } from '../store/communitySlice';
+import { gameRoomUpdated, messageSent, recordWalkInCashRefund, updateGameRoomPaymentShares } from '../store/communitySlice';
 import { getNextBookableDates, getSlotAvailability } from '../utils/booking';
 import { BookingCheckoutScreen, EquipmentAddonsScreen, ManualWalkInBookingScreen, MyBookingsScreen } from './BookingScreens';
 import {
@@ -76,7 +76,7 @@ test('vendor walk-in and player checkout share one slot conflict check', async (
   );
   await fireEvent.changeText(walkIn.getByTestId('walkin-customer-name'), 'Sam Demo');
   await fireEvent.press(walkIn.getByTestId('walkin-submit'));
-  await waitFor(() => expect(vendorNavigation.replace).toHaveBeenCalledWith('BookingDetails', expect.objectContaining({ bookingId: expect.any(String) })));
+  await waitFor(() => expect(vendorNavigation.replace).toHaveBeenCalledWith('VendorBookings', expect.objectContaining({ highlightBookingId: expect.any(String) })));
   expect(store.getState().venues.bookings[0].source).toBe('walk-in');
   expect(getSlotAvailability({ ...store.getState().venues, slotId: slot.id }).available).toBe(false);
 
@@ -90,6 +90,21 @@ test('vendor walk-in and player checkout share one slot conflict check', async (
   expect(store.getState().venues.bookings).toHaveLength(1);
   expect(playerNavigation.replace).not.toHaveBeenCalled();
   expect(checkout.getByText(/no longer available/i)).toBeTruthy();
+});
+
+test('cancelled paid walk-ins stay cash-refund-due until the venue owner records the cash return', () => {
+  const store = makeStore(vendorUser);
+  const tomorrow = getNextBookableDates()[1].dateKey;
+  const slot = store.getState().venues.slots.find(item => item.groundId === 'venue-demo-gulberg-ground-1' && item.date === tomorrow && item.startTime === '16:00');
+  const result = store.dispatch(reserveBooking({
+    source: 'walk-in', vendorUserId: vendorUser.id, customerName: 'Walk-in guest',
+    slotId: slot.id, addOns: [], paymentMode: 'manual-cash', paymentStatus: 'paid',
+  }));
+  expect(result.ok).toBe(true);
+  store.dispatch(bookingCancelled({ bookingId: result.booking.id }));
+  expect(store.getState().venues.bookings[0].paymentStatus).toBe('cash-refund-due');
+  expect(store.dispatch(recordWalkInCashRefund({ bookingId: result.booking.id }))).toMatchObject({ ok: true });
+  expect(store.getState().venues.bookings[0].paymentStatus).toBe('cash-refunded');
 });
 
 test('add-on quantity buttons update the subtotal and stop at available stock', async () => {
@@ -125,7 +140,7 @@ test('private room rejects the wrong code and accepts the correct code without e
   expect(store.getState().community.rooms.find(room => room.id === 'room-demo-dha-padel-private').members).toHaveLength(before + 1);
   const joinedMember = store.getState().community.rooms.find(room => room.id === 'room-demo-dha-padel-private').members.find(member => member.userId === user.id);
   expect(joinedMember.sharePKR).toBe(1100);
-  expect(joinedMember.paymentStatus).toBe('unpaid');
+  expect(joinedMember.paymentStatus).toBe('simulated-paid');
 });
 
 test('local chat messages update the inbox record and remain visible after reopening', async () => {
@@ -200,8 +215,7 @@ test('simulated game-room creation reserves the venue slot, caps badminton at fo
   const directVendorConversation = store.getState().community.conversations.find(item => item.kind === 'venue-vendor' && item.venueId === selectedVenue.id && item.playerUserId === playerUser.id);
   expect(directVendorConversation.participantIds).toEqual([playerUser.id, selectedVendor.ownerUserId]);
   expect(playerNavigation.navigate).toHaveBeenCalledWith('ChatConversation', { conversationId: directVendorConversation.id });
-  await fireEvent.press(screen.getByTestId('room-payment-simulated-online-payment'));
-  expect(screen.getByText('Pay your share · Rs. 550 · create room')).toBeTruthy();
+  expect(screen.getByText('Pay Rs. 550 & create room')).toBeTruthy();
   await fireEvent.press(screen.getByTestId('room-submit'));
 
   await waitFor(() => expect(playerNavigation.replace).toHaveBeenCalledWith('GameRoomDetails', expect.objectContaining({ roomId: expect.any(String) })));
@@ -212,8 +226,8 @@ test('simulated game-room creation reserves the venue slot, caps badminton at fo
   expect(createdRoom.totalCostPKR).toBe(2200);
   expect(createdRoom.paymentShares.map(item => item.amountPKR)).toEqual([550, 550, 550, 550]);
   expect(createdRoom.paymentShares[0].status).toBe('simulated-paid');
-  expect(reservation.paymentMode).toBe('pay-at-venue');
-  expect(reservation.paymentStatus).toBe('due-at-venue');
+  expect(reservation.paymentMode).toBe('group-split');
+  expect(reservation.paymentStatus).toBe('split-collecting');
   expect(getSlotAvailability({ ...state.venues, slotId: createdRoom.slotId }).available).toBe(false);
   const roomConversation = state.community.conversations.find(item => item.kind === 'game-room' && item.roomId === createdRoom.id);
   expect(roomConversation).toBeTruthy();
@@ -257,7 +271,7 @@ test('Bookings lists created or joined game rooms and the organizer can open roo
   expect(playerNavigation.navigate).toHaveBeenCalledWith('CreateGameRoom', { roomId: 'room-demo-gulberg-futsal' });
 });
 
-test('joined players can pay their own share but cannot edit amounts or open another room chat', async () => {
+test('players pay before joining and cannot edit amounts or open another room chat', async () => {
   const user = { id: 'new-room-player', name: 'Room Tester', role: 'player' };
   const store = makeStore(user);
   const roomId = 'room-demo-dha-padel-private';
@@ -270,9 +284,8 @@ test('joined players can pay their own share but cannot edit amounts or open ano
 
   const paymentScreen = await renderScreen(<SplitPaymentScreen navigation={navigation} route={{ params: { roomId } }} />, store);
   expect(paymentScreen.queryByTestId('split-share-seat-2')).toBeNull();
-  expect(paymentScreen.getByTestId('room-share-pay')).toBeTruthy();
-  await fireEvent.press(paymentScreen.getByTestId('room-share-pay'));
-  expect(store.getState().community.rooms.find(item => item.id === roomId).members.find(member => member.userId === user.id).paymentStatus).toBe('paid-at-venue');
+  expect(paymentScreen.queryByTestId('room-share-pay')).toBeNull();
+  expect(store.getState().community.rooms.find(item => item.id === roomId).members.find(member => member.userId === user.id).paymentStatus).toBe('simulated-paid');
 
   const outsiderStore = makeStore({ id: 'outsider', name: 'Outsider', role: 'player' });
   const outsider = await renderScreen(<ChatConversationScreen navigation={navigation} route={{ params: { conversationId: 'conversation-demo-room-padel' } }} />, outsiderStore);

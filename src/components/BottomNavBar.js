@@ -6,24 +6,24 @@ import { useTheme } from '../context/ThemeContext';
 const PLAYER_TABS = [
   { label: 'Home', icon: '⌂', route: 'PlayerHome', active: ['PlayerHome', 'Profile'] },
   { label: 'Search', icon: '⌕', route: 'VenueSearch', active: ['VenueSearch'] },
-  { label: 'Games', icon: '⚽', route: 'GameRooms', active: ['GameRooms', 'GameRoomDetails', 'CreateGameRoom', 'Tournaments', 'TournamentDetails', 'CreateTournament', 'Leaderboard'] },
+  { label: 'Games', icon: '⚽', route: 'GameRooms', active: ['GameRooms', 'GameRoomDetails', 'CreateGameRoom', 'Tournaments', 'TournamentDetails', 'CreateTournament', 'Leaderboard', 'TournamentLeaderboards'] },
   { label: 'Bookings', icon: '▣', route: 'MyBookings', active: ['MyBookings', 'BookingCheckout', 'BookingSuccess', 'BookingDetails'] },
   { label: 'Notifications', icon: 'bell', route: 'Notifications', active: ['Notifications'] },
 ];
 
 const VENDOR_TABS = [
   { label: 'Home', icon: '⌂', route: 'VendorDashboard', active: ['VendorDashboard'] },
-  { label: 'Venue', icon: '⌕', route: 'VendorVenue', active: ['VendorVenue', 'VendorInventory', 'VendorVenueManagement'] },
-  { label: 'Bookings', icon: '▣', route: 'VendorBookings', active: ['VendorBookings', 'ManualWalkInBooking', 'BookingDetails'] },
+  { label: 'Venue', icon: 'venue', route: 'VendorVenue', active: ['VendorVenue', 'VendorInventory', 'VendorVenueManagement'] },
+  { label: 'Bookings', icon: '▣', route: 'VendorBookings', active: ['VendorBookings', 'ManualWalkInBooking', 'BookingDetails', 'GameRoomDetails'] },
   { label: 'Availability', icon: '◷', route: 'VendorAvailability', active: ['VendorAvailability'] },
   { label: 'Analytics', icon: '▥', route: 'VendorAnalytics', active: ['VendorAnalytics'] },
   { label: 'Notifications', icon: 'bell', route: 'Notifications', active: ['Notifications'] },
 ];
 
 export const BOTTOM_NAV_ROUTES = new Set([
-  'PlayerHome', 'VenueSearch', 'GameRooms', 'MyBookings', 'Profile', 'BookingCheckout',
+  'PlayerHome', 'VenueSearch', 'GameRooms', 'TournamentLeaderboards', 'MyBookings', 'Profile', 'BookingCheckout',
   'VendorDashboard', 'VendorBookings', 'VendorAnalytics', 'VendorInventory', 'VendorVenueManagement', 'VendorAvailability',
-  'VendorVenue', 'Notifications',
+  'VendorVenue', 'GameRoomDetails', 'Notifications',
 ]);
 
 function BellIcon({ color, showDot }) {
@@ -32,6 +32,18 @@ function BellIcon({ color, showDot }) {
       <View style={[styles.bellBody, { borderColor: color }]} />
       <View style={[styles.bellClapper, { backgroundColor: color }]} />
       {showDot ? <View testID="notification-dot" accessibilityLabel="Unread notification" style={styles.notificationDot} /> : null}
+    </View>
+  );
+}
+
+function VenueIcon({ color }) {
+  return (
+    <View style={[styles.venueBuilding, { borderColor: color }]}>
+      <View style={styles.venueWindows}>
+        <View style={[styles.venueWindow, { backgroundColor: color }]} />
+        <View style={[styles.venueWindow, { backgroundColor: color }]} />
+      </View>
+      <View style={[styles.venueDoor, { backgroundColor: color }]} />
     </View>
   );
 }
@@ -58,7 +70,9 @@ export default function BottomNavBar({ role, routeName, onNavigate, hasNotificat
           >
             {tab.icon === 'bell'
               ? <BellIcon color={color} showDot={hasNotifications} />
-              : <Text style={[styles.icon, { color }]}>{tab.icon}</Text>}
+              : tab.icon === 'venue'
+                ? <VenueIcon color={color} />
+                : <Text style={[styles.icon, { color }]}>{tab.icon}</Text>}
             <Text style={[styles.label, { color, fontWeight: selected ? '800' : '500' }]}>{tab.label}</Text>
           </Pressable>
         );
@@ -76,4 +90,8 @@ const styles = StyleSheet.create({
   bellBody: { width: 13, height: 14, borderWidth: 1.7, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderBottomWidth: 2 },
   bellClapper: { width: 5, height: 2, borderRadius: 1, marginTop: 1 },
   notificationDot: { position: 'absolute', right: 0, top: 0, width: 7, height: 7, borderRadius: 4, backgroundColor: '#D43A3A', borderWidth: 1, borderColor: '#FFFFFF' },
+  venueBuilding: { width: 17, height: 17, borderWidth: 1.6, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderBottomLeftRadius: 1, borderBottomRightRadius: 1, alignItems: 'center', justifyContent: 'space-evenly', paddingTop: 2 },
+  venueWindows: { flexDirection: 'row', gap: 4 },
+  venueWindow: { width: 3, height: 3, borderRadius: 0.5 },
+  venueDoor: { width: 4, height: 6, borderTopLeftRadius: 2, borderTopRightRadius: 2 },
 });

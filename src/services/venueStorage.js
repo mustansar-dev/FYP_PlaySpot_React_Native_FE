@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createDemoCommunityState } from '../data/demoCommunityData';
 import { createDemoVenueState } from '../data/demoVenueData';
-import { createSlotsForGround, getNextBookableDates, parseLocalDateKey } from '../utils/booking';
+import { createSlotsForGround, getNextBookableDates, intervalsOverlap, isBookingActive, parseLocalDateKey } from '../utils/booking';
 import { createRoomPaymentShares, getGameRoomCapacityLimit, validateRoomPaymentShares } from '../utils/community';
 
 export const VENUE_STORAGE_KEY = 'playspot-pk.venue-data.v1';
@@ -67,7 +67,7 @@ function hasValidCommunityData(value) {
 
 function hasValidBookings(value) {
   return Array.isArray(value) && value.every(booking => Boolean(
-    booking && booking.id && ['player', 'walk-in'].includes(booking.source) &&
+    booking && booking.id && ['player', 'walk-in', 'tournament'].includes(booking.source) &&
     ['confirmed', 'cancelled', 'pending'].includes(booking.status) && booking.slotId &&
     booking.groundId && booking.venueId && booking.date && booking.startTime && booking.endTime &&
     Array.isArray(booking.addOns) && Number.isInteger(booking.totalPKR) && booking.totalPKR >= 0,
@@ -91,8 +91,11 @@ function normalizeCommunityData(value, venueData = {}) {
       ...member,
       seatIndex: Number.isInteger(member.seatIndex) ? member.seatIndex : index,
     }));
-    const paymentMode = room.paymentMode === 'simulated' ? 'simulated' : 'pay-at-venue';
-    const existingShares = Array.isArray(room.paymentShares) ? room.paymentShares : [];
+    const paymentMode = 'simulated';
+    const existingShares = Array.isArray(room.paymentShares) ? room.paymentShares.map(share => ({
+      ...share,
+      status: share.status === 'paid-at-venue' ? 'simulated-paid' : share.status === 'due-at-venue' ? 'unpaid' : share.status,
+    })) : [];
     const paymentShares = validateRoomPaymentShares(totalCostPKR, capacity, existingShares).valid
       ? existingShares.map(share => ({ ...share }))
       : createRoomPaymentShares(totalCostPKR, capacity, members, paymentMode, existingShares);
@@ -101,7 +104,7 @@ function normalizeCommunityData(value, venueData = {}) {
       return {
         ...member,
         sharePKR: Number(share?.amountPKR ?? member.sharePKR ?? 0),
-        paymentStatus: share?.status || member.paymentStatus || 'unpaid',
+        paymentStatus: share?.status || (member.paymentStatus === 'paid-at-venue' ? 'simulated-paid' : member.paymentStatus === 'due-at-venue' ? 'unpaid' : member.paymentStatus) || 'unpaid',
       };
     });
     return {
@@ -124,6 +127,11 @@ function normalizeCommunityData(value, venueData = {}) {
     unreadByUser: { ...(conversation.unreadByUser || {}) },
   }));
   const messages = source.messages.map(message => ({ ...message }));
+  const tournaments = source.tournaments.map(tournament => ({
+    ...tournament,
+    participants: (tournament.participants || []).map(participant => ({ ...participant })),
+    standings: (tournament.standings || []).map(row => ({ ...row })),
+  }));
   rooms.forEach(room => {
     const participantIds = [...new Set([
       ...room.members.map(member => member.userId),
@@ -170,6 +178,40 @@ function normalizeCommunityData(value, venueData = {}) {
     room.conversationId = conversation.id;
   });
 
+  tournaments.forEach(tournament => {
+    const participantIds = [...new Set([
+      tournament.organizerUserId || tournament.createdBy,
+      ...tournament.participants.map(participant => participant.userId),
+    ].filter(Boolean))];
+    let conversation = conversations.find(item => item.kind === 'tournament' && item.tournamentId === tournament.id);
+    if (!conversation) {
+      conversation = {
+        id: tournament.conversationId || `conversation-tournament-${tournament.id}`,
+        kind: 'tournament',
+        tournamentId: tournament.id,
+        organizerUserId: tournament.organizerUserId || tournament.createdBy,
+        title: `${tournament.title} chat`,
+        subtitle: 'Private tournament chat · organizer and team leaders',
+        participantIds,
+        unreadByUser: Object.fromEntries(participantIds.map(userId => [userId, 0])),
+        lastMessage: 'Private tournament chat is ready for the organizer and registered team leaders.',
+        lastAt: tournament.createdAt || new Date().toISOString(),
+        createdAt: tournament.createdAt || new Date().toISOString(),
+      };
+      conversations.push(conversation);
+    } else {
+      conversation.tournamentId = tournament.id;
+      conversation.organizerUserId = tournament.organizerUserId || tournament.createdBy;
+      conversation.title = `${tournament.title} chat`;
+      conversation.participantIds = participantIds;
+      conversation.unreadByUser = Object.fromEntries(participantIds.map(userId => [
+        userId,
+        Number(conversation.unreadByUser?.[userId] || 0),
+      ]));
+    }
+    tournament.conversationId = conversation.id;
+  });
+
   const notifications = Array.isArray(source.notifications) ? source.notifications.map(item => ({ ...item })) : [];
   rooms.forEach(room => {
     const conversation = conversations.find(item => item.kind === 'game-room' && item.roomId === room.id);
@@ -198,7 +240,7 @@ function normalizeCommunityData(value, venueData = {}) {
     rooms,
     conversations,
     messages,
-    tournaments: source.tournaments.map(item => ({ ...item })),
+    tournaments,
     leaderboard: source.leaderboard.map(item => ({ ...item })),
     splits: (source.splits || []).map(item => ({ ...item })),
     notifications,
@@ -213,7 +255,11 @@ function withUpcomingSlots(data) {
       const hasDay = slots.some(slot => slot.groundId === ground.id && slot.date === dateKey);
       if (!hasDay) {
         const date = parseLocalDateKey(dateKey);
-        slots.push(...createSlotsForGround(ground, 1, undefined, undefined, date));
+        const generated = createSlotsForGround(ground, 1, undefined, undefined, date).map(slot => {
+          const reservation = data.bookings.find(booking => booking.groundId === ground.id && booking.date === dateKey && isBookingActive(booking) && intervalsOverlap(slot.startTime, slot.endTime, booking.startTime, booking.endTime));
+          return reservation ? { ...slot, status: 'unavailable', reservedByBookingId: reservation.id } : slot;
+        });
+        slots.push(...generated);
       }
     });
   });
