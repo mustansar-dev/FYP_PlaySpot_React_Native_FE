@@ -21,8 +21,8 @@ export const selectGameRoomsForUser = createSelector(
 export const selectBookingsForVendor = createSelector(
   [selectBookings, selectVenuesByOwnerId],
   (bookings, venues) => {
-    const venueIds = new Set(venues.map(venue => venue.id));
-    return bookings.filter(booking => venueIds.has(booking.venueId));
+    const venueIds = venues.map(venue => venue.id);
+    return bookings.filter(booking => venueIds.includes(booking.venueId));
   },
 );
 

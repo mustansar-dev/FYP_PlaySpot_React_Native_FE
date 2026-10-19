@@ -112,13 +112,17 @@ test('game-room chat persistence restores the selected venue vendor as a partici
     vendorId: undefined,
     vendorUserId: undefined,
   };
+  const unreadByUser = {};
+  room.members.forEach(member => {
+    unreadByUser[member.userId] = 0;
+  });
   const conversation = {
     id: room.conversationId,
     kind: 'game-room',
     roomId: room.id,
     title: room.title,
     participantIds: room.members.map(member => member.userId),
-    unreadByUser: Object.fromEntries(room.members.map(member => [member.userId, 0])),
+    unreadByUser,
     lastMessage: 'Room chat is ready.',
     lastAt: room.createdAt,
     createdAt: room.createdAt,

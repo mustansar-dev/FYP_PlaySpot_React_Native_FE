@@ -41,6 +41,7 @@ import { bookingCancelled, bookingPaymentModeUpdated, reserveBooking, reserveTou
 import { calculateGroundFee, formatPKR, getNextBookableDates, getSlotAvailability, isBookingActive, timeToMinutes, toLocalDateKey } from '../utils/booking';
 import { createVenueVendorConversation, findVenueVendorConversation } from '../utils/venueConversations';
 import { selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
+import { createLookup, uniqueValues } from '../utils/collections';
 import {
   calculateEqualShares,
   createRoomPaymentShares,
@@ -165,14 +166,16 @@ export function CreateGameRoomScreen({ navigation, route }) {
         (!query || `${venue.name} ${venue.city} ${venue.locationNote || ''} ${venue.address || ''}`.toLowerCase().includes(query)))
       .map(venue => {
         const matchingGrounds = grounds.filter(ground => ground.venueId === venue.id && ground.sport === sport && ground.isActive !== false);
-        const availableSlots = slots.flatMap(slot => {
+        const availableSlots = [];
+        slots.forEach(slot => {
           const ground = matchingGrounds.find(item => item.id === slot.groundId);
-          if (!ground || new Date(`${slot.date}T${slot.startTime}:00`).getTime() <= now.getTime()) return [];
+          if (!ground || new Date(`${slot.date}T${slot.startTime}:00`).getTime() <= now.getTime()) return;
           const assignedRoom = rooms.find(candidate => candidate.id !== room?.id && candidate.status !== 'cancelled' && candidate.slotId === slot.id);
           const availability = getSlotAvailability({ slotId: slot.id, slots, bookings, now, ignoreBookingId: room?.bookingId });
-          if (!availability.available || assignedRoom) return [];
-          return [{ ...slot, ground, totalCostPKR: calculateGroundFee(ground, slot) }];
-        }).sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`));
+          if (!availability.available || assignedRoom) return;
+          availableSlots.push({ ...slot, ground, totalCostPKR: calculateGroundFee(ground, slot) });
+        });
+        availableSlots.sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`));
         return { venue, slots: availableSlots };
       })
       .filter(item => item.slots.length)
@@ -353,10 +356,10 @@ export function CreateGameRoomScreen({ navigation, route }) {
         navigation.goBack();
       } else {
         const conversationId = createCommunityId('conversation');
-        const roomParticipantIds = [...new Set([
+        const roomParticipantIds = uniqueValues([
           ...updatedMembers.map(member => member.userId),
           selectedVendorProfile?.ownerUserId,
-        ].filter(Boolean))];
+        ].filter(Boolean));
         const conversation = {
           id: conversationId,
           kind: 'game-room',
@@ -370,7 +373,7 @@ export function CreateGameRoomScreen({ navigation, route }) {
           title: roomRecord.title,
           subtitle: `${sport} · ${selectedVendorProfile?.ownerUserId ? 'joined players and venue vendor' : 'joined players only'}`,
           participantIds: roomParticipantIds,
-          unreadByUser: Object.fromEntries(roomParticipantIds.map(userId => [userId, 0])),
+          unreadByUser: createLookup(roomParticipantIds, userId => userId, () => 0),
           lastMessage: selectedVendorProfile?.ownerUserId
             ? 'Private room chat is ready for the joined players and venue vendor.'
             : 'Room chat is ready. Only joined players can open it.',
@@ -750,7 +753,11 @@ export function SplitPaymentScreen({ navigation, route }) {
   const shares = draftShares.length === roomShares.length ? draftShares : roomShares.map(share => ({ ...share, amountPKR: String(share.amountPKR) }));
   const normalizedShares = shares.map(share => ({ ...share, amountPKR: Number(share.amountPKR) }));
   const validation = useMemo(() => validateRoomPaymentShares(totalPKR, room?.capacity || 0, normalizedShares), [totalPKR, room?.capacity, normalizedShares]);
-  const shareSum = useMemo(() => normalizedShares.reduce((sum, share) => sum + (Number(share.amountPKR) || 0), 0), [normalizedShares]);
+  const shareSum = useMemo(() => {
+    let total = 0;
+    normalizedShares.forEach(share => { total += Number(share.amountPKR) || 0; });
+    return total;
+  }, [normalizedShares]);
   const myShare = roomShares.find(share => share.userId === currentUser?.id);
 
   useEffect(() => {
@@ -797,7 +804,11 @@ export function SplitPaymentScreen({ navigation, route }) {
         : share.status === 'simulated-settled' ? 'Settled'
         : 'Unpaid';
   const equalShares = () => {
-    const baseShares = calculateEqualShares(totalPKR, Array.from({ length: room.capacity }, (_, index) => ({ userId: String(index), name: `Seat ${index + 1}` })));
+    const seats = [];
+    for (let index = 0; index < room.capacity; index += 1) {
+      seats.push({ userId: String(index), name: `Seat ${index + 1}` });
+    }
+    const baseShares = calculateEqualShares(totalPKR, seats);
     setDraftShares(baseShares.map((share, index) => ({
       ...(shares.find(item => item.seatIndex === index) || {}),
       seatIndex: index,
@@ -881,9 +892,9 @@ function TournamentCard({ tournament, onPress, testID }) {
 
 function getTournamentLeaderboardRows(tournament) {
   if (!tournament) return [];
-  const scoreByLeader = new Map((tournament.standings || []).map(row => [row.userId, row]));
+  const scoreByLeader = createLookup(tournament.standings || [], row => row.userId);
   return (tournament.participants || []).map(participant => {
-    const score = scoreByLeader.get(participant.userId) || {};
+    const score = scoreByLeader[participant.userId] || {};
     return {
       ...score,
       userId: participant.userId,
@@ -957,8 +968,8 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const tournamentLeaderboard = useMemo(() => getTournamentLeaderboardRows(tournament), [tournament]);
   useEffect(() => {
     if (!tournament) return;
-    const currentScores = Object.fromEntries((tournament.standings || []).map(row => [row.userId, row]));
-    setScoreDraft(Object.fromEntries(tournament.participants.map(participant => [participant.userId, {
+    const currentScores = createLookup(tournament.standings || [], row => row.userId);
+    setScoreDraft(createLookup(tournament.participants, participant => participant.userId, participant => ({
       userId: participant.userId,
       name: participant.name,
       teamName: participant.teamName || participant.name,
@@ -966,7 +977,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
       wins: String(currentScores[participant.userId]?.wins ?? 0),
       points: String(currentScores[participant.userId]?.points ?? 0),
       joinedAt: participant.joinedAt,
-    }])));
+    })));
   }, [tournament?.id, tournament?.participants, tournament?.standings]);
   const join = () => {
     setError('');
@@ -1214,34 +1225,38 @@ export function LeaderboardScreen({ navigation, route }) {
   const tournaments = useSelector(state => state.community.tournaments);
   const rows = useMemo(() => {
     const playerAccounts = accounts.filter(account => account.role === 'player');
-    const sportScores = new Map();
+    const sportScores = {};
     tournaments.forEach(tournament => {
       (tournament.standings || []).forEach(standing => {
         const key = `${standing.userId}:${tournament.sport}`;
-        const score = sportScores.get(key) || { points: 0, wins: 0 };
+        const score = sportScores[key] || { points: 0, wins: 0 };
         score.points += Number(standing.points) || 0;
         score.wins += Number(standing.wins) || 0;
-        sportScores.set(key, score);
+        sportScores[key] = score;
       });
     });
-    return playerAccounts.flatMap(account => {
+    const playerRows = [];
+    playerAccounts.forEach(account => {
       const tournamentSports = tournaments.filter(tournament => tournament.participants?.some(participant => participant.userId === account.id)).map(tournament => tournament.sport);
-      const playerSports = [...new Set([...(account.preferredSports || []), ...tournamentSports])];
-      return (playerSports.length ? playerSports : ['Other']).map(playerSport => {
-        const score = sportScores.get(`${account.id}:${playerSport}`) || { points: 0, wins: 0 };
-        return { id: `${account.id}-${playerSport}`, userId: account.id, name: account.name, sport: playerSport, points: score.points, wins: score.wins };
+      const playerSports = uniqueValues([...(account.preferredSports || []), ...tournamentSports]);
+      (playerSports.length ? playerSports : ['Other']).forEach(playerSport => {
+        const score = sportScores[`${account.id}:${playerSport}`] || { points: 0, wins: 0 };
+        playerRows.push({ id: `${account.id}-${playerSport}`, userId: account.id, name: account.name, sport: playerSport, points: score.points, wins: score.wins });
       });
-    }).sort((first, second) => first.sport.localeCompare(second.sport) || second.points - first.points || second.wins - first.wins || first.name.localeCompare(second.name));
+    });
+    return playerRows.sort((first, second) => first.sport.localeCompare(second.sport) || second.points - first.points || second.wins - first.wins || first.name.localeCompare(second.name));
   }, [accounts, tournaments]);
   const [sport, setSport] = useState(route.params?.sport || 'All');
-  const sports = useMemo(() => ['All', ...new Set(rows.map(row => row.sport))], [rows]);
+  const sports = useMemo(() => ['All', ...uniqueValues(rows.map(row => row.sport))], [rows]);
   const filtered = useMemo(() => rows.filter(row => sport === 'All' || row.sport === sport), [rows, sport]);
   const rankByRowId = useMemo(() => {
     const seen = {};
-    return Object.fromEntries(filtered.map(row => {
+    const ranks = {};
+    filtered.forEach(row => {
       seen[row.sport] = (seen[row.sport] || 0) + 1;
-      return [row.id, seen[row.sport]];
-    }));
+      ranks[row.id] = seen[row.sport];
+    });
+    return ranks;
   }, [filtered]);
 
   return (

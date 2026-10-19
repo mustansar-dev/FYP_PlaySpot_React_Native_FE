@@ -19,10 +19,10 @@ export default function VendorDashboardScreen({ navigation }) {
   const venues = useSelector(state => selectVenuesByOwnerId(state, currentUser?.id || ''));
   const allGrounds = useSelector(state => state.venues.grounds);
   const allSlots = useSelector(state => state.venues.slots);
-  const venueIds = useMemo(() => new Set(venues.map(venue => venue.id)), [venues]);
-  const grounds = useMemo(() => allGrounds.filter(ground => venueIds.has(ground.venueId)), [allGrounds, venueIds]);
-  const groundIds = useMemo(() => new Set(grounds.map(ground => ground.id)), [grounds]);
-  const slots = useMemo(() => allSlots.filter(slot => groundIds.has(slot.groundId)), [allSlots, groundIds]);
+  const venueIds = useMemo(() => venues.map(venue => venue.id), [venues]);
+  const grounds = useMemo(() => allGrounds.filter(ground => venueIds.includes(ground.venueId)), [allGrounds, venueIds]);
+  const groundIds = useMemo(() => grounds.map(ground => ground.id), [grounds]);
+  const slots = useMemo(() => allSlots.filter(slot => groundIds.includes(slot.groundId)), [allSlots, groundIds]);
   const bookings = useSelector(state => selectBookingsForVendor(state, currentUser?.id || ''));
   const analytics = useMemo(() => buildVendorAnalytics({ bookings, grounds, slots }), [bookings, grounds, slots]);
   const currentMonth = analytics[analytics.length - 1];

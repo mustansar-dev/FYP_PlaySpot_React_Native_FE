@@ -7,6 +7,7 @@ import ChoiceChips from '../components/ChoiceChips';
 import { DesignCard, EmptyState, InlineNotice } from '../components/DesignPrimitives';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { uniqueValues } from '../utils/collections';
 import { endSession, updateAccountProfile } from '../services/authRepository';
 import { profileUpdated, sessionEnded } from '../store/authSlice';
 import { notificationMarkedRead, notificationsMarkedRead } from '../store/communitySlice';
@@ -102,7 +103,7 @@ export function EditProfileScreen({ navigation }) {
       setError('Enter your name, a valid contact number, and your business name if you are a venue provider.');
       return;
     }
-    const cleanPreferredSports = [...new Set(preferredSports.filter(sport => PLAYER_SPORTS.includes(sport)))];
+    const cleanPreferredSports = uniqueValues(preferredSports.filter(sport => PLAYER_SPORTS.includes(sport)));
     if (user?.role === 'player' && cleanPreferredSports.length === 0) {
       setSportsError('Choose at least one sport you enjoy.');
       return;
@@ -155,10 +156,10 @@ export function NotificationsScreen({ navigation }) {
   const { colors } = useTheme();
   const user = useSelector(state => state.auth.currentUser);
   const venues = useSelector(state => selectVenuesByOwnerId(state, user?.id || ''));
-  const venueIds = new Set(venues.map(venue => venue.id));
+  const venueIds = venues.map(venue => venue.id);
   const bookings = useSelector(state => user?.role === 'vendor' ? selectBookingsForVendor(state, user?.id || '') : selectBookingsForUser(state, user?.id));
   const allReviews = useSelector(state => state.venues.reviews);
-  const reviews = useMemo(() => allReviews.filter(review => venueIds.has(review.venueId)), [allReviews, venues]);
+  const reviews = useMemo(() => allReviews.filter(review => venueIds.includes(review.venueId)), [allReviews, venues]);
   const conversations = useSelector(state => state.community.conversations);
   const roomNotifications = useSelector(state => state.community.notifications || []);
   const rooms = useSelector(state => state.community.rooms);
@@ -209,13 +210,13 @@ export function VendorReviewsScreen({ navigation }) {
   const { colors } = useTheme();
   const user = useSelector(state => state.auth.currentUser);
   const venues = useSelector(state => selectVenuesByOwnerId(state, user?.id || ''));
-  const ids = new Set(venues.map(venue => venue.id));
-  const reviews = useSelector(state => state.venues.reviews.filter(review => ids.has(review.venueId)));
+  const ids = venues.map(venue => venue.id);
+  const reviews = useSelector(state => state.venues.reviews.filter(review => ids.includes(review.venueId)));
   const summary = getVenueRating(reviews);
-  const venueById = new Map(venues.map(venue => [venue.id, venue]));
+  const findVenueName = venueId => venues.find(venue => venue.id === venueId)?.name || 'Your venue';
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content}>
     <ScreenHeader title="Venue reviews" subtitle="Feedback attached to your local venues" onBack={() => navigation.goBack()} />
     <DesignCard><Text style={[styles.name, { color: colors.ink }]}>{summary.count ? `${summary.average.toFixed(1)} / 5` : 'No rating yet'}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{summary.count} local demo reviews · averages update from saved reviews</Text></DesignCard>
-    {reviews.length ? reviews.map(review => <DesignCard key={review.id}><View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><Text style={[styles.reviewTitle, { color: colors.ink }]}>{review.playerName}</Text><Text style={styles.star}>{'★'.repeat(review.stars)}{'☆'.repeat(5 - review.stars)}</Text></View><Text style={[styles.copy, { color: colors.primary, marginTop: 4 }]}>{venueById.get(review.venueId)?.name || 'Your venue'}</Text><Text style={[styles.copy, { color: colors.ink, marginTop: 7 }]}>{review.comment}</Text></DesignCard>) : <DesignCard><EmptyState title="No reviews yet" description="Player feedback for your published venues will show here." /></DesignCard>}
+    {reviews.length ? reviews.map(review => <DesignCard key={review.id}><View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><Text style={[styles.reviewTitle, { color: colors.ink }]}>{review.playerName}</Text><Text style={styles.star}>{'★'.repeat(review.stars)}{'☆'.repeat(5 - review.stars)}</Text></View><Text style={[styles.copy, { color: colors.primary, marginTop: 4 }]}>{findVenueName(review.venueId)}</Text><Text style={[styles.copy, { color: colors.ink, marginTop: 7 }]}>{review.comment}</Text></DesignCard>) : <DesignCard><EmptyState title="No reviews yet" description="Player feedback for your published venues will show here." /></DesignCard>}
   </ScrollView></SafeAreaView>;
 }

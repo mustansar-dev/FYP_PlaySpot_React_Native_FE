@@ -24,6 +24,7 @@ import { accountRegistered } from '../store/authSlice';
 import { venueCreated } from '../store/venueSlice';
 import { createVendorVenueRecords } from '../services/vendorVenueFactory';
 import { validateVendorStep } from '../utils/validation';
+import { uniqueValues } from '../utils/collections';
 
 const STEPS = [
   'Account & business',
@@ -220,7 +221,7 @@ export default function VendorRegistrationScreen({ navigation }) {
       const uris = (result.assets || []).map(asset => asset.uri).filter(Boolean);
       setDraft(previous => ({
         ...previous,
-        photoUris: [...new Set([...previous.photoUris, ...uris])].slice(0, 5),
+        photoUris: uniqueValues([...previous.photoUris, ...uris]).slice(0, 5),
       }));
     } catch (error) {
       setMediaError('Photos could not be opened. You can skip this step.');

@@ -18,15 +18,17 @@ export function parseLocalDateKey(dateKey) {
 }
 
 export function getNextBookableDates(now = new Date(), daysAfterToday = 7) {
-  return Array.from({ length: daysAfterToday + 1 }, (_, offset) => {
+  const dates = [];
+  for (let offset = 0; offset <= daysAfterToday; offset += 1) {
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 12, 0, 0, 0);
-    return {
+    dates.push({
       dateKey: toLocalDateKey(date),
       date,
       dayLabel: offset === 0 ? 'Today' : date.toLocaleDateString(undefined, { weekday: 'short' }),
       detailLabel: date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
-    };
-  });
+    });
+  }
+  return dates;
 }
 
 export function timeToMinutes(time) {
@@ -62,13 +64,13 @@ export function createSlotsForGround(
   const closesAt = Number.isInteger(closingMinute) ? closingMinute : Number.isInteger(customClosing) ? customClosing : 17 * 60;
   if (closesAt <= opensAt) return [];
   const allowedDays = Array.isArray(ground.availableDays) && ground.availableDays.length
-    ? new Set(ground.availableDays)
+    ? ground.availableDays
     : null;
   const slots = [];
   const today = startDate;
   for (let dayOffset = 0; dayOffset < dayCount; dayOffset += 1) {
     const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, 12, 0, 0, 0);
-    if (allowedDays && !allowedDays.has(DAY_BY_INDEX[date.getDay()])) continue;
+    if (allowedDays && !allowedDays.includes(DAY_BY_INDEX[date.getDay()])) continue;
     const dateKey = toLocalDateKey(date);
     for (let minute = opensAt; minute + duration <= closesAt; minute += duration) {
       const toTime = value => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
@@ -144,12 +146,15 @@ export function calculateGroundFee(ground, slot) {
 }
 
 export function calculateEquipmentSubtotal(equipment = [], selections = []) {
-  const selectionById = new Map(selections.map(item => [item.equipmentId, Number(item.quantity)]));
-  return equipment.reduce((total, item) => {
-    const quantity = selectionById.get(item.id) || 0;
-    if (!Number.isInteger(quantity) || quantity <= 0) return total;
-    return total + Math.round(Number(item.unitPricePKR) || 0) * quantity;
-  }, 0);
+  let total = 0;
+  equipment.forEach(item => {
+    const selection = selections.find(selectionItem => selectionItem.equipmentId === item.id);
+    const quantity = Number(selection?.quantity) || 0;
+    if (Number.isInteger(quantity) && quantity > 0) {
+      total += Math.round(Number(item.unitPricePKR) || 0) * quantity;
+    }
+  });
+  return total;
 }
 
 export function prepareBooking(venueState, request, now = new Date()) {
@@ -202,7 +207,8 @@ export function prepareBooking(venueState, request, now = new Date()) {
   }
 
   const groundFeePKR = calculateGroundFee(ground, slot);
-  const addOnsTotalPKR = addOns.reduce((total, item) => total + item.lineTotalPKR, 0);
+  let addOnsTotalPKR = 0;
+  addOns.forEach(item => { addOnsTotalPKR += item.lineTotalPKR; });
   const paymentMode = request.paymentMode || 'simulated';
   const paymentStatus = request.paymentStatus || (request.source === 'walk-in'
     ? (request.paymentStatus === 'paid' ? 'paid' : 'unpaid')

@@ -20,11 +20,11 @@ const VENDOR_TABS = [
   { label: 'Notifications', icon: 'bell', route: 'Notifications', active: ['Notifications'] },
 ];
 
-export const BOTTOM_NAV_ROUTES = new Set([
+export const BOTTOM_NAV_ROUTES = [
   'PlayerHome', 'VenueSearch', 'GameRooms', 'TournamentLeaderboards', 'MyBookings', 'Profile', 'BookingCheckout',
   'VendorDashboard', 'VendorBookings', 'VendorAnalytics', 'VendorInventory', 'VendorVenueManagement', 'VendorAvailability',
   'VendorVenue', 'GameRoomDetails', 'Notifications',
-]);
+];
 
 function BellIcon({ color, showDot }) {
   return (

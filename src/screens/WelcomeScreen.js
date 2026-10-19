@@ -5,12 +5,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppButton from '../components/AppButton';
 import { useTheme } from '../context/ThemeContext';
+import useWindowWidth from '../hooks/useWindowWidth';
 
 const SPORTS = [
   { name: 'Futsal', note: 'Fast five-a-side', icon: '⚽', color: '#D8F783' },
@@ -36,7 +36,7 @@ function SportTile({ sport, width }) {
 
 export default function WelcomeScreen({ navigation }) {
   const { colors, radius, spacing } = useTheme();
-  const { width } = useWindowDimensions();
+  const width = useWindowWidth();
   const tileWidth = Math.min(158, Math.max(132, width * 0.4));
   const tileGap = 11;
   const rowDistance = useMemo(

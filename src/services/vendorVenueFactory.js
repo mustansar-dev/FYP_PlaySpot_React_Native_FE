@@ -66,7 +66,8 @@ export function createVendorVenueRecords(profile, ownerUserId) {
     quantityAvailable: Number(item.quantityAvailable),
     active: true,
   }));
-  const slots = grounds.flatMap(ground => createSlotsForGround(ground));
+  const slots = [];
+  grounds.forEach(ground => slots.push(...createSlotsForGround(ground)));
 
   return { vendorProfile, venue, grounds, equipment, slots };
 }

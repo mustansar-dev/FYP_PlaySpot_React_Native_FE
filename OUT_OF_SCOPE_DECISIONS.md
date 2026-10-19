@@ -251,6 +251,8 @@ The earlier baseline entry above described the repository before the user pointe
 
 ### 24. Right-side player profile drawer and swipe gesture
 
+**Status:** This earlier PanResponder implementation is superseded by the course-scope translation update below. The current drawer uses Gesture Handler 3.4.0 and the course-listed `Gesture.Pan` API.
+
 - **Feature/concept:** Open Profile, Edit Profile and Settings from an animated drawer triggered by the player home avatar, with edge-swipe open and swipe-right close gestures.
 - **Why needed:** The player UX request removes the Profile tab and requires a drawer entry point while keeping destination screens on stack navigation.
 - **What it does:** [PlayerProfileDrawer.js](./src/components/PlayerProfileDrawer.js) renders the existing Profile screen inside a right-side modal panel, animates it with React Native's built-in `Animated` API, closes from the profile header, backdrop or Android back action, and uses `PanResponder` for edge-swipe open and panel swipe close. Edit Profile and Settings are available once in the embedded profile; its My Bookings and Game Rooms rows are omitted because those destinations have bottom tabs.
@@ -296,3 +298,37 @@ The earlier baseline entry above described the repository before the user pointe
 - **Vendor walk-ins:** Vendors may record whether cash was received. Cancelling a walk-in marked as cash paid creates a cash-refund-due state; only the venue owner can mark that cash return as recorded. This is bookkeeping only and cannot verify cash exchanged in person.
 - **Migration:** Existing room records that used the old pay-at-venue labels are normalized to the current simulated payment vocabulary when loaded. Existing paid-at-venue demo shares migrate to simulated-paid; due-at-venue shares migrate to unpaid.
 - **Production work still required:** Real payments need a backend-authoritative payment/booking ledger, a marketplace-capable payment service, signed provider callbacks/webhooks, refund handling, vendor onboarding and payout account verification, and policy decisions for chargebacks, disputes, service fees, taxes, and cancellation deadlines. Do not describe local state as escrow or as real payout. A marketplace PSP's split and capture process must be implemented server-side; the mobile client alone cannot guarantee or reconcile fund movement.
+
+## Course-scope translation update — 19 October 2026
+
+The user asked for the existing codebase to be understandable using the React Native and JavaScript topics in their course prompt. This update records the first translation pass and the remaining platform-specific exceptions. It does not replace the app's existing screen flows or role-gated stack.
+
+### Translations made
+
+- Replaced both `PanResponder` gestures with the course-listed `Gesture.Pan`, `GestureDetector`, and `GestureHandlerRootView` APIs. The player drawer still opens from the screen edge and closes by dragging the panel. The drag uses the existing React Native `Animated` values.
+- Added `react-native-gesture-handler` `3.4.0` after the user chose to keep swipe gestures. The official compatibility table lists Gesture Handler 3.4.x for React Native 0.85–0.88, including this app's 0.86.2. Gesture callbacks use the JavaScript thread; Reanimated is not installed.
+- Wrapped the app entry hierarchy and the profile modal in `GestureHandlerRootView`, as required for native gesture recognition. Added the package's Jest setup and allowed its JavaScript module to be transformed by the existing React Native preset.
+- Replaced `useWindowDimensions` with a small `useWindowWidth` hook built from the course-listed `useState`, `useEffect`, and `Dimensions` API. It listens for size changes so layouts continue to fit when the window changes.
+- Replaced production `Map` and `Set` collections, `flatMap`, `Object.fromEntries`, and `reduce` calculations with plain arrays, objects, array searches, and explicit loops. Small shared helpers for unique values and object lookups live in `src/utils/collections.js`.
+- Kept the existing function-component, props, local-state, Context, Redux Toolkit, stack-navigation, list, form-validation, and core `Animated` patterns. No broad state or navigation rewrite was needed.
+
+### Remaining APIs beyond the listed course topics
+
+- **Gesture Handler:** The user explicitly approved this dependency to retain the swipe interaction. It provides a native gesture recognizer; the course's approved `Gesture.Pan` APIs are used. Android autolinking requires rebuilding the native app before device testing.
+- **Async storage and Promises:** `@react-native-async-storage/async-storage` persists accounts, bookings, venues, and messages across app restarts. Native storage is asynchronous, so Promise-based `async`/`await` and `.then()` handling are required. Replacing these with synchronous in-memory state would lose the requested persistence.
+- **Image picker:** The existing `react-native-image-picker` opens Android's media library and returns device URIs. A native picker is needed for actual photo/video selection; it remains optional and no upload server or video player is added.
+- **Local password hashing:** The existing pure-JavaScript `crypto-js` SHA-256 verifier avoids saving demo passwords in plaintext. The course list has no hashing or secure-credential API that can replace it while preserving local login. This remains a classroom-only demo, not production authentication.
+- **React Native platform APIs:** `Modal`/`onRequestClose` presents the profile drawer and routes Android back to close it; `AccessibilityInfo` honors the device's reduce-motion setting; `Linking` opens optional selected videos in another installed app; `KeyboardAvoidingView`, `Platform`, and `Alert` support native form, permission, and confirmation behavior. These are small built-in platform integrations and have no equivalent in the listed component set that preserves the same behavior.
+- **Safe-area and native navigation packages:** Existing `react-native-safe-area-context` and `react-native-screens` integrate screen layout and the React Navigation stack with Android system insets/native screens. Replacing them with fixed padding or custom navigation would make the app less reliable and would duplicate the course-listed navigation concepts.
+- **Time and lifecycle APIs:** JavaScript `Date` and interval timers support dates, future-slot validation, the five-second venue slider, and room lifecycle reconciliation. There is no simpler way to model actual calendar/time behavior with only static state.
+- **Native video playback, GPS/maps, backend services, real authentication and payments:** These are not included. Venue video opens externally through `Linking`; the map stays a manually selectable offline illustration; saved chats, approval and payments remain local demo data.
+
+### Verification for this migration pass
+
+- `npm.cmd test -- --runInBand` passed 10 suites / 60 tests after the gesture package Jest setup was added.
+- The Android JavaScript bundle passed and copied 24 assets. No emulator interaction is claimed.
+- The package install added Gesture Handler 3.4.0. npm reported peer-dependency warnings and 54 audit findings (8 moderate, 46 high); no audit fix or unrelated dependency upgrade was applied.
+
+### Remaining manual check
+
+Install/rebuild the Android app with the project's Android SDK configured, then verify edge-swipe open, drag-to-close, reduce-motion behavior, device rotation, and the picker on an emulator or device. `npm.cmd run android -- --no-packager` reached Gradle but failed while configuring `:app`: there is no SDK location (`ANDROID_HOME` or `android/local.properties` `sdk.dir`). The CLI also found no `adb` or emulator, and this workspace has Java 23 rather than the project's documented JDK 17. The JS bundle and Jest suite do not replace native gesture and picker testing.

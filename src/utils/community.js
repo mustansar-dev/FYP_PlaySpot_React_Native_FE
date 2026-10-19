@@ -36,10 +36,10 @@ export function getGameRoomCapacityLimit(sport) {
 export function createRoomPaymentShares(totalPKR, capacity, members = [], paymentMode = 'simulated', previousShares = []) {
   const seatCount = Number(capacity);
   if (!Number.isInteger(seatCount) || seatCount < 1) return [];
-  const seats = Array.from({ length: seatCount }, (_, seatIndex) => ({
-    userId: `room-seat-${seatIndex}`,
-    name: `Open player ${seatIndex + 1}`,
-  }));
+  const seats = [];
+  for (let seatIndex = 0; seatIndex < seatCount; seatIndex += 1) {
+    seats.push({ userId: `room-seat-${seatIndex}`, name: `Open player ${seatIndex + 1}` });
+  }
   const equalShares = calculateEqualShares(Number(totalPKR), seats);
   if (equalShares.length !== seatCount) return [];
 
@@ -69,7 +69,9 @@ export function validateRoomPaymentShares(totalPKR, capacity, shares = []) {
   if (!Number.isInteger(count) || count < 1 || shares.length !== count) return { valid: false, message: 'Payment shares must match the room capacity.' };
   const amounts = shares.map(share => Number(share.amountPKR));
   if (amounts.some(amount => !Number.isInteger(amount) || amount < 0)) return { valid: false, message: 'Each share must be a whole number of zero or more.' };
-  if (amounts.reduce((sum, amount) => sum + amount, 0) !== total) return { valid: false, message: 'Room shares must add up to the venue total.' };
+  let amountTotal = 0;
+  amounts.forEach(amount => { amountTotal += amount; });
+  if (amountTotal !== total) return { valid: false, message: 'Room shares must add up to the venue total.' };
   return { valid: true, message: '' };
 }
 
@@ -180,10 +182,13 @@ export function validateSplitShares(totalPKR, shares = []) {
   if (!Number.isInteger(total) || total < 0) return { valid: false, sum: 0, message: 'Enter a whole-number total of zero or more.' };
   if (!shares.length) return { valid: false, sum: 0, message: 'Add at least one participant.' };
   const amounts = shares.map(share => Number(share.amountPKR));
+  let sum = 0;
+  amounts.forEach(amount => {
+    if (Number.isFinite(amount)) sum += amount;
+  });
   if (amounts.some(amount => !Number.isInteger(amount) || amount < 0)) {
-    return { valid: false, sum: amounts.reduce((sum, amount) => sum + (Number.isFinite(amount) ? amount : 0), 0), message: 'Each share must be a whole number of zero or more.' };
+    return { valid: false, sum, message: 'Each share must be a whole number of zero or more.' };
   }
-  const sum = amounts.reduce((value, amount) => value + amount, 0);
   if (sum !== total) return { valid: false, sum, message: `Shares must add up to Rs. ${total.toLocaleString('en-PK')}.` };
   return { valid: true, sum, message: '' };
 }

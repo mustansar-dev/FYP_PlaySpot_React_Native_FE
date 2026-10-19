@@ -3,6 +3,7 @@ import { createDemoCommunityState } from '../data/demoCommunityData';
 import { createDemoVenueState } from '../data/demoVenueData';
 import { createSlotsForGround, getNextBookableDates, intervalsOverlap, isBookingActive, parseLocalDateKey } from '../utils/booking';
 import { createRoomPaymentShares, getGameRoomCapacityLimit, validateRoomPaymentShares } from '../utils/community';
+import { createLookup, uniqueValues } from '../utils/collections';
 
 export const VENUE_STORAGE_KEY = 'playspot-pk.venue-data.v1';
 
@@ -20,36 +21,36 @@ function hasValidVenueCollections(value) {
   if (!hasCollections) {
     return false;
   }
-  const profileIds = new Set(value.vendorProfiles.map(profile => profile?.id));
-  const venueIds = new Set(value.venues.map(venue => venue?.id));
-  const groundIds = new Set(value.grounds.map(ground => ground?.id));
+  const profileIds = value.vendorProfiles.map(profile => profile?.id);
+  const venueIds = value.venues.map(venue => venue?.id);
+  const groundIds = value.grounds.map(ground => ground?.id);
   return (
     value.vendorProfiles.every(profile => Boolean(profile?.id && profile.ownerUserId && profile.businessName)) &&
     value.venues.every(venue => Boolean(
-      venue?.id && profileIds.has(venue.vendorId) && venue.name && venue.city &&
+      venue?.id && profileIds.includes(venue.vendorId) && venue.name && venue.city &&
       typeof venue.published === 'boolean' && Array.isArray(venue.sports) && Array.isArray(venue.facilities) &&
       (venue.latitude === null || Number.isFinite(venue.latitude)) &&
       (venue.longitude === null || Number.isFinite(venue.longitude)),
     )) &&
     value.grounds.every(ground => Boolean(
-      ground?.id && venueIds.has(ground.venueId) && ground.name && ground.sport &&
+      ground?.id && venueIds.includes(ground.venueId) && ground.name && ground.sport &&
       Number.isFinite(ground.widthMeters) && ground.widthMeters > 0 &&
       Number.isFinite(ground.lengthMeters) && ground.lengthMeters > 0 &&
       Number.isFinite(ground.hourlyPricePKR) && ground.hourlyPricePKR > 0 &&
       Number.isInteger(ground.slotDurationMinutes) && ground.slotDurationMinutes > 0,
     )) &&
     value.equipment.every(item => Boolean(
-      item?.id && venueIds.has(item.venueId) && item.name &&
+      item?.id && venueIds.includes(item.venueId) && item.name &&
       ['rental', 'sale'].includes(item.priceMode) &&
       Number.isFinite(item.unitPricePKR) && item.unitPricePKR > 0 &&
       Number.isInteger(item.quantityAvailable) && item.quantityAvailable >= 0,
     )) &&
     value.slots.every(slot => Boolean(
-      slot?.id && groundIds.has(slot.groundId) && slot.date && slot.startTime && slot.endTime &&
+      slot?.id && groundIds.includes(slot.groundId) && slot.date && slot.startTime && slot.endTime &&
       ['available', 'unavailable'].includes(slot.status),
     )) &&
     value.reviews.every(review => Boolean(
-      review?.id && venueIds.has(review.venueId) && review.playerName &&
+      review?.id && venueIds.includes(review.venueId) && review.playerName &&
       Number.isInteger(review.stars) && review.stars >= 1 && review.stars <= 5 && review.comment,
     ))
   );
@@ -133,10 +134,10 @@ function normalizeCommunityData(value, venueData = {}) {
     standings: (tournament.standings || []).map(row => ({ ...row })),
   }));
   rooms.forEach(room => {
-    const participantIds = [...new Set([
+    const participantIds = uniqueValues([
       ...room.members.map(member => member.userId),
       room.vendorUserId,
-    ].filter(Boolean))];
+    ].filter(Boolean));
     let conversation = conversations.find(item => item.kind === 'game-room' && item.roomId === room.id);
     if (!conversation) {
       conversation = {
@@ -152,7 +153,7 @@ function normalizeCommunityData(value, venueData = {}) {
         title: room.title,
         subtitle: `${room.sport} · ${room.vendorUserId ? 'joined players and venue vendor' : 'joined players only'}`,
         participantIds,
-        unreadByUser: Object.fromEntries(participantIds.map(userId => [userId, 0])),
+        unreadByUser: createLookup(participantIds, userId => userId, () => 0),
         lastMessage: room.vendorUserId
           ? 'Private room chat is ready for the joined players and venue vendor.'
           : 'Room chat is ready. Only joined players can open it.',
@@ -170,19 +171,17 @@ function normalizeCommunityData(value, venueData = {}) {
       conversation.playerName = room.createdByName;
       conversation.subtitle = `${room.sport} · ${room.vendorUserId ? 'joined players and venue vendor' : 'joined players only'}`;
       conversation.participantIds = participantIds;
-      conversation.unreadByUser = Object.fromEntries(participantIds.map(userId => [
-        userId,
-        Number(conversation.unreadByUser?.[userId] || 0),
-      ]));
+      conversation.unreadByUser = createLookup(participantIds, userId => userId, userId =>
+        Number(conversation.unreadByUser?.[userId] || 0));
     }
     room.conversationId = conversation.id;
   });
 
   tournaments.forEach(tournament => {
-    const participantIds = [...new Set([
+    const participantIds = uniqueValues([
       tournament.organizerUserId || tournament.createdBy,
       ...tournament.participants.map(participant => participant.userId),
-    ].filter(Boolean))];
+    ].filter(Boolean));
     let conversation = conversations.find(item => item.kind === 'tournament' && item.tournamentId === tournament.id);
     if (!conversation) {
       conversation = {
@@ -193,7 +192,7 @@ function normalizeCommunityData(value, venueData = {}) {
         title: `${tournament.title} chat`,
         subtitle: 'Private tournament chat · organizer and team leaders',
         participantIds,
-        unreadByUser: Object.fromEntries(participantIds.map(userId => [userId, 0])),
+        unreadByUser: createLookup(participantIds, userId => userId, () => 0),
         lastMessage: 'Private tournament chat is ready for the organizer and registered team leaders.',
         lastAt: tournament.createdAt || new Date().toISOString(),
         createdAt: tournament.createdAt || new Date().toISOString(),
@@ -204,10 +203,8 @@ function normalizeCommunityData(value, venueData = {}) {
       conversation.organizerUserId = tournament.organizerUserId || tournament.createdBy;
       conversation.title = `${tournament.title} chat`;
       conversation.participantIds = participantIds;
-      conversation.unreadByUser = Object.fromEntries(participantIds.map(userId => [
-        userId,
-        Number(conversation.unreadByUser?.[userId] || 0),
-      ]));
+      conversation.unreadByUser = createLookup(participantIds, userId => userId, userId =>
+        Number(conversation.unreadByUser?.[userId] || 0));
     }
     tournament.conversationId = conversation.id;
   });

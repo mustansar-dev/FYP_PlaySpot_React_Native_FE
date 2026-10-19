@@ -2,6 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { createDemoVenueState } from '../data/demoVenueData';
 import { getBookingDisplayStatus, intervalsOverlap, isBookingActive, prepareBooking, timeToMinutes, toLocalDateKey, WEEK_DAYS } from '../utils/booking';
 import { canReviewVenue, validateReview } from '../utils/venueDiscovery';
+import { uniqueValues } from '../utils/collections';
 
 function createBookingId() {
   return `booking-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -75,7 +76,7 @@ export const reserveTournamentGrounds = request => (dispatch, getState) => {
     return { ok: false, error: 'Enter a valid tournament date and a finish time after the start time.' };
   }
   if (new Date(`${request.date}T${request.startTime}:00`).getTime() <= Date.now()) return { ok: false, error: 'Tournament ground times must be in the future.' };
-  const groundIds = [...new Set(request.groundIds || [])];
+  const groundIds = uniqueValues(request.groundIds || []);
   if (!groundIds.length) return { ok: false, error: 'Choose at least one ground for this tournament.' };
   const grounds = groundIds.map(id => state.grounds.find(ground => ground.id === id && ground.venueId === venue.id && ground.sport === request.sport && ground.isActive !== false));
   if (grounds.some(ground => !ground)) return { ok: false, error: `Choose active ${request.sport} grounds from the host venue.` };

@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
   FlatList,
   Image,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -47,15 +47,14 @@ export default function PlayerHomeScreen({ navigation }) {
     () => setProfileDrawerVisible(false),
     [],
   );
-  const edgePanResponder = useMemo(
+  const edgePanGesture = useMemo(
     () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          gesture.dx < -12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onPanResponderRelease: (_, gesture) => {
-          if (gesture.dx < -42) setProfileDrawerVisible(true);
-        },
-      }),
+      Gesture.Pan()
+        .activeOffsetX(-12)
+        .runOnJS(true)
+        .onEnd(event => {
+          if (event.translationX < -42) setProfileDrawerVisible(true);
+        }),
     [],
   );
 
@@ -245,12 +244,13 @@ export default function PlayerHomeScreen({ navigation }) {
           real places.
         </Text>
       </ScrollView>
-      <View
-        {...edgePanResponder.panHandlers}
-        testID="player-drawer-edge-gesture"
-        accessible={false}
-        style={styles.drawerEdgeGesture}
-      />
+      <GestureDetector gesture={edgePanGesture}>
+        <View
+          testID="player-drawer-edge-gesture"
+          accessible={false}
+          style={styles.drawerEdgeGesture}
+        />
+      </GestureDetector>
       <PlayerProfileDrawer
         visible={profileDrawerVisible}
         onClose={closeProfileDrawer}

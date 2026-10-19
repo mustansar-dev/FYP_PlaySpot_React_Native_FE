@@ -1,20 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
+import {
   Animated,
-  BackHandler,
   Modal,
-  PanResponder,
   Pressable,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { ProfileScreen } from '../screens/AccountScreens';
+import useWindowWidth from '../hooks/useWindowWidth';
 
 export default function PlayerProfileDrawer({ visible, onClose, navigation }) {
   const { colors, radius } = useTheme();
-  const { width } = useWindowDimensions();
+  const width = useWindowWidth();
   const drawerWidth = Math.min(430, width * 0.94);
   const translateX = useRef(new Animated.Value(drawerWidth)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -46,15 +49,6 @@ export default function PlayerProfileDrawer({ visible, onClose, navigation }) {
     return () => animation.stop();
   }, [backdropOpacity, drawerWidth, mounted, translateX, visible]);
 
-  useEffect(() => {
-    if (!visible) return undefined;
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
-      return true;
-    });
-    return () => subscription.remove();
-  }, [onClose, visible]);
-
   const profileNavigation = useMemo(() => ({
     goBack: onClose,
     navigate: (route, params) => {
@@ -64,43 +58,53 @@ export default function PlayerProfileDrawer({ visible, onClose, navigation }) {
     },
   }), [navigation, onClose]);
 
-  const panHandlers = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-    onPanResponderMove: (_, gesture) => translateX.setValue(Math.max(0, gesture.dx)),
-    onPanResponderRelease: (_, gesture) => {
-      if (gesture.dx > drawerWidth * 0.28 || gesture.vx > 0.75) {
+  const panGesture = useMemo(() => Gesture.Pan()
+    .activeOffsetX(10)
+    .failOffsetY([-10, 10])
+    .runOnJS(true)
+    .onUpdate(event => {
+      translateX.setValue(Math.max(0, event.translationX));
+    })
+    .onEnd(event => {
+      if (event.translationX > drawerWidth * 0.28 || event.velocityX > 750) {
         onClose();
       } else {
         Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 0 }).start();
       }
-    },
-    onPanResponderTerminate: () => Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 0 }).start(),
-  }), [drawerWidth, onClose, translateX]);
+    })
+    .onFinalize((_event, success) => {
+      if (!success) {
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 0 }).start();
+      }
+    }), [drawerWidth, onClose, translateX]);
 
   return (
     <Modal transparent visible={mounted} animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <View style={styles.modal}>
+      <GestureHandlerRootView style={styles.modal}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Close profile drawer" testID="profile-drawer-backdrop" onPress={onClose} style={StyleSheet.absoluteFill} />
         </Animated.View>
-        <Animated.View
-          {...panHandlers.panHandlers}
-          testID="profile-drawer-panel"
-          accessibilityViewIsModal
-          style={[
-            styles.panel,
-            {
-              width: drawerWidth,
-              backgroundColor: colors.canvas,
-              borderTopLeftRadius: radius.lg,
-              borderBottomLeftRadius: radius.lg,
-              transform: [{ translateX }],
-            },
-          ]}
-        >
-          <ProfileScreen navigation={profileNavigation} />
-        </Animated.View>
-      </View>
+        <GestureDetector gesture={panGesture}>
+          <View style={{ width: drawerWidth, height: '100%' }}>
+            <Animated.View
+              testID="profile-drawer-panel"
+              accessibilityViewIsModal
+              style={[
+                styles.panel,
+                {
+                  width: '100%',
+                  backgroundColor: colors.canvas,
+                  borderTopLeftRadius: radius.lg,
+                  borderBottomLeftRadius: radius.lg,
+                  transform: [{ translateX }],
+                },
+              ]}
+            >
+              <ProfileScreen navigation={profileNavigation} />
+            </Animated.View>
+          </View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

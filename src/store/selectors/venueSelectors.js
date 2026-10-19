@@ -24,9 +24,7 @@ export const selectVendorProfileById = (state, vendorId) =>
 export const selectVenuesByOwnerId = createSelector(
   [selectVenues, selectVendorProfiles, (_state, ownerUserId) => ownerUserId],
   (venues, profiles, ownerUserId) => {
-    const vendorIds = new Set(
-      profiles.filter(profile => profile.ownerUserId === ownerUserId).map(profile => profile.id),
-    );
-    return venues.filter(venue => vendorIds.has(venue.vendorId));
+    const vendorIds = profiles.filter(profile => profile.ownerUserId === ownerUserId).map(profile => profile.id);
+    return venues.filter(venue => vendorIds.includes(venue.vendorId));
   },
 );

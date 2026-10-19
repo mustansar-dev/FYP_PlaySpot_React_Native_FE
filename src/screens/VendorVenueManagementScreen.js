@@ -16,6 +16,7 @@ import {
 } from '../store/selectors/venueSelectors';
 import { venuePublicationChanged, venueUpdated } from '../store/venueSlice';
 import { createSlotsForGround, DEFAULT_GROUND_DAYS, isBookingActive, timeToMinutes, WEEK_DAYS } from '../utils/booking';
+import { uniqueValues } from '../utils/collections';
 
 export default function VendorVenueManagementScreen({ navigation, route }) {
   const dispatch = useDispatch();
@@ -116,7 +117,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
         return;
       }
       const uris = (result.assets || []).map(asset => asset.uri).filter(Boolean);
-      setField('photoUris', [...new Set([...draft.photoUris, ...uris])].slice(0, 5));
+      setField('photoUris', uniqueValues([...draft.photoUris, ...uris]).slice(0, 5));
     } catch (pickError) {
       setMediaError('Photos could not be opened. Check gallery permission and try again.');
     } finally {
@@ -197,9 +198,9 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       return;
     }
     if (section === 'grounds') {
-      const retainedIds = new Set(draft.grounds.map(ground => ground.id));
+      const retainedIds = draft.grounds.map(ground => ground.id);
       const removedGroundsWithBookings = grounds.filter(ground =>
-        !retainedIds.has(ground.id) && bookings.some(booking => booking.groundId === ground.id && isBookingActive(booking)),
+        !retainedIds.includes(ground.id) && bookings.some(booking => booking.groundId === ground.id && isBookingActive(booking)),
       );
       if (removedGroundsWithBookings.length) {
         setError(`Cancel active reservations before removing ${removedGroundsWithBookings.map(ground => ground.name).join(', ')}.`);
@@ -233,14 +234,14 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
     let scheduleSlots;
     if (section === 'grounds') {
       const previousSlots = storedSlots.filter(slot => grounds.some(ground => ground.id === slot.groundId));
-      const generatedSlots = savedGrounds.flatMap(ground => createSlotsForGround(ground, 8, null, null, new Date()));
-      const generatedIds = new Set(generatedSlots.map(slot => slot.id));
-      const previousById = new Map(previousSlots.map(slot => [slot.id, slot]));
+      const generatedSlots = [];
+      savedGrounds.forEach(ground => generatedSlots.push(...createSlotsForGround(ground, 8, null, null, new Date())));
+      const generatedIds = generatedSlots.map(slot => slot.id);
       scheduleSlots = generatedSlots.map(slot => {
-        const previous = previousById.get(slot.id);
+        const previous = previousSlots.find(previousSlot => previousSlot.id === slot.id);
         return previous ? { ...slot, status: previous.status, reservedByBookingId: previous.reservedByBookingId } : slot;
       });
-      scheduleSlots.push(...previousSlots.filter(slot => !generatedIds.has(slot.id) && bookings.some(booking => booking.slotId === slot.id)));
+      scheduleSlots.push(...previousSlots.filter(slot => !generatedIds.includes(slot.id) && bookings.some(booking => booking.slotId === slot.id)));
     }
     const nextVenue = {
       ...venue,

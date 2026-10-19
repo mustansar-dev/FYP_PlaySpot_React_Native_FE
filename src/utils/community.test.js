@@ -9,6 +9,12 @@ import {
   validateSplitShares,
 } from './community';
 
+function sumShareAmounts(shares) {
+  let total = 0;
+  shares.forEach(share => { total += share.amountPKR; });
+  return total;
+}
+
 describe('local community rules and totals', () => {
   test('room join validates private codes and never exceeds capacity', () => {
     const room = {
@@ -40,7 +46,7 @@ describe('local community rules and totals', () => {
     ];
     const shares = calculateEqualShares(10001, people);
     expect(shares.map(item => item.amountPKR)).toEqual([2501, 2500, 2500, 2500]);
-    expect(shares.reduce((sum, item) => sum + item.amountPKR, 0)).toBe(10001);
+    expect(sumShareAmounts(shares)).toBe(10001);
     expect(validateSplitShares(10001, shares).valid).toBe(true);
     expect(validateSplitShares(10000, shares).valid).toBe(false);
   });
@@ -63,7 +69,7 @@ describe('local community rules and totals', () => {
     const shares = createRoomPaymentShares(2201, 4, [{ userId: 'organizer', name: 'Organizer', seatIndex: 0 }], 'simulated');
     expect(shares.map(share => share.amountPKR)).toEqual([551, 550, 550, 550]);
     expect(shares[0].status).toBe('simulated-paid');
-    expect(shares.reduce((sum, share) => sum + share.amountPKR, 0)).toBe(2201);
+    expect(sumShareAmounts(shares)).toBe(2201);
   });
 
   test('room form requires a future sport-matched slot and a supported local payment mode', () => {

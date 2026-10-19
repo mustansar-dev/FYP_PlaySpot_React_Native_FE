@@ -2,6 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { createDemoCommunityState } from '../data/demoCommunityData';
 import { canJoinGameRoom, canJoinTournament, getTournamentTeamSizeLimits, validateRoomPaymentShares } from '../utils/community';
 import { isBookingActive } from '../utils/booking';
+import { createLookup, uniqueValues } from '../utils/collections';
 import { bookingCancelled, bookingPaymentStatusUpdated } from './venueSlice';
 
 const initialState = { ...createDemoCommunityState(), hydrated: false };
@@ -11,8 +12,11 @@ function createId(prefix) {
 }
 
 function getRoomCollectedAmount(room) {
-  return (room?.members || []).reduce((total, member) =>
-    member.paymentStatus === 'simulated-paid' ? total + Number(member.sharePKR || 0) : total, 0);
+  let total = 0;
+  (room?.members || []).forEach(member => {
+    if (member.paymentStatus === 'simulated-paid') total += Number(member.sharePKR || 0);
+  });
+  return total;
 }
 
 function refundRoomShares(room, refundedAt, reason) {
@@ -126,18 +130,18 @@ export const updateGameRoomPaymentShares = ({ roomId, userId, shares }) => (disp
   if (room.createdBy !== userId) return { ok: false, error: 'Only the organizer can change player shares.' };
   const validation = validateRoomPaymentShares(room.totalCostPKR, room.capacity, shares);
   if (!validation.valid) return { ok: false, error: validation.message };
-  const existingBySeat = new Map((room.paymentShares || []).map(item => [item.seatIndex, item]));
+  const existingBySeat = createLookup(room.paymentShares || [], item => item.seatIndex);
   const seatIndexes = shares.map(item => item.seatIndex);
-  if (new Set(seatIndexes).size !== Number(room.capacity) || seatIndexes.some(index => !Number.isInteger(index) || index < 0 || index >= Number(room.capacity))) {
+  if (uniqueValues(seatIndexes).length !== Number(room.capacity) || seatIndexes.some(index => !Number.isInteger(index) || index < 0 || index >= Number(room.capacity))) {
     return { ok: false, error: 'Each room seat needs exactly one share.' };
   }
   const paidSeatChanged = shares.some(item => {
-    const existing = existingBySeat.get(item.seatIndex);
+    const existing = existingBySeat[item.seatIndex];
     return ['simulated-paid', 'simulated-settled'].includes(existing?.status) && Number(existing.amountPKR) !== Number(item.amountPKR);
   });
   if (paidSeatChanged) return { ok: false, error: 'A recorded player share cannot be changed. Cancel the room to refund shares before changing paid amounts.' };
   const safeShares = shares.map(item => {
-    const existing = existingBySeat.get(item.seatIndex);
+    const existing = existingBySeat[item.seatIndex];
     if ((existing?.userId || null) !== (item.userId || null)) return null;
     const changed = Number(existing?.amountPKR) !== Number(item.amountPKR);
     return {
@@ -175,8 +179,8 @@ export const updateTournamentAsVendor = ({ tournamentId, changes }) => (dispatch
   if (['completed', 'cancelled'].includes(tournament.status)) {
     return { ok: false, error: 'This tournament is already closed.' };
   }
-  const allowedChanges = new Set(['registrationOpen', 'status', 'standings', 'winnerTeamName']);
-  if (!changes || Object.keys(changes).some(key => !allowedChanges.has(key))) {
+  const allowedChanges = ['registrationOpen', 'status', 'standings', 'winnerTeamName'];
+  if (!changes || Object.keys(changes).some(key => !allowedChanges.includes(key))) {
     return { ok: false, error: 'This tournament update contains fields vendors cannot edit.' };
   }
   dispatch(tournamentUpdated({ id: tournament.id, actorUserId: user.id, changes }));
@@ -240,7 +244,7 @@ export const joinTournament = ({ tournamentId, user, teamName, teammateNames = [
       return { ok: false, error: `Your team leader plus exactly ${teamSize - 1} teammate name${teamSize === 2 ? '' : 's'} are required.` };
     }
     const playerNames = [String(authenticatedUser.name || '').trim(), ...cleanTeammates].map(name => name.toLowerCase());
-    if (new Set(playerNames).size !== teamSize) return { ok: false, error: 'Each teammate must have a different name from the team leader and other teammates.' };
+    if (uniqueValues(playerNames).length !== teamSize) return { ok: false, error: 'Each teammate must have a different name from the team leader and other teammates.' };
   }
   dispatch(tournamentParticipantAdded({
     tournamentId,
@@ -274,10 +278,10 @@ export const leaveTournament = ({ tournamentId }) => (dispatch, getState) => {
 
 function syncTournamentConversation(state, tournament) {
   if (!tournament) return;
-  const participantIds = [...new Set([
+  const participantIds = uniqueValues([
     tournament.organizerUserId || tournament.createdBy,
     ...(tournament.participants || []).map(participant => participant.userId),
-  ].filter(Boolean))];
+  ].filter(Boolean));
   const conversationId = tournament.conversationId || `conversation-tournament-${tournament.id}`;
   tournament.conversationId = conversationId;
   let conversation = state.conversations.find(item => item.kind === 'tournament' && item.tournamentId === tournament.id);
@@ -290,7 +294,7 @@ function syncTournamentConversation(state, tournament) {
       title: `${tournament.title} chat`,
       subtitle: 'Private tournament chat · organizer and team leaders',
       participantIds,
-      unreadByUser: Object.fromEntries(participantIds.map(userId => [userId, 0])),
+      unreadByUser: createLookup(participantIds, userId => userId, () => 0),
       lastMessage: 'Private tournament chat is ready for the organizer and registered team leaders.',
       lastAt: tournament.createdAt || new Date().toISOString(),
       createdAt: tournament.createdAt || new Date().toISOString(),
@@ -300,10 +304,8 @@ function syncTournamentConversation(state, tournament) {
     conversation.title = `${tournament.title} chat`;
     conversation.organizerUserId = tournament.organizerUserId || tournament.createdBy;
     conversation.participantIds = participantIds;
-    conversation.unreadByUser = Object.fromEntries(participantIds.map(userId => [
-      userId,
-      Number(conversation.unreadByUser?.[userId] || 0),
-    ]));
+    conversation.unreadByUser = createLookup(participantIds, userId => userId, userId =>
+      Number(conversation.unreadByUser?.[userId] || 0));
   }
 }
 
@@ -332,15 +334,13 @@ const communitySlice = createSlice({
         conversation.vendorUserId = state.rooms[index].vendorUserId || null;
         conversation.playerUserId = state.rooms[index].createdBy;
         conversation.playerName = state.rooms[index].createdByName;
-        const participantIds = [...new Set([
+        const participantIds = uniqueValues([
           ...state.rooms[index].members.map(member => member.userId),
           state.rooms[index].vendorUserId,
-        ].filter(Boolean))];
+        ].filter(Boolean));
         conversation.participantIds = participantIds;
-        conversation.unreadByUser = Object.fromEntries(participantIds.map(userId => [
-          userId,
-          Number(conversation.unreadByUser?.[userId] || 0),
-        ]));
+        conversation.unreadByUser = createLookup(participantIds, userId => userId, userId =>
+          Number(conversation.unreadByUser?.[userId] || 0));
       }
     },
     gameRoomCancelled(state, action) {
@@ -551,7 +551,10 @@ const communitySlice = createSlice({
         state.tournaments[index].payoutStatus = 'simulated-refunded';
       }
       if (changes.status === 'completed') {
-        const paidEntryTotalPKR = (tournament.participants || []).reduce((total, participant) => total + Number(participant.totalEntryFeePKR || 0), 0);
+        let paidEntryTotalPKR = 0;
+        (tournament.participants || []).forEach(participant => {
+          paidEntryTotalPKR += Number(participant.totalEntryFeePKR || 0);
+        });
         const prizePKR = Math.max(0, Number(tournament.prizePKR || 0));
         state.tournaments[index].participants = (tournament.participants || []).map(participant => ({
           ...participant,

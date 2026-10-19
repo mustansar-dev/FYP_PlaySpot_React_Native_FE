@@ -94,8 +94,8 @@ export default function RootNavigator() {
   const hasNotifications = useSelector(state => Boolean(currentUser?.id &&
     state.community.notifications?.some(notification => notification.recipientId === currentUser.id && !notification.readAt)));
   const showBottomNav = currentUser && (currentUser.role === 'player'
-    ? BOTTOM_NAV_ROUTES.has(routeName) || routeName === 'Notifications'
-    : BOTTOM_NAV_ROUTES.has(routeName));
+    ? BOTTOM_NAV_ROUTES.includes(routeName) || routeName === 'Notifications'
+    : BOTTOM_NAV_ROUTES.includes(routeName));
 
   return (
     <NavigationContainer

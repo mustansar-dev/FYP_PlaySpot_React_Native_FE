@@ -144,10 +144,11 @@ export function createDemoVenueState() {
     active: true,
   }));
 
-  const slots = grounds.flatMap((ground, groundIndex) => {
+  const slots = [];
+  grounds.forEach((ground, groundIndex) => {
     const groundSlots = createSlotsForGround(ground, 8, 16 * 60, 19 * 60);
     const today = groundSlots[0]?.date;
-    return groundSlots.map(slot => ({
+    groundSlots.forEach(slot => slots.push({
       ...slot,
       status: groundIndex === 1 && slot.date === today && slot.startTime === '17:00'
         ? 'unavailable'

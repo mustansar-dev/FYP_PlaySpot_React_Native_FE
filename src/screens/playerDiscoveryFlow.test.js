@@ -14,6 +14,7 @@ import React from 'react';
 import { configureStore } from '@reduxjs/toolkit';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Provider } from 'react-redux';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../context/ThemeContext';
 import BottomNavBar from '../components/BottomNavBar';
@@ -39,7 +40,7 @@ function makeStore() {
 }
 
 async function renderScreen(ui, store = makeStore()) {
-  const rendered = await render(<Provider store={store}><ThemeProvider><SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 400, height: 850 }, insets: { top: 0, right: 0, bottom: 0, left: 0 } }}>{ui}</SafeAreaProvider></ThemeProvider></Provider>);
+  const rendered = await render(<GestureHandlerRootView style={{ flex: 1 }}><Provider store={store}><ThemeProvider><SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 400, height: 850 }, insets: { top: 0, right: 0, bottom: 0, left: 0 } }}>{ui}</SafeAreaProvider></ThemeProvider></Provider></GestureHandlerRootView>);
   rendered.store = store;
   return rendered;
 }

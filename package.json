@@ -15,8 +15,10 @@
     "@react-navigation/native-stack": "7.18.10",
     "@reduxjs/toolkit": "2.8.2",
     "crypto-js": "4.2.0",
+    "i": "^0.3.7",
     "react": "19.2.3",
     "react-native": "0.86.2",
+    "react-native-gesture-handler": "3.4.0",
     "react-native-image-picker": "8.2.1",
     "react-native-safe-area-context": "5.9.1",
     "react-native-screens": "4.27.0",
@@ -40,8 +42,11 @@
   },
   "jest": {
     "preset": "react-native",
+    "setupFiles": [
+      "react-native-gesture-handler/jestSetup"
+    ],
     "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|@reduxjs|redux|immer|reselect|@standard-schema|react-redux|use-sync-external-store|@react-navigation|@testing-library|react-native-safe-area-context|react-native-screens|react-freeze|use-latest-callback|nanoid|@react-native-async-storage)/)"
+      "node_modules/(?!(react-native|react-native-gesture-handler|@react-native|@reduxjs|redux|immer|reselect|@standard-schema|react-redux|use-sync-external-store|@react-navigation|@testing-library|react-native-safe-area-context|react-native-screens|react-freeze|use-latest-callback|nanoid|@react-native-async-storage)/)"
     ]
   }
 }

@@ -41,6 +41,12 @@ const vendorUser = { id: 'demo-vendor-001', name: 'Bilal Ahmed', role: 'vendor' 
 const playerUser = { id: 'demo-player-001', name: 'Amina Shah', role: 'player' };
 const navigation = { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn() };
 
+function sumShareAmounts(shares) {
+  let total = 0;
+  shares.forEach(share => { total += share.amountPKR; });
+  return total;
+}
+
 function makeStore(user = playerUser) {
   const store = configureStore({ reducer: { auth: authReducer, venues: venueReducer, community: communityReducer } });
   store.dispatch(authHydrated({ accounts: [], user, storageNotice: null }));
@@ -170,7 +176,7 @@ test('the indivisible split total saves exact PKR shares and tournament join upd
   expect(splitScreen.getByText('Rs. 10,001')).toBeTruthy();
   await fireEvent.press(splitScreen.getByTestId('split-save'));
   const saved = store.getState().community.rooms.find(item => item.id === room.id).paymentShares;
-  expect(saved.reduce((sum, share) => sum + share.amountPKR, 0)).toBe(10001);
+  expect(sumShareAmounts(saved)).toBe(10001);
 
   const tournamentScreen = await renderScreen(<TournamentDetailsScreen navigation={navigation} route={{ params: { tournamentId: 'tournament-demo-badminton-open' } }} />, store);
   await fireEvent.press(tournamentScreen.getByTestId('tournament-join'));

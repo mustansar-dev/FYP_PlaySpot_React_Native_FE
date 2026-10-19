@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Linking } from 'react-native';
+import { AccessibilityInfo, Linking } from 'react-native';
 import {
-  AccessibilityInfo,
   Animated,
   Easing,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
+import useWindowWidth from '../hooks/useWindowWidth';
 
 function RevealPhoto({ uri, width, height, index, reduceMotion, isActive }) {
   const reveal = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
@@ -51,7 +50,7 @@ function RevealPhoto({ uri, width, height, index, reduceMotion, isActive }) {
 }
 
 export default function VenuePhotoSlider({ photos = [], videos = [], venueName = 'Venue', radius = 16, autoPlayIntervalMs = 0 }) {
-  const { width: screenWidth } = useWindowDimensions();
+  const screenWidth = useWindowWidth();
   const sliderWidth = Math.max(220, screenWidth - 40);
   const [activeIndex, setActiveIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -62,15 +61,16 @@ export default function VenuePhotoSlider({ photos = [], videos = [], venueName =
   ];
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
     AccessibilityInfo.isReduceMotionEnabled()
       .then(enabled => {
-        if (mounted) setReduceMotion(enabled);
+        if (isMounted) setReduceMotion(enabled);
       })
       .catch(() => {});
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription?.remove();
     };
   }, []);

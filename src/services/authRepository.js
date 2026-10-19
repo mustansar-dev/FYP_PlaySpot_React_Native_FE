@@ -1,4 +1,5 @@
 import CryptoJS from 'crypto-js';
+import { uniqueValues } from '../utils/collections';
 import {
   createSeedDataForMemoryFallback,
   loadAuthData,
@@ -115,12 +116,13 @@ export async function updateAccountProfile(userId, profileChanges) {
   const account = data.accounts.find(item => item.id === userId);
   if (!account) throw new Error('This demo profile could not be found.');
   const allowed = ['name', 'phone', 'businessName', 'preferredSports'];
-  const safeChanges = Object.fromEntries(
-    Object.entries(profileChanges).filter(([key]) => allowed.includes(key)),
-  );
+  const safeChanges = {};
+  Object.keys(profileChanges).forEach(key => {
+    if (allowed.includes(key)) safeChanges[key] = profileChanges[key];
+  });
   if (Object.hasOwn(safeChanges, 'preferredSports')) {
     safeChanges.preferredSports = Array.isArray(safeChanges.preferredSports)
-      ? [...new Set(safeChanges.preferredSports.map(item => String(item).trim()).filter(Boolean))]
+      ? uniqueValues(safeChanges.preferredSports.map(item => String(item).trim()).filter(Boolean))
       : account.preferredSports || [];
   }
   const updatedAccount = { ...account, ...safeChanges };

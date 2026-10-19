@@ -30,12 +30,12 @@ export default function VendorAnalyticsScreen() {
   const user = useSelector(state => state.auth.currentUser);
   const venues = useSelector(state => selectVenuesByOwnerId(state, user?.id || ''));
   const bookings = useSelector(state => selectBookingsForVendor(state, user?.id || ''));
-  const venueIds = new Set(venues.map(venue => venue.id));
-  const grounds = useSelector(state => state.venues.grounds.filter(ground => venueIds.has(ground.venueId)));
-  const groundIds = new Set(grounds.map(ground => ground.id));
-  const slots = useSelector(state => state.venues.slots.filter(slot => groundIds.has(slot.groundId)));
+  const venueIds = venues.map(venue => venue.id);
+  const grounds = useSelector(state => state.venues.grounds.filter(ground => venueIds.includes(ground.venueId)));
+  const groundIds = grounds.map(ground => ground.id);
+  const slots = useSelector(state => state.venues.slots.filter(slot => groundIds.includes(slot.groundId)));
   const series = useMemo(() => buildVendorAnalytics({ bookings, grounds, slots }), [bookings, grounds, slots]);
-  const today = useMemo(() => calculateTodayAndUpcomingBookings(bookings, [...venueIds]), [bookings, venues]);
+  const today = useMemo(() => calculateTodayAndUpcomingBookings(bookings, venueIds), [bookings, venues]);
   const current = series[series.length - 1];
   const maxBookings = Math.max(1, ...series.map(item => item.bookings));
   const maxRevenue = Math.max(1, ...series.map(item => item.revenuePKR));
