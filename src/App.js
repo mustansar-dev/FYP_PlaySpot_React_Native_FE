@@ -1,10 +1,13 @@
 import React, { useEffect } from 'react';
 import { Provider, useDispatch, useSelector } from 'react-redux';
+import { DEMO_MODE } from './config/backendApi';
+import { setSessionExpiredHandler } from './services/apiClient';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './context/ThemeContext';
 import RootNavigator from './navigation/RootNavigator';
+import { loadBackendState } from './services/backendState';
 import { restoreSession } from './services/authRepository';
-import { authHydrated } from './store/authSlice';
+import { authHydrated, sessionEnded } from './store/authSlice';
 import { venueCreated, venuesHydrated, venueStorageNoticeSet } from './store/venueSlice';
 import { loadVenueData, saveVenueData } from './services/venueStorage';
 import { createVendorVenueRecords } from './services/vendorVenueFactory';
@@ -17,8 +20,13 @@ function AppContent() {
   const dispatch = useDispatch();
   const isAuthHydrated = useSelector(state => state.auth.hydrated);
   const accounts = useSelector(state => state.auth.accounts);
+  const currentUser = useSelector(state => state.auth.currentUser);
   const isVenuesHydrated = useSelector(state => state.venues.hydrated);
   const isCommunityHydrated = useSelector(state => state.community.hydrated);
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => dispatch(sessionEnded()));
+  }, [dispatch]);
 
   useEffect(() => {
     let active = true;
@@ -46,6 +54,7 @@ function AppContent() {
   }, [dispatch]);
 
   useEffect(() => {
+    if (!DEMO_MODE) return undefined;
     if (!isAuthHydrated || !isVenuesHydrated) {
       return;
     }
@@ -75,6 +84,20 @@ function AppContent() {
 
   useEffect(() => {
     let active = true;
+    if (!DEMO_MODE) {
+      if (!isAuthHydrated) return () => { active = false; };
+      loadBackendState(currentUser).then(result => {
+        if (!active) return;
+        dispatch(venuesHydrated({ data: result.venueData, notice: result.notice }));
+        dispatch(communityHydrated(result.community));
+      }).catch(error => {
+        if (!active) return;
+        const message = 'PlaySpot could not load live data. ' + error.message;
+        dispatch(venuesHydrated({ data: { vendorProfiles: [], venues: [], grounds: [], equipment: [], slots: [], bookings: [], reviews: [] }, notice: message }));
+        dispatch(communityHydrated({ hydrated: true, rooms: [], conversations: [], messages: [], tournaments: [], leaderboard: [], splits: [], notifications: [] }));
+      });
+      return () => { active = false; };
+    }
     loadVenueData().then(result => {
       if (active) {
         const { community, ...venueData } = result.data;
@@ -93,9 +116,10 @@ function AppContent() {
     return () => {
       active = false;
     };
-  }, [dispatch]);
+  }, [dispatch, isAuthHydrated, currentUser?.id]);
 
   useEffect(() => {
+    if (!DEMO_MODE) return undefined;
     let lastSnapshot = null;
     let saving = Promise.resolve();
     const unsubscribe = store.subscribe(() => {
@@ -136,4 +160,4 @@ export default function App() {
       </ThemeProvider>
     </Provider>
   );
-}
+}

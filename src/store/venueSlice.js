@@ -1,4 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { backendApi } from '../services/backendApi';
+import { DEMO_MODE } from '../config/backendApi';
 import { createDemoVenueState } from '../data/demoVenueData';
 import { getBookingDisplayStatus, intervalsOverlap, isBookingActive, prepareBooking, timeToMinutes, toLocalDateKey, WEEK_DAYS } from '../utils/booking';
 import { canReviewVenue, validateReview } from '../utils/venueDiscovery';
@@ -7,7 +9,30 @@ function createBookingId() {
   return `booking-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+export const refreshAvailability = ({ courtId, groundId = courtId, date }) => async (dispatch) => {
+  if (DEMO_MODE || !courtId || !date) return { ok: true };
+  try {
+    const result = await backendApi.availability(courtId, date);
+    const slots = (result.slots || []).map(slot => ({ id: `${courtId}:${date}:${slot.startTime}`, groundId: courtId, date, startTime: slot.startTime, endTime: slot.endTime, status: slot.available ? 'available' : 'unavailable', reason: slot.reason || null }));
+    dispatch(availabilityLoaded({ groundId, date, slots }));
+    return { ok: true, slots };
+  } catch (error) { return { ok: false, error: error.message }; }
+};
+
 export const reserveBooking = request => (dispatch, getState) => {
+  if (!DEMO_MODE) {
+    return (async () => { try {
+      const local = getState().venues.slots.find(item => item.id === request.slotId);
+      if (!local) return { ok: false, error: 'Select an available time before saving.' };
+      const response = request.source === 'walk-in'
+        ? await backendApi.walkInBooking({ courtId: request.groundId, date: local.date, startTime: local.startTime, endTime: local.endTime, customerName: request.customerName, customerPhone: request.customerContact || undefined, addOns: [] })
+        : await backendApi.createBooking({ courtId: request.groundId, date: local.date, startTime: local.startTime, endTime: local.endTime, addOns: request.addOns || [], paymentMode: request.paymentMode || 'PAY_AT_VENUE' }, request.idempotencyKey || `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+      const raw = response.booking || response;
+      const booking = { ...raw, groundId: raw.groundId || raw.courtId, status: ({ PENDING_PAYMENT: 'pending-payment', CONFIRMED: 'confirmed', CANCELLED: 'cancelled', COMPLETED: 'completed', EXPIRED: 'expired' })[raw.status] || String(raw.status || '').toLowerCase(), paymentStatus: String(raw.paymentStatus || '').toLowerCase().replaceAll('_', '-'), paymentMode: String(raw.paymentMode || '').toLowerCase().replaceAll('_', '-'), playerUserId: raw.customerUserId || raw.createdByUserId };
+      dispatch(bookingServerSynced(booking));
+      return { ok: true, booking, payment: response.payment || null };
+    } catch (error) { return { ok: false, error: error.message }; } })();
+  }
   const bookingRequest = {
     ...request,
     id: request.id || createBookingId(),
@@ -30,6 +55,17 @@ export const submitVenueReview = ({ venueId, stars, comment }) => (dispatch, get
   if (Object.keys(errors).length) return { ok: false, error: Object.values(errors)[0] };
   if (!canReviewVenue({ user, bookings: state.venues.bookings, venueId })) {
     return { ok: false, error: 'You can review this venue after your booking has finished.' };
+  }
+  if (!DEMO_MODE) {
+    return (async () => {
+      try {
+        const booking = state.venues.bookings.find(item => item.venueId === venueId && item.playerUserId === user?.id && item.status === 'completed');
+        if (!booking) return { ok: false, error: 'A completed booking is required to review this venue.' };
+        const review = await backendApi.createReview(venueId, { bookingId: booking.id, stars, comment: comment.trim() });
+        dispatch(reviewAdded(review));
+        return { ok: true, review };
+      } catch (error) { return { ok: false, error: error.message }; }
+    })();
   }
   const review = {
     id: `review-local-${Date.now()}`,
@@ -58,6 +94,17 @@ export const confirmBookingAttendance = ({ bookingId }) => (dispatch, getState) 
   }
   if (getBookingDisplayStatus(booking) !== 'Completed') {
     return { ok: false, error: 'Attendance can be confirmed after the booked time has ended.' };
+  }
+  if (!DEMO_MODE) {
+    return (async () => {
+      try {
+        const result = await backendApi.completeBooking(bookingId);
+        const raw = result.booking || result;
+        const completed = { ...booking, ...raw, status: String(raw.status || '').toLowerCase().replaceAll('_', '-'), groundId: raw.groundId || raw.courtId };
+        dispatch(bookingServerSynced(completed));
+        return { ok: true, booking: completed };
+      } catch (error) { return { ok: false, error: error.message }; }
+    })();
   }
   dispatch(bookingAttendanceConfirmed({ bookingId, attendedAt: new Date().toISOString() }));
   return { ok: true };
@@ -139,6 +186,15 @@ const venueSlice = createSlice({
   name: 'venues',
   initialState,
   reducers: {
+    availabilityLoaded(state, action) {
+      const { groundId, date, slots } = action.payload;
+      state.slots = [...state.slots.filter(item => item.groundId !== groundId || item.date !== date), ...slots];
+    },
+    bookingServerSynced(state, action) {
+      const booking = action.payload;
+      const index = state.bookings.findIndex(item => item.id === booking.id);
+      if (index < 0) state.bookings.unshift(booking); else state.bookings[index] = { ...state.bookings[index], ...booking };
+    },
     venuesHydrated(state, action) {
       const venueData = action.payload.data;
       return {
@@ -187,7 +243,11 @@ const venueSlice = createSlice({
       }
     },
     reviewAdded(state, action) {
+      if (state.reviews.some(item => item.id === action.payload.id)) return;
       state.reviews.unshift(action.payload);
+    },
+    reviewsSynced(state, action) {
+      state.reviews = [...state.reviews.filter(item => item.venueId !== action.payload.venueId), ...(action.payload.reviews || [])];
     },
     bookingCommitted(state, action) {
       const attempt = prepareBooking(state, action.payload);
@@ -284,9 +344,12 @@ export const {
   tournamentBookingsCommitted,
   venuePublicationChanged,
   reviewAdded,
+  reviewsSynced,
   venueStorageNoticeSet,
   venueUpdated,
   venuesHydrated,
+  availabilityLoaded,
+  bookingServerSynced,
 } = venueSlice.actions;
 
 export default venueSlice.reducer;

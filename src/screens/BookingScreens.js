@@ -1,6 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Linking,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -32,7 +33,9 @@ import {
   getSlotAvailability,
   toLocalDateKey,
 } from '../utils/booking';
-import { bookingCancelled, confirmBookingAttendance, reserveBooking } from '../store/venueSlice';
+import { bookingCancelled, confirmBookingAttendance, reserveBooking, refreshAvailability } from '../store/venueSlice';
+import { DEMO_MODE } from '../config/backendApi';
+import { backendApi } from '../services/backendApi';
 import { cancelGameRoom, recordWalkInCashRefund } from '../store/communitySlice';
 import { selectBookingsForUser, selectBookingsForVendor, selectGameRoomsForUser } from '../store/selectors/bookingSelectors';
 import { selectVenueById, selectGroundsByVenueId, selectEquipmentByVenueId, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
@@ -160,8 +163,15 @@ export function SlotSelectionScreen({ navigation, route }) {
   const [selectedDate, setSelectedDate] = useState(toLocalDateKey());
   const [selectedGroundId, setSelectedGroundId] = useState(route.params?.groundId || grounds[0]?.id || '');
   const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [availabilityError, setAvailabilityError] = useState('');
+  const dispatch = useDispatch();
   const dates = useMemo(() => getNextBookableDates(), []);
   const selectedGround = grounds.find(ground => ground.id === selectedGroundId) || grounds[0];
+  useEffect(() => {
+    if (DEMO_MODE || !selectedGround?.id) return;
+    dispatch(refreshAvailability({ courtId: selectedGround.id, date: selectedDate }))
+      .then(result => setAvailabilityError(result.ok ? '' : result.error));
+  }, [dispatch, selectedGround?.id, selectedDate]);
   const daySlots = useMemo(() => slots
     .filter(slot => slot.groundId === selectedGround?.id && slot.date === selectedDate)
     .sort((first, second) => first.startTime.localeCompare(second.startTime)), [slots, selectedGround, selectedDate]);
@@ -209,6 +219,8 @@ export function SlotSelectionScreen({ navigation, route }) {
             <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(selectedGround?.hourlyPricePKR)} / hour</Text>
           </DesignCard>
           <SectionHeading title="Available times" />
+          {availabilityError ? <InlineNotice tone="danger">{availabilityError}</InlineNotice> : null}
+          {!DEMO_MODE && !availabilityError && daySlots.length === 0 ? <InlineNotice>Checking live availability…</InlineNotice> : null}
           {daySlots.length ? daySlots.map(slot => {
             const availability = getSlotAvailability({ slotId: slot.id, slots, bookings });
             const past = !isSlotInFuture(slot);
@@ -327,6 +339,7 @@ export function BookingCheckoutScreen({ navigation, route }) {
   const availability = slot ? getSlotAvailability({ slotId, slots, bookings }) : { available: false };
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMode, setPaymentMode] = useState('PAY_AT_VENUE');
   const submitGuard = useRef(false);
 
   const confirm = async () => {
@@ -343,12 +356,17 @@ export function BookingCheckoutScreen({ navigation, route }) {
         groundId,
         slotId,
         addOns,
-        paymentMode: 'simulated',
-        paymentStatus: 'simulated-paid',
+        paymentMode: DEMO_MODE ? 'simulated' : paymentMode,
+        paymentStatus: DEMO_MODE ? 'simulated-paid' : 'pending',
       }));
       if (!result.ok) {
         setError(result.error);
         return;
+      }
+      if (!DEMO_MODE && paymentMode === 'ONLINE' && result.payment?.id) {
+        const checkout = await backendApi.paymentCheckout(result.payment.id);
+        if (checkout.checkoutUrl) await Linking.openURL(checkout.checkoutUrl);
+        else setError('The server did not return a checkout link. Your booking remains pending; refresh its status before retrying.');
       }
       navigation.replace('MyBookings', { highlightBookingId: result.booking.id });
     } finally {
@@ -362,10 +380,10 @@ export function BookingCheckoutScreen({ navigation, route }) {
       navigation={navigation}
       eyebrow="CHECKOUT"
       title="Confirm booking"
-      subtitle="Pay the demo total now to confirm your venue booking."
+      subtitle={DEMO_MODE ? 'Pay the demo total now to confirm your venue booking.' : 'Choose how you will pay. PlaySpot checks payment status with the server.'}
       footer={(
         <AppButton
-          title={submitting ? 'Processing demo payment…' : `Pay ${formatPKR(total)} & book`}
+          title={submitting ? (DEMO_MODE ? 'Processing demo payment…' : 'Saving booking…') : DEMO_MODE ? `Pay ${formatPKR(total)} & book` : `Confirm booking · ${formatPKR(total)}`}
           testID="booking-confirm"
           onPress={confirm}
           loading={submitting}
@@ -389,7 +407,12 @@ export function BookingCheckoutScreen({ navigation, route }) {
         <PriceRow label="Total in PKR" amount={total} strong />
       </DesignCard>
       <SectionHeading title="Payment" />
-      <InlineNotice testID="checkout-demo-payment">Demo payment is recorded before the booking is confirmed. No card details are collected and no money is transferred.</InlineNotice>
+      {DEMO_MODE ? <InlineNotice testID="checkout-demo-payment">Demo payment is recorded before the booking is confirmed. No card details are collected and no money is transferred.</InlineNotice> : (
+        <>
+          <ChoiceChips label="Payment method" options={['Pay at venue', 'Online checkout', 'Bank transfer']} selected={{ PAY_AT_VENUE: 'Pay at venue', ONLINE: 'Online checkout', BANK_TRANSFER: 'Bank transfer' }[paymentMode]} onSelect={label => setPaymentMode({ 'Pay at venue': 'PAY_AT_VENUE', 'Online checkout': 'ONLINE', 'Bank transfer': 'BANK_TRANSFER' }[label])} testID="booking-payment-method" />
+          <InlineNotice>{paymentMode === 'ONLINE' ? 'The server provides the checkout link. A return link alone never marks this booking paid.' : paymentMode === 'BANK_TRANSFER' ? 'Transfer instructions and proof review are handled by the venue after booking.' : 'Pay the venue directly. The booking remains due until the vendor confirms collection.'}</InlineNotice>
+        </>
+      )}
       <DesignCard>
         <Text style={[styles.cardTitle, { color: colors.ink }]}>Booking policy</Text>
         <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Cancel before the booked start for a full demo refund. Once the session starts, player cancellation is closed. If the venue cancels, the demo payment is fully refunded.</Text>
@@ -573,11 +596,18 @@ export function BookingDetailsScreen({ navigation, route }) {
 
   const cancel = () => {
     if (!booking || !canCancel || !active) return;
-    Alert.alert('Cancel this booking?', 'The active slot will become available again in this local demo.', [
+    Alert.alert('Cancel this booking?', DEMO_MODE ? 'The active slot will become available again in this local demo.' : 'The server will check the cancellation policy and release the slot if cancellation is allowed.', [
       { text: 'Keep booking', style: 'cancel' },
-      { text: 'Cancel booking', style: 'destructive', onPress: () => {
+      { text: 'Cancel booking', style: 'destructive', onPress: async () => {
         if (booking.roomId) dispatch(cancelGameRoom({ roomId: booking.roomId, user: currentUser }));
-        else dispatch(bookingCancelled({ bookingId: booking.id, cancelledAt: new Date().toISOString() }));
+        else if (DEMO_MODE) dispatch(bookingCancelled({ bookingId: booking.id, cancelledAt: new Date().toISOString() }));
+        else {
+          try {
+            const result = await backendApi.cancelBooking(booking.id);
+            const raw = result.booking || result;
+            dispatch({ type: 'venues/bookingServerSynced', payload: { ...booking, ...raw, status: String(raw.status || '').toLowerCase().replaceAll('_', '-') } });
+          } catch (error) { Alert.alert('Could not cancel booking', error.message); }
+        }
       } },
     ]);
   };
@@ -601,7 +631,7 @@ export function BookingDetailsScreen({ navigation, route }) {
       </DesignCard>
       {booking.source === 'walk-in' ? <InlineNotice>Customer: {booking.customerName}{booking.customerContact ? ` · ${booking.customerContact}` : ''}</InlineNotice> : null}
       {booking.source === 'player' && booking.attendanceStatus === 'attended' ? <InlineNotice testID="booking-attendance-confirmed">Venue attendance confirmed. This player can now review the venue.</InlineNotice> : null}
-      {booking.source === 'player' && isOwner && getBookingDisplayStatus(booking) === 'Completed' && booking.attendanceStatus !== 'attended' ? <AppButton title="Confirm player attended" variant="secondary" testID="booking-confirm-attendance" onPress={() => dispatch(confirmBookingAttendance({ bookingId: booking.id }))} style={styles.buttonGap} /> : null}
+      {booking.source === 'player' && isOwner && getBookingDisplayStatus(booking) === 'Completed' && (DEMO_MODE ? booking.attendanceStatus !== 'attended' : booking.status !== 'completed') ? <AppButton title={DEMO_MODE ? 'Confirm player attended' : 'Complete booking'} variant="secondary" testID="booking-confirm-attendance" onPress={async () => { const result = await dispatch(confirmBookingAttendance({ bookingId: booking.id })); if (!result.ok) Alert.alert('Could not complete booking', result.error); }} style={styles.buttonGap} /> : null}
       <SectionHeading title="Charges" />
       <DesignCard>
         <PriceRow label="Ground fee" amount={booking.groundFeePKR} />
@@ -618,6 +648,7 @@ export function BookingDetailsScreen({ navigation, route }) {
 }
 
 export function VendorAvailabilityScreen({ navigation, route }) {
+  const dispatch = useDispatch();
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const ownedVenues = useSelector(state => selectVenuesByOwnerId(state, currentUser?.id || ''));
@@ -629,6 +660,11 @@ export function VendorAvailabilityScreen({ navigation, route }) {
   const venue = ownedVenues.find(item => item.id === venueId) || ownedVenues[0];
   const venueGrounds = grounds.filter(item => item.venueId === venue?.id && item.isActive !== false);
   const ground = venueGrounds.find(item => item.id === groundId) || venueGrounds[0];
+  const [availabilityError, setAvailabilityError] = useState('');
+  useEffect(() => {
+    if (DEMO_MODE || !ground?.id) return;
+    dispatch(refreshAvailability({ courtId: ground.id, date })).then(result => setAvailabilityError(result.ok ? '' : result.error));
+  }, [dispatch, ground?.id, date]);
   const daySlots = slots.filter(slot => slot.groundId === ground?.id && slot.date === date)
     .sort((first, second) => first.startTime.localeCompare(second.startTime));
 
@@ -651,6 +687,7 @@ export function VendorAvailabilityScreen({ navigation, route }) {
               <AppButton title="Record walk-in" testID="availability-walkin" onPress={() => navigation.navigate('ManualWalkInBooking', { venueId: venue?.id, groundId: ground?.id, date })} style={styles.actionHalf} />
             </View>
             <SectionHeading title="Time slots" />
+            {availabilityError ? <InlineNotice tone="danger">{availabilityError}</InlineNotice> : null}
           </>
         )}
         ListEmptyComponent={<EmptyState title="No slots for this date" description="This ground has no generated slots on the selected date." action={<AppButton title="Record a walk-in" testID="availability-empty-walkin" onPress={() => navigation.navigate('ManualWalkInBooking', { venueId: venue?.id, groundId: ground?.id, date })} />} />}
@@ -746,6 +783,11 @@ export function ManualWalkInBookingScreen({ navigation, route }) {
   const venue = ownedVenues.find(item => item.id === venueId) || ownedVenues[0];
   const venueGrounds = grounds.filter(item => item.venueId === venue?.id && item.isActive !== false);
   const ground = venueGrounds.find(item => item.id === groundId) || venueGrounds[0];
+  const [availabilityError, setAvailabilityError] = useState('');
+  useEffect(() => {
+    if (DEMO_MODE || !ground?.id) return;
+    dispatch(refreshAvailability({ courtId: ground.id, date })).then(result => setAvailabilityError(result.ok ? '' : result.error));
+  }, [dispatch, ground?.id, date]);
   const daySlots = slots.filter(slot => slot.groundId === ground?.id && slot.date === date)
     .sort((first, second) => first.startTime.localeCompare(second.startTime));
   const chosenSlot = daySlots.find(item => item.id === slotId);
@@ -801,6 +843,7 @@ export function ManualWalkInBookingScreen({ navigation, route }) {
       <FormField label="Contact (optional)" value={customerContact} onChangeText={setCustomerContact} keyboardType="phone-pad" placeholder="Phone number" testID="walkin-customer-contact" />
       <SectionHeading title="Date and slot" />
       <DateRail dates={dates} selectedDate={date} onSelect={value => { setDate(value); setSlotId(''); }} testID="walkin-date" />
+      {availabilityError ? <InlineNotice tone="danger">{availabilityError}</InlineNotice> : null}
       {daySlots.length ? daySlots.map(item => {
         const availability = getSlotAvailability({ slotId: item.id, slots, bookings });
         const future = isSlotInFuture(item);

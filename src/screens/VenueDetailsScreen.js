@@ -1,17 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
 import VenueArtwork from '../components/VenueArtwork';
 import VenuePhotoSlider from '../components/VenuePhotoSlider';
+import { InlineNotice } from '../components/DesignPrimitives';
 import { useTheme } from '../context/ThemeContext';
+import { DEMO_MODE } from '../config/backendApi';
+import { backendApi } from '../services/backendApi';
+import { reviewsSynced } from '../store/venueSlice';
 import { conversationCreated, createCommunityId } from '../store/communitySlice';
 import { canReviewVenue, getVenueRating, haversineDistanceKm } from '../utils/venueDiscovery';
 import { createVenueVendorConversation, findVenueVendorConversation } from '../utils/venueConversations';
 
 export default function VenueDetailsScreen({ navigation, route }) {
   const dispatch = useDispatch();
+  const [reviewLoadError, setReviewLoadError] = useState('');
   const { colors, radius } = useTheme();
   const { venueId } = route.params || {};
   const { venues, grounds, equipment, reviews, bookings } = useSelector(state => state.venues);
@@ -22,6 +27,14 @@ export default function VenueDetailsScreen({ navigation, route }) {
   const venueGrounds = useMemo(() => grounds.filter(item => item.venueId === venueId && item.isActive), [grounds, venueId]);
   const venueEquipment = useMemo(() => equipment.filter(item => item.venueId === venueId && item.active), [equipment, venueId]);
   const venueReviews = useMemo(() => reviews.filter(item => item.venueId === venueId), [reviews, venueId]);
+  useEffect(() => {
+    if (DEMO_MODE || !venueId) return undefined;
+    let active = true;
+    backendApi.reviews(venueId).then(rows => {
+      if (active) dispatch(reviewsSynced({ venueId, reviews: rows || [] }));
+    }).catch(error => { if (active) setReviewLoadError(error.message); });
+    return () => { active = false; };
+  }, [dispatch, venueId]);
   const rating = getVenueRating(venueReviews);
   const canReview = canReviewVenue({ user: currentUser, bookings, venueId });
   const distance = venue ? haversineDistanceKm({ latitude: 31.5204, longitude: 74.3587 }, venue) : null;
@@ -52,7 +65,8 @@ export default function VenueDetailsScreen({ navigation, route }) {
       <Text style={[styles.sectionTitle, { color: colors.ink }]}>Equipment add-ons</Text>
       {venueEquipment.length ? venueEquipment.map(item => <View key={item.id} style={styles.equipmentRow}><Text style={[styles.body, { color: colors.ink }]}>{item.name} · {item.priceMode}</Text><Text style={[styles.body, { color: colors.primary, fontWeight: '800' }]}>PKR {item.unitPricePKR.toLocaleString()}</Text></View>) : <Text style={[styles.body, { color: colors.inkSoft }]}>No add-ons listed.</Text>}
       <View style={styles.reviewsHead}><Text style={[styles.sectionTitle, { color: colors.ink, marginBottom: 0 }]}>Reviews</Text><Pressable accessibilityRole="button" testID="venue-see-reviews" onPress={() => navigation.navigate('VenueReviews', { venueId })}><Text style={{ color: colors.primary, fontWeight: '800', fontSize: 12 }}>See all</Text></Pressable></View>
-      <View style={[styles.ratingSummary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.bigRating, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} local demo reviews</Text></View>{canReview ? <Pressable accessibilityRole="button" testID="venue-add-review" onPress={() => navigation.navigate('AddReview', { venueId })}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '900' }}>Write a review</Text></Pressable> : <Text testID="venue-review-eligibility" style={[styles.small, { color: colors.inkSoft, maxWidth: 95 }]}>Available after vendor confirms a completed visit</Text>}</View>
+      {reviewLoadError ? <InlineNotice tone="danger">Could not load venue reviews: {reviewLoadError}</InlineNotice> : null}
+      <View style={[styles.ratingSummary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.bigRating, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} {DEMO_MODE ? 'local demo reviews' : 'server reviews'}</Text></View>{canReview ? <Pressable accessibilityRole="button" testID="venue-add-review" onPress={() => navigation.navigate('AddReview', { venueId })}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '900' }}>Write a review</Text></Pressable> : <Text testID="venue-review-eligibility" style={[styles.small, { color: colors.inkSoft, maxWidth: 95 }]}>Available after a completed booking</Text>}</View>
       {venueReviews.slice(0, 2).map(review => <View key={review.id} style={styles.reviewRow}><Text style={[styles.cardTitle, { color: colors.ink }]}>{review.playerName}  <Text style={{ color: colors.orange }}>★ {review.stars}</Text></Text><Text style={[styles.body, { color: colors.inkSoft }]}>{review.comment}</Text></View>)}
       <Text style={[styles.small, { color: colors.inkSoft, marginTop: 12 }]}>Approximate location: {venue.address}. {venue.demoLabel}</Text>
       {currentUser?.role === 'player' && vendorProfile?.ownerUserId ? <AppButton title="Chat with vendor" testID="venue-chat-with-vendor" variant="secondary" onPress={() => {

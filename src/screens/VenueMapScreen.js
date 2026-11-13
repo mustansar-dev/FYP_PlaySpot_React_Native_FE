@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { DEMO_MODE } from '../config/backendApi';
+import { backendApi } from '../services/backendApi';
 import { filterAndSortVenues } from '../utils/venueDiscovery';
 
 const LOCATIONS = [
@@ -20,8 +22,21 @@ export default function VenueMapScreen({ navigation, route }) {
   const { venues, grounds, reviews } = useSelector(state => state.venues);
   const [origin, setOrigin] = useState(route.params?.origin || LOCATIONS[0]);
   const [selectedId, setSelectedId] = useState(null);
+  const [remoteVenues, setRemoteVenues] = useState([]);
+  const [remoteError, setRemoteError] = useState('');
   const [locationNotice, setLocationNotice] = useState('Using a manual Lahore map center. Device GPS is not connected in this build.');
-  const mappedVenues = useMemo(() => filterAndSortVenues({ venues: venues.filter(item => item.published), grounds, reviews, origin }), [venues, grounds, reviews, origin]);
+  useEffect(() => {
+    if (DEMO_MODE) return undefined;
+    let active = true;
+    backendApi.nearbyVenues({ lat: origin.latitude, lng: origin.longitude, radiusKm: 25, page: 1, limit: 50 })
+      .then(rows => { if (active) { setRemoteVenues(rows || []); setRemoteError(''); } })
+      .catch(error => { if (active) { setRemoteVenues([]); setRemoteError(error.message); } });
+    return () => { active = false; };
+  }, [origin.latitude, origin.longitude]);
+  const mappedVenues = useMemo(() => DEMO_MODE
+    ? filterAndSortVenues({ venues: venues.filter(item => item.published), grounds, reviews, origin })
+    : filterAndSortVenues({ venues: remoteVenues, grounds: remoteVenues.flatMap(item => item.grounds || []), reviews: [], origin }),
+  [venues, grounds, reviews, origin, remoteVenues]);
   const selected = mappedVenues.find(item => item.id === selectedId) || mappedVenues[0];
   const center = useMemo(() => {
     const latitudes = mappedVenues.map(item => item.latitude).filter(Number.isFinite);
@@ -36,7 +51,8 @@ export default function VenueMapScreen({ navigation, route }) {
 
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
     <ScrollView contentContainerStyle={styles.content}>
-      <ScreenHeader title="Venue map" subtitle="Offline schematic · marker positions use approximate demo coordinates" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Venue map" subtitle="Offline schematic · venue coordinates and nearby ranking are from PlaySpot" onBack={() => navigation.goBack()} />
+      {remoteError ? <Text accessibilityRole="alert" style={{ color: colors.error, marginBottom: 10 }}>{remoteError}</Text> : null}
       <View style={[styles.notice, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={[styles.noticeTitle, { color: colors.primaryDark }]}>Manual location · {origin.label || 'Lahore'}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{locationNotice}</Text><Pressable accessibilityRole="button" testID="map-location-retry" onPress={tryDeviceLocation} style={styles.locationAction}><Text style={[styles.link, { color: colors.primary }]}>Try device location</Text></Pressable></View>
       <View style={styles.locationChips}>{LOCATIONS.map(location => <Pressable key={location.label} accessibilityRole="button" accessibilityState={{ selected: origin.label === location.label }} testID={`map-center-${location.label.toLowerCase().replace(/ /g, '-')}`} onPress={() => { setOrigin(location); setLocationNotice('Showing venues relative to your selected demo area.'); }} style={[styles.locationChip, { borderColor: origin.label === location.label ? colors.primary : colors.border, backgroundColor: origin.label === location.label ? colors.limePale : colors.surface, borderRadius: radius.pill }]}><Text style={{ color: origin.label === location.label ? colors.primaryDark : colors.inkSoft, fontSize: 11, fontWeight: '700' }}>{location.label}</Text></Pressable>)}</View>
       <View accessibilityLabel="Offline schematic map of demo Lahore venues" style={[styles.map, { borderRadius: radius.lg }]}>

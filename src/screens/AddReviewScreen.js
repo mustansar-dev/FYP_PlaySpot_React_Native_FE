@@ -20,13 +20,16 @@ export default function AddReviewScreen({ navigation, route }) {
   const [comment, setComment] = useState('');
   const [errors, setErrors] = useState({});
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const submit = () => {
+  const submit = async () => {
     const nextErrors = validateReview(stars, comment);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    const result = dispatch(submitVenueReview({ venueId, stars, comment }));
+    setSaving(true);
+    const result = await dispatch(submitVenueReview({ venueId, stars, comment }));
+    setSaving(false);
     if (!result.ok) {
       setSubmitError(result.error);
       return;
@@ -39,7 +42,7 @@ export default function AddReviewScreen({ navigation, route }) {
 
   if (!eligible) return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><View style={styles.content}>
     <ScreenHeader title={`Review ${venue.name}`} subtitle="Reviews are available after a completed visit." onBack={() => navigation.goBack()} />
-    <View style={[styles.saved, { backgroundColor: colors.surface, borderRadius: radius.md }]}><Text style={{ color: colors.ink, fontSize: 12, lineHeight: 18 }}>To review this venue, sign in with a player account, finish your booking and have the venue confirm your attendance. Cancelled, upcoming and unconfirmed visits do not qualify.</Text></View>
+    <View style={[styles.saved, { backgroundColor: colors.surface, borderRadius: radius.md }]}><Text style={{ color: colors.ink, fontSize: 12, lineHeight: 18 }}>To review this venue, sign in with a player account, finish your booking and have the venue confirm your attendance and completion. Cancelled and upcoming bookings do not qualify.</Text></View>
     <AppButton title="Back to venue" onPress={() => navigation.goBack()} style={styles.submit} />
   </View></SafeAreaView>;
 
@@ -53,7 +56,7 @@ export default function AddReviewScreen({ navigation, route }) {
     {submitError ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{submitError}</Text> : null}
     <Text style={[styles.counter, { color: colors.inkSoft }]}>{comment.trim().length}/500 · minimum 8 characters</Text>
     {saved ? <View accessibilityLiveRegion="polite" style={[styles.saved, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={{ color: colors.primaryDark, fontSize: 12, fontWeight: '800' }}>Review saved. The venue rating has been updated.</Text></View> : null}
-    <AppButton title={saved ? 'Review saved' : 'Submit review'} testID="review-submit" onPress={submit} disabled={saved} style={styles.submit} />
+    <AppButton title={saving ? 'Submitting…' : saved ? 'Review saved' : 'Submit review'} testID="review-submit" onPress={submit} loading={saving} disabled={saved || saving} style={styles.submit} />
   </ScrollView></SafeAreaView>;
 }
 

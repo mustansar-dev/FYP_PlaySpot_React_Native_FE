@@ -18,8 +18,10 @@ import ChoiceChips from '../components/ChoiceChips';
 import FormField from '../components/FormField';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { DEMO_MODE } from '../config/backendApi';
 import { DEFAULT_GROUND_DAYS, WEEK_DAYS } from '../utils/booking';
 import { registerAccount } from '../services/authRepository';
+import { createVendorResources } from '../services/vendorOnboardingApi';
 import { accountRegistered } from '../store/authSlice';
 import { venueCreated } from '../store/venueSlice';
 import { createVendorVenueRecords } from '../services/vendorVenueFactory';
@@ -320,12 +322,23 @@ export default function VendorRegistrationScreen({ navigation }) {
         vendorProfile,
       });
       dispatch(accountRegistered(result));
-      dispatch(venueCreated(createVendorVenueRecords(vendorProfile, result.account.id)));
+      let setupNotice = '';
+      if (DEMO_MODE) {
+        dispatch(venueCreated(createVendorVenueRecords(vendorProfile, result.account.id)));
+      } else {
+        try {
+          const saved = await createVendorResources(vendorProfile);
+          setupNotice = saved.notice || '';
+        } catch (error) {
+          setupNotice = `Your account was created, but venue setup was incomplete: ${error.message} You can log in and retry venue setup.`;
+        }
+      }
       setDraft(previous => ({ ...previous, password: '', confirmPassword: '' }));
       navigation.replace('RegistrationSuccess', {
         userId: result.account.id,
         name: result.account.name,
         role: result.account.role,
+        setupNotice,
       });
     } catch (error) {
       setSubmitError(error.message || 'Registration could not be saved on this device.');

@@ -1,4 +1,5 @@
 import { getBookingDisplayStatus } from './booking';
+import { DEMO_MODE } from '../config/backendApi';
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -40,7 +41,9 @@ export function filterAndSortVenues({
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = venues.map(venue => {
     const venueReviews = reviews.filter(review => review.venueId === venue.id);
-    const rating = getVenueRating(venueReviews);
+    const rating = venueReviews.length
+      ? getVenueRating(venueReviews)
+      : { average: Number(venue.ratingAverage || 0), count: Number(venue.ratingCount || 0), distribution: [0, 0, 0, 0, 0] };
     const price = getLowestVenuePrice(venue, grounds);
     const distance = haversineDistanceKm(origin, venue);
     const venueGrounds = grounds.filter(ground => ground.venueId === venue.id && ground.isActive);
@@ -74,7 +77,7 @@ export function canReviewVenue({ user, bookings = [], venueId, now = new Date() 
     booking.playerUserId === user.id &&
     booking.venueId === venueId &&
     booking.status !== 'cancelled' &&
-    booking.attendanceStatus === 'attended' &&
+    (DEMO_MODE ? booking.attendanceStatus === 'attended' : booking.status === 'completed') &&
     getBookingDisplayStatus(booking, now) === 'Completed',
   );
 }

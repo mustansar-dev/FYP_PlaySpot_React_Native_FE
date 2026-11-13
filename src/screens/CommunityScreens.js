@@ -19,6 +19,10 @@ import { DesignCard, EmptyState, InlineNotice, SectionHeading, StatusBadge } fro
 import FormField from '../components/FormField';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { DEMO_MODE } from '../config/backendApi';
+import { backendApi } from '../services/backendApi';
+import { connectChatSocket } from '../services/realtimeClient';
+import { normalizeRoom, normalizeTournament } from '../services/backendState';
 import {
   createCommunityId,
   cancelTournament,
@@ -67,6 +71,10 @@ function LocalDemoNote() {
   return <InlineNotice>Local demo chat — messages do not sync across devices. Community activity stays on this device.</InlineNotice>;
 }
 
+function toChatMessage(row) {
+  return { ...row, senderId: row.senderId || row.senderUserId, createdAt: row.createdAt || new Date().toISOString() };
+}
+
 function RoomCard({ room, onPress, testID }) {
   const { colors } = useTheme();
   const openSpots = useMemo(() => getRoomOpenSpots(room), [room]);
@@ -90,12 +98,19 @@ function RoomCard({ room, onPress, testID }) {
 }
 
 export function GameRoomsScreen({ navigation }) {
+  const dispatch = useDispatch();
   const { colors } = useTheme();
   const rooms = useSelector(state => state.community.rooms);
   const [visibility, setVisibility] = useState('all');
   const [sport, setSport] = useState('All');
   const [time, setTime] = useState('all');
   const [query, setQuery] = useState('');
+  const [loadError, setLoadError] = useState('');
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    backendApi.rooms({ page: 1, limit: 50 }).then(rows => rows.forEach(row => dispatch(gameRoomCreated(normalizeRoom(row)))))
+      .catch(error => setLoadError(error.message));
+  }, [dispatch]);
   const openRoom = useCallback(roomId => navigation.navigate('GameRoomDetails', { roomId }), [navigation]);
   const renderRoom = useCallback(({ item }) => (
     <RoomCard room={item} testID={`game-room-${item.id}`} onPress={() => openRoom(item.id)} />
@@ -113,7 +128,8 @@ export function GameRoomsScreen({ navigation }) {
         ListHeaderComponent={(
           <>
             <ScreenHeader title="Find players" subtitle="Join a local game or create a match with open spots." eyebrow="PLAY TOGETHER" onBack={() => navigation.goBack()} />
-            <LocalDemoNote />
+            {DEMO_MODE ? <LocalDemoNote /> : null}
+            {loadError ? <InlineNotice tone="danger">{loadError}</InlineNotice> : null}
             <AppButton title="Create a game room" testID="rooms-create" onPress={() => navigation.navigate('CreateGameRoom')} style={styles.listAction} />
             <View style={styles.twoColumns}>
               <AppButton title="Tournaments" variant="secondary" testID="rooms-tournaments-open" onPress={() => navigation.navigate('Tournaments')} style={styles.column} />
@@ -152,10 +168,45 @@ export function CreateGameRoomScreen({ navigation, route }) {
   const [expandedVenueId, setExpandedVenueId] = useState('');
   const [visibility, setVisibility] = useState(room?.visibility || 'public');
   const [capacity, setCapacity] = useState(String(room?.capacity || (room?.sport === 'Badminton' || room?.sport === 'Padel' ? 4 : 8)));
-  const paymentMode = 'simulated';
+  const paymentMode = DEMO_MODE ? 'simulated' : 'PAY_AT_VENUE';
   const [joinCode, setJoinCode] = useState(room?.joinCode || '');
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [sportsCatalog, setSportsCatalog] = useState([]);
+  const [liveSuggestionSlots, setLiveSuggestionSlots] = useState({});
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    backendApi.sports().then(setSportsCatalog).catch(error => setErrors(previous => ({ ...previous, form: error.message })));
+  }, []);
+
+  useEffect(() => {
+    if (DEMO_MODE) return undefined;
+    let active = true;
+    const candidates = venues.filter(venue => venue.published && venue.sports.includes(sport) &&
+      (!location.trim() || `${venue.name} ${venue.city} ${venue.locationNote || ''} ${venue.address || ''}`.toLowerCase().includes(location.trim().toLowerCase())))
+      .slice(0, 5);
+    const dates = getNextBookableDates().slice(0, 3).map(item => item.dateKey);
+    setLiveSuggestionSlots({});
+    setSuggestionsLoading(true);
+    Promise.all(candidates.flatMap(venue => grounds.filter(ground => ground.venueId === venue.id && ground.sport.toLowerCase() === sport.toLowerCase() && ground.isActive !== false)
+      .flatMap(ground => dates.map(async date => {
+        const response = await backendApi.availability(ground.id, date);
+        return (response.slots || []).filter(slot => slot.available).map(slot => ({
+          id: `${ground.id}:${date}:${slot.startTime}`, groundId: ground.id, date, startTime: slot.startTime, endTime: slot.endTime,
+          status: 'available', ground, totalCostPKR: calculateGroundFee(ground, { startTime: slot.startTime, endTime: slot.endTime }),
+        }));
+      }))))
+      .then(groups => {
+        if (!active) return;
+        const next = {};
+        groups.flat().forEach(slot => { (next[slot.ground.venueId] ||= []).push(slot); });
+        Object.values(next).forEach(items => items.sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)));
+        setLiveSuggestionSlots(next);
+      }).catch(error => { if (active) setErrors(previous => ({ ...previous, slot: error.message })); })
+      .finally(() => { if (active) setSuggestionsLoading(false); });
+    return () => { active = false; };
+  }, [venues, grounds, location, sport]);
 
   const venueSuggestions = useMemo(() => {
     const query = location.trim().toLowerCase();
@@ -165,19 +216,19 @@ export function CreateGameRoomScreen({ navigation, route }) {
         (!query || `${venue.name} ${venue.city} ${venue.locationNote || ''} ${venue.address || ''}`.toLowerCase().includes(query)))
       .map(venue => {
         const matchingGrounds = grounds.filter(ground => ground.venueId === venue.id && ground.sport === sport && ground.isActive !== false);
-        const availableSlots = slots.flatMap(slot => {
+        const availableSlots = DEMO_MODE ? slots.flatMap(slot => {
           const ground = matchingGrounds.find(item => item.id === slot.groundId);
           if (!ground || new Date(`${slot.date}T${slot.startTime}:00`).getTime() <= now.getTime()) return [];
           const assignedRoom = rooms.find(candidate => candidate.id !== room?.id && candidate.status !== 'cancelled' && candidate.slotId === slot.id);
           const availability = getSlotAvailability({ slotId: slot.id, slots, bookings, now, ignoreBookingId: room?.bookingId });
           if (!availability.available || assignedRoom) return [];
           return [{ ...slot, ground, totalCostPKR: calculateGroundFee(ground, slot) }];
-        }).sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`));
+        }).sort((first, second) => `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)) : (liveSuggestionSlots[venue.id] || []);
         return { venue, slots: availableSlots };
       })
       .filter(item => item.slots.length)
       .slice(0, 5);
-  }, [location, venues, grounds, slots, bookings, rooms, room?.id, room?.bookingId, sport]);
+  }, [location, venues, grounds, slots, bookings, rooms, room?.id, room?.bookingId, sport, liveSuggestionSlots]);
 
   const selectedVenue = venues.find(venue => venue.id === selectedVenueId);
   const selectedVendorProfile = vendorProfiles.find(profile => profile.id === selectedVenue?.vendorId);
@@ -194,6 +245,7 @@ export function CreateGameRoomScreen({ navigation, route }) {
   const capacityLimit = getGameRoomCapacityLimit(sport);
 
   const selectVenueSlot = (venue, slot) => {
+    if (!DEMO_MODE) dispatch({ type: 'venues/availabilityLoaded', payload: { groundId: slot.groundId, date: slot.date, slots: [{ id: slot.id, groundId: slot.groundId, date: slot.date, startTime: slot.startTime, endTime: slot.endTime, status: 'available' }] } });
     setSelectedVenueId(venue.id);
     setSelectedSlotId(slot.id);
     setLocation(`${venue.name} · ${venue.locationNote || venue.address || venue.city}`);
@@ -237,6 +289,10 @@ export function CreateGameRoomScreen({ navigation, route }) {
 
   const create = async () => {
     if (saving) return;
+    if (!DEMO_MODE && editing) {
+      setErrors({ form: 'Room editing is not available through the current backend API. Cancel and create a new room instead.' });
+      return;
+    }
     if (!canEdit || !room && editing) {
       setErrors({ form: 'Only the organizer can edit this game room.' });
       return;
@@ -277,7 +333,7 @@ export function CreateGameRoomScreen({ navigation, route }) {
       bookings.some(item => item.id === room.bookingId && isBookingActive(item)));
     let bookingId = reusingBooking ? room.bookingId : null;
     try {
-      if (!reusingBooking) {
+      if (DEMO_MODE && !reusingBooking) {
         const reservation = await dispatch(reserveBooking({
           source: 'player',
           playerUserId: currentUser?.id,
@@ -295,7 +351,7 @@ export function CreateGameRoomScreen({ navigation, route }) {
         if (room?.bookingId) {
           dispatch(bookingCancelled({ bookingId: room.bookingId, cancelledAt: timestamp }));
         }
-      } else if (room.bookingId) {
+      } else if (DEMO_MODE && room?.bookingId) {
         const existingBooking = bookings.find(item => item.id === room.bookingId);
         if (existingBooking && (existingBooking.paymentMode !== 'group-split' || existingBooking.paymentStatus !== 'split-collecting')) {
           dispatch(bookingPaymentModeUpdated({ bookingId: room.bookingId, paymentMode: 'group-split' }));
@@ -352,6 +408,33 @@ export function CreateGameRoomScreen({ navigation, route }) {
         dispatch(gameRoomUpdated(roomRecord));
         navigation.goBack();
       } else {
+        if (!DEMO_MODE) {
+          const sportRecord = sportsCatalog.find(item => item.name.toLowerCase() === sport.toLowerCase() || item.code.toLowerCase() === sport.toLowerCase());
+          if (!sportRecord) { setErrors({ form: `The backend does not currently offer ${sport} in its active sports catalog.` }); return; }
+          const response = await backendApi.createRoom({
+            sportId: sportRecord.id, venueId: selectedVenue.id, courtId: selectedGround.id,
+            title: title.trim(), locationLabel: `${selectedVenue.name} · ${selectedVenue.locationNote || selectedVenue.address || selectedVenue.city}`,
+            startsAt: new Date(`${selectedSlot.date}T${selectedSlot.startTime}:00+05:00`).toISOString(),
+            endsAt: new Date(`${selectedSlot.date}T${selectedSlot.endTime}:00+05:00`).toISOString(),
+            capacity: Number(capacity), visibility: visibility.toUpperCase(), paymentMode: 'PAY_AT_VENUE',
+          });
+          const liveRoom = normalizeRoom({ ...response.room, members: response.room.members });
+          liveRoom.joinCode = response.inviteCode || '';
+          liveRoom.venueName = selectedVenue.name;
+          liveRoom.groundName = selectedGround.name;
+          dispatch(gameRoomCreated(liveRoom));
+          try {
+            const conversationsFromServer = await backendApi.conversations();
+            const liveConversation = conversationsFromServer.find(item => item.gameRoom?.id === liveRoom.id);
+            if (liveConversation) dispatch(conversationCreated({
+              ...liveConversation, kind: 'game-room', roomId: liveRoom.id,
+              participantIds: (liveConversation.members || []).map(item => item.id),
+              lastMessage: liveConversation.lastMessage?.body || '', lastAt: liveConversation.lastMessage?.createdAt || liveConversation.updatedAt,
+            }));
+          } catch { /* Room creation succeeded; inbox can refresh on the next app load. */ }
+          navigation.replace('GameRoomDetails', { roomId: liveRoom.id });
+          return;
+        }
         const conversationId = createCommunityId('conversation');
         const roomParticipantIds = [...new Set([
           ...updatedMembers.map(member => member.userId),
@@ -496,8 +579,17 @@ export function GameRoomDetailsScreen({ navigation, route }) {
   const organizerShare = room?.paymentShares?.find(share => share.seatIndex === 0)
     || room?.paymentShares?.find(share => share.userId === room?.createdBy);
 
-  const join = () => {
+  const join = async () => {
     setError('');
+    if (!DEMO_MODE && room) {
+      try {
+        await backendApi.joinRoom(room.id, room.visibility === 'private' ? joinCode.trim() : undefined);
+        const fresh = await backendApi.room(room.id);
+        dispatch(gameRoomUpdated(normalizeRoom(fresh)));
+        setJoinCode('');
+      } catch (requestError) { setError(requestError.message); }
+      return;
+    }
     const result = dispatch(joinGameRoom({ roomId: room?.id, user: currentUser, joinCode }));
     if (!result.ok) setError(result.error);
     else setJoinCode('');
@@ -519,7 +611,7 @@ export function GameRoomDetailsScreen({ navigation, route }) {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <ScrollView contentContainerStyle={styles.pageContent}>
         <ScreenHeader title={room.title} subtitle={`${room.sport} · ${formatCommunityDate(room.date)} · ${formatCommunityTime(room.startTime)}`} eyebrow="GAME ROOM" onBack={() => navigation.goBack()} />
-        <LocalDemoNote />
+        {DEMO_MODE ? <LocalDemoNote /> : <InlineNotice>Membership and room details are synced with PlaySpot. Player share collection is not enabled for this API flow.</InlineNotice>}
         <DesignCard>
           <View style={styles.rowBetween}><Text style={[styles.cardTitle, styles.flex, { color: colors.ink }]}>{room.location}</Text><StatusBadge label={room.visibility} tone={room.visibility === 'private' ? 'warning' : 'success'} /></View>
           <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Organizer · {room.createdByName || 'PlaySpot player'}</Text>
@@ -530,7 +622,7 @@ export function GameRoomDetailsScreen({ navigation, route }) {
           <View style={styles.rowBetween}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Venue slot total</Text><Text style={[styles.price, { color: colors.ink }]}>{formatPKR(room.totalCostPKR ?? room.costPerParticipantPKR * room.capacity)}</Text></View>
           <View style={styles.rowBetween}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Estimated share / player</Text><Text style={[styles.price, { color: colors.primary }]}>{formatPKR(room.costPerParticipantPKR)}</Text></View>
           <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Organizer share · {formatPKR(organizerShare?.amountPKR ?? room.costPerParticipantPKR)} · {organizerShare?.status === 'simulated-paid' ? 'demo paid' : organizerShare?.status === 'simulated-refunded' ? 'demo refunded' : organizerShare?.status === 'simulated-settled' ? 'settled after session' : 'unpaid'}</Text>
-          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>Room creation records the organizer’s share only; the venue total is divided across the planned player seats.</Text>
+          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Room creation records the organizer’s share only; the venue total is divided across the planned player seats.' : 'The backend stores the estimated per-player venue share. It does not collect room payments or reserve the court booking.'}</Text>
         </DesignCard>
         {isOrganizer && room.status !== 'cancelled' ? <AppButton title="Edit game room settings" testID="room-edit" variant="secondary" onPress={() => navigation.navigate('CreateGameRoom', { roomId: room.id })} /> : null}
         {isOrganizer && room.visibility === 'private' ? <InlineNotice>Private room code · {room.joinCode}</InlineNotice> : null}
@@ -551,7 +643,15 @@ export function GameRoomDetailsScreen({ navigation, route }) {
         {isVenueVendor && !member ? (
           <InlineNotice>This game room was created for a reserved time at your venue.</InlineNotice>
         ) : member && room.status === 'open' ? (
-          <AppButton title={isOrganizer ? 'Cancel game room' : 'Leave game room'} variant="secondary" testID="room-leave" onPress={leave} />
+        <AppButton title={isOrganizer ? 'Cancel game room' : 'Leave game room'} variant="secondary" testID="room-leave" onPress={async () => {
+          if (DEMO_MODE) { leave(); return; }
+          try {
+            if (isOrganizer) await backendApi.closeRoom(room.id);
+            else await backendApi.leaveRoom(room.id);
+            const fresh = await backendApi.room(room.id);
+            dispatch(gameRoomUpdated(normalizeRoom(fresh)));
+          } catch (requestError) { setError(requestError.message); }
+        }} />
         ) : room.status !== 'open' ? (
           <InlineNotice testID="room-closed">{room.status === 'expired' ? 'Minimum player count was not met. Recorded demo shares were refunded and the venue slot was released.' : room.status === 'completed' ? 'This game has finished. Demo shares were settled to the venue.' : 'This game room was cancelled. Recorded demo shares were refunded.'}</InlineNotice>
         ) : openSpots === 0 ? (
@@ -559,12 +659,12 @@ export function GameRoomDetailsScreen({ navigation, route }) {
         ) : (
           <>
             {room.visibility === 'private' ? <FormField label="Private join code" value={joinCode} onChangeText={setJoinCode} autoCapitalize="characters" placeholder="Enter the code from the organizer" testID="room-detail-code" /> : null}
-            <AppButton title={`Pay ${formatPKR(room.costPerParticipantPKR)} & join`} testID="room-join" onPress={join} disabled={room.visibility === 'private' && !joinCode.trim()} />
+          <AppButton title={DEMO_MODE ? `Pay ${formatPKR(room.costPerParticipantPKR)} & join` : 'Join game room'} testID="room-join" onPress={join} disabled={room.visibility === 'private' && !joinCode.trim()} />
           </>
         )}
         {error ? <InlineNotice tone="danger" testID="room-join-error">{error}</InlineNotice> : null}
         {member || isVenueVendor ? <AppButton title="Open this room’s private chat" variant="secondary" testID="room-chat" disabled={!conversation} onPress={() => conversation && navigation.navigate('ChatConversation', { conversationId: conversation.id })} style={styles.spacedButton} /> : <InlineNotice>{room.vendorUserId ? 'Room chat is private to joined players and the selected venue vendor. Join this room to open it.' : 'Room chat is private to joined players. Join this room to open it.'}</InlineNotice>}
-        {member ? <AppButton title="Open split payment calculator" variant="quiet" testID="room-split" onPress={() => navigation.navigate('SplitPayment', { roomId: room.id })} style={styles.spacedButton} /> : null}
+        {member && DEMO_MODE ? <AppButton title="Open split payment calculator" variant="quiet" testID="room-split" onPress={() => navigation.navigate('SplitPayment', { roomId: room.id })} style={styles.spacedButton} /> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -583,6 +683,7 @@ export function ChatInboxScreen({ navigation }) {
     .sort((first, second) => String(second.lastAt).localeCompare(String(first.lastAt))), [conversationRows, currentUser?.id, currentUser?.role]);
 
   const startConversation = () => {
+    if (!DEMO_MODE) return;
     const conversation = {
       id: createCommunityId('conversation'),
       title: currentUser?.role === 'vendor' ? 'Player demo chat' : 'PlaySpot venue team',
@@ -605,12 +706,12 @@ export function ChatInboxScreen({ navigation }) {
         keyExtractor={item => item.id}
         ListHeaderComponent={(
           <>
-            <ScreenHeader title={currentUser?.role === "vendor" ? "Vendor inbox" : "Messages"} subtitle="Local demo chat · messages do not sync across devices." eyebrow="INBOX" onBack={() => navigation.goBack()} />
-            <LocalDemoNote />
-            {currentUser?.role !== 'vendor' ? <AppButton title="Start a demo chat" testID="chat-new" onPress={startConversation} style={styles.listAction} /> : null}
+            <ScreenHeader title={currentUser?.role === "vendor" ? "Vendor inbox" : "Messages"} subtitle={DEMO_MODE ? 'Local demo chat · messages do not sync across devices.' : 'Your persisted conversations and room chats'} eyebrow="INBOX" onBack={() => navigation.goBack()} />
+            {DEMO_MODE ? <LocalDemoNote /> : null}
+            {DEMO_MODE && currentUser?.role !== 'vendor' ? <AppButton title="Start a demo chat" testID="chat-new" onPress={startConversation} style={styles.listAction} /> : null}
           </>
         )}
-        ListEmptyComponent={<EmptyState title={currentUser?.role === 'vendor' ? 'No player messages yet' : 'No conversations yet'} description={currentUser?.role === 'vendor' ? 'Player chats for your venues will appear here.' : 'Start a local demo chat to see the conversation screen.'} action={currentUser?.role === 'vendor' ? null : <AppButton title="Start a demo chat" testID="chat-empty-new" onPress={startConversation} />} />}
+        ListEmptyComponent={<EmptyState title={currentUser?.role === 'vendor' ? 'No player messages yet' : 'No conversations yet'} description={DEMO_MODE ? currentUser?.role === 'vendor' ? 'Player chats for your venues will appear here.' : 'Start a local demo chat to see the conversation screen.' : 'Room and tournament conversations appear here when the backend creates them.'} action={DEMO_MODE && currentUser?.role !== 'vendor' ? <AppButton title="Start a demo chat" testID="chat-empty-new" onPress={startConversation} /> : null} />}
         renderItem={({ item }) => {
           const unread = Number(item.unreadByUser?.[currentUser?.id] || 0);
           const title = currentUser?.role === 'vendor'
@@ -655,7 +756,38 @@ export function ChatConversationScreen({ navigation, route }) {
   const messages = useMemo(() => messageRows.filter(item => item.conversationId === route.params?.conversationId)
     .sort((first, second) => String(first.createdAt).localeCompare(String(second.createdAt))), [messageRows, route.params?.conversationId]);
   const [draft, setDraft] = useState('');
+  const [chatError, setChatError] = useState('');
+  const [chatSocket, setChatSocket] = useState(null);
+  const [sending, setSending] = useState(false);
   const listRef = useRef(null);
+
+  useEffect(() => {
+    if (DEMO_MODE || !canOpenConversation || !conversation?.id) return undefined;
+    let active = true;
+    let liveSocket = null;
+    const receive = row => { if (active) dispatch(messageSent(toChatMessage(row))); };
+    backendApi.messages(conversation.id).then(rows => {
+      if (active) (rows || []).forEach(row => dispatch(messageSent(toChatMessage(row))));
+    }).catch(error => { if (active) setChatError(error.message); });
+    connectChatSocket().then(socket => {
+      if (!active || !socket) return;
+      liveSocket = socket;
+      setChatSocket(socket);
+      socket.on('chat:message:new', receive);
+      const join = () => socket.emit('chat:join', { conversationId: conversation.id }, result => {
+        if (!result?.success && active) setChatError('Live chat could not join this conversation.');
+      });
+      if (socket.connected) join(); else socket.once('connect', join);
+      socket.on('connect_error', () => { if (active) setChatError('Live chat is temporarily unavailable. Messages can still be sent through the server.'); });
+    }).catch(error => { if (active) setChatError(error.message); });
+    return () => {
+      active = false;
+      if (liveSocket) {
+        liveSocket.off('chat:message:new', receive);
+        liveSocket.off('connect_error');
+      }
+    };
+  }, [canOpenConversation, conversation?.id, dispatch]);
 
   useEffect(() => {
     if (canOpenConversation && conversation && currentUser?.id) {
@@ -663,9 +795,30 @@ export function ChatConversationScreen({ navigation, route }) {
     }
   }, [canOpenConversation, conversation?.id, currentUser?.id, dispatch]);
 
-  const send = () => {
+  const send = async () => {
     const body = draft.trim();
     if (!body || !conversation || !canOpenConversation) return;
+    if (!DEMO_MODE) {
+      if (sending) return;
+      setSending(true);
+      setChatError('');
+      try {
+        let row;
+        if (chatSocket?.connected) {
+          row = await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('Live chat timed out.')), 8000);
+            chatSocket.emit('chat:message', { conversationId: conversation.id, body }, result => {
+              clearTimeout(timer);
+              result?.success ? resolve(result.data) : reject(new Error(result?.error?.message || 'Message was not sent.'));
+            });
+          });
+        } else row = await backendApi.sendMessage(conversation.id, body);
+        dispatch(messageSent(toChatMessage(row)));
+        setDraft('');
+      } catch (error) { setChatError(error.message); }
+      finally { setSending(false); }
+      return;
+    }
     dispatch(messageSent({
       id: createCommunityId('message'),
       conversationId: conversation.id,
@@ -681,8 +834,8 @@ export function ChatConversationScreen({ navigation, route }) {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.chatPage}>
-          <ScreenHeader title={conversation ? (currentUser?.role === 'vendor' && conversation.kind === 'venue-vendor' ? conversation.playerName || conversation.title : conversation.title) : 'Conversation'} subtitle="Local demo chat · not real-time" eyebrow="MESSAGES" onBack={() => navigation.goBack()} />
-          <LocalDemoNote />
+          <ScreenHeader title={conversation ? (currentUser?.role === 'vendor' && conversation.kind === 'venue-vendor' ? conversation.playerName || conversation.title : conversation.title) : 'Conversation'} subtitle={DEMO_MODE ? 'Local demo chat · not real-time' : 'Persisted conversation with live updates'} eyebrow="MESSAGES" onBack={() => navigation.goBack()} />
+          {DEMO_MODE ? <LocalDemoNote /> : chatError ? <InlineNotice tone="danger">{chatError}</InlineNotice> : null}
           {canOpenConversation ? (
             <FlatList
               ref={listRef}
@@ -690,7 +843,7 @@ export function ChatConversationScreen({ navigation, route }) {
               keyExtractor={item => item.id}
               contentContainerStyle={styles.messageList}
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-              ListEmptyComponent={<EmptyState title="Start the conversation" description="Messages are saved on this device only." />}
+              ListEmptyComponent={<EmptyState title="Start the conversation" description={DEMO_MODE ? 'Messages are saved on this device only.' : 'No messages have been sent in this conversation yet.'} />}
               renderItem={({ item }) => {
                 const outgoing = item.senderId === currentUser?.id;
                 return (
@@ -707,7 +860,7 @@ export function ChatConversationScreen({ navigation, route }) {
           ) : <EmptyState title={conversation?.kind === 'game-room' ? 'Join this game room to open its private chat' : 'Conversation not available'} description="Only current conversation participants can read or send these local demo messages." />}
           {canOpenConversation ? <View style={[styles.composer, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
             <TextInput
-              accessibilityLabel="Write a local demo message"
+              accessibilityLabel={DEMO_MODE ? 'Write a local demo message' : 'Write a message'}
               testID="chat-message-input"
               value={draft}
               onChangeText={setDraft}
@@ -719,8 +872,8 @@ export function ChatConversationScreen({ navigation, route }) {
               maxLength={800}
               style={[styles.composerInput, { color: colors.ink }]}
             />
-            <Pressable accessibilityRole="button" accessibilityLabel="Send local demo message" testID="chat-message-send" disabled={!draft.trim()} onPress={send} style={[styles.sendButton, { backgroundColor: colors.primary, borderRadius: radius.pill, opacity: draft.trim() ? 1 : 0.45 }]}>
-              <Text style={styles.sendLabel}>Send</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Send message" testID="chat-message-send" disabled={!draft.trim() || sending} onPress={send} style={[styles.sendButton, { backgroundColor: colors.primary, borderRadius: radius.pill, opacity: draft.trim() && !sending ? 1 : 0.45 }]}>
+              <Text style={styles.sendLabel}>{sending ? 'Sending…' : 'Send'}</Text>
             </Pressable>
           </View> : null}
         </View>
@@ -863,7 +1016,8 @@ export function SplitPaymentScreen({ navigation, route }) {
 
 function TournamentCard({ tournament, onPress, testID }) {
   const { colors } = useTheme();
-  const remaining = useMemo(() => Math.max(0, tournament.capacity - tournament.participants.length), [tournament]);
+  const registered = tournament.registeredTeams ?? tournament.participants.length;
+  const remaining = useMemo(() => Math.max(0, tournament.capacity - registered), [tournament.capacity, registered]);
   const teamTournament = Number(tournament.teamSize) > 1;
   const fee = Number(tournament.entryFeePKR ?? tournament.demoEntryFeePKR ?? 0);
   return (
@@ -872,7 +1026,7 @@ function TournamentCard({ tournament, onPress, testID }) {
         <View style={styles.rowBetween}><Text numberOfLines={1} style={[styles.cardTitle, styles.flex, { color: colors.ink }]}>{tournament.title}</Text><View style={styles.rowBetween}><StatusBadge label={tournament.status} tone={tournament.status === 'upcoming' ? 'success' : 'neutral'} />{!isTournamentRegistrationOpen(tournament) && !['completed', 'cancelled'].includes(tournament.status) ? <StatusBadge label="Registration closed" tone="danger" /> : null}</View></View>
         <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{tournament.sport} · {formatCommunityDate(tournament.date)} · {formatCommunityTime(tournament.startTime)}</Text>
         <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{tournament.venueName || tournament.location}</Text>
-        <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{tournament.participants.length}/{tournament.capacity} {teamTournament ? 'teams' : 'players'} · {remaining} spots left</Text>
+        <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{registered}/{tournament.capacity} {teamTournament ? 'teams' : 'players'} · {remaining} spots left</Text>
         <Text style={[styles.cardMeta, { color: colors.primary }]}>{formatPKR(fee)} entry · {formatPKR(tournament.prizePKR || 0)} prize</Text>
       </DesignCard>
     </Pressable>
@@ -898,11 +1052,18 @@ function getTournamentLeaderboardRows(tournament) {
 }
 
 export function TournamentsScreen({ navigation }) {
+  const dispatch = useDispatch();
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const tournaments = useSelector(state => state.community.tournaments);
   const [sport, setSport] = useState('All');
   const [status, setStatus] = useState('upcoming');
+  const [loadError, setLoadError] = useState('');
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    backendApi.tournaments({ page: 1, limit: 50 }).then(rows => rows.forEach(row => dispatch(tournamentCreated(normalizeTournament(row)))))
+      .catch(error => setLoadError(error.message));
+  }, [dispatch]);
   const openTournament = useCallback(tournamentId => navigation.navigate('TournamentDetails', { tournamentId }), [navigation]);
   const renderTournament = useCallback(({ item }) => (
     <TournamentCard tournament={item} testID={`tournament-${item.id}`} onPress={() => openTournament(item.id)} />
@@ -919,7 +1080,8 @@ export function TournamentsScreen({ navigation }) {
         keyExtractor={item => item.id}
         ListHeaderComponent={(
           <>
-            <ScreenHeader title="Tournaments" subtitle="Local demo competitions with capacity-protected registration." eyebrow="COMPETE" onBack={() => navigation.goBack()} />
+            <ScreenHeader title="Tournaments" subtitle={DEMO_MODE ? 'Local demo competitions with capacity-protected registration.' : 'Competitions hosted at PlaySpot venues'} eyebrow="COMPETE" onBack={() => navigation.goBack()} />
+            {loadError ? <InlineNotice tone="danger">{loadError}</InlineNotice> : null}
             {currentUser?.role === 'vendor' ? <AppButton title="Create a tournament" testID="tournament-create-open" onPress={() => navigation.navigate('CreateTournament')} style={styles.listAction} /> : null}
             <AppButton title="View tournament leaderboards" variant="secondary" testID="tournament-leaderboard-open" onPress={() => navigation.navigate('TournamentLeaderboards')} style={styles.listAction} />
             <ChoiceChips label="Sport" options={['All', ...SPORTS]} selected={sport} onSelect={setSport} testID="tournament-sport" />
@@ -939,6 +1101,14 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const tournament = useSelector(state => state.community.tournaments.find(item => item.id === route.params?.tournamentId));
+  useEffect(() => {
+    if (DEMO_MODE || !route.params?.tournamentId) return undefined;
+    let active = true;
+    backendApi.tournament(route.params.tournamentId).then(row => {
+      if (active) dispatch(tournamentCreated(normalizeTournament(row)));
+    }).catch(error => { if (active) setError(error.message); });
+    return () => { active = false; };
+  }, [dispatch, route.params?.tournamentId]);
   const conversation = useSelector(state => state.community.conversations.find(item => item.kind === 'tournament' && item.tournamentId === route.params?.tournamentId));
   const [error, setError] = useState('');
   const [teamName, setTeamName] = useState('');
@@ -968,8 +1138,17 @@ export function TournamentDetailsScreen({ navigation, route }) {
       joinedAt: participant.joinedAt,
     }])));
   }, [tournament?.id, tournament?.participants, tournament?.standings]);
-  const join = () => {
+  const join = async () => {
     setError('');
+    if (!DEMO_MODE && tournament) {
+      try {
+        await backendApi.joinTournament(tournament.id, { teamName: teamName.trim() || currentUser.name, teamMemberNames: teammates.split(',').map(item => item.trim()).filter(Boolean) });
+        const fresh = await backendApi.tournament(tournament.id);
+        dispatch(tournamentCreated(normalizeTournament(fresh)));
+        navigation.replace('MyBookings', { highlightTournamentId: tournament.id });
+      } catch (requestError) { setError(requestError.message); }
+      return;
+    }
     const result = dispatch(joinTournament({ tournamentId: tournament?.id, user: currentUser, teamName, teammateNames: teammates.split(','), paymentMode }));
     if (!result.ok) setError(result.error);
     else {
@@ -978,7 +1157,16 @@ export function TournamentDetailsScreen({ navigation, route }) {
       navigation.replace('MyBookings', { highlightTournamentId: tournament.id });
     }
   };
-  const leave = () => {
+  const leave = async () => {
+    if (!DEMO_MODE) {
+      try {
+        await backendApi.leaveTournament(tournament.id);
+        const fresh = await backendApi.tournament(tournament.id);
+        dispatch(tournamentCreated(normalizeTournament(fresh)));
+        setError('You left the tournament.');
+      } catch (requestError) { setError(requestError.message); }
+      return;
+    }
     const result = dispatch(leaveTournament({ tournamentId: tournament.id }));
     setError(result.ok ? 'You left the tournament. Your full entry fee is marked refunded in this demo.' : result.error);
   };
@@ -992,11 +1180,16 @@ export function TournamentDetailsScreen({ navigation, route }) {
     }));
     setError(result.ok ? (registrationOpen ? 'Registration closed. The tournament remains visible in the list.' : 'Registration reopened for players.') : result.error);
   };
-  const cancel = () => Alert.alert('Cancel tournament?', 'This closes registration and releases the reserved ground times.', [
+  const cancel = () => Alert.alert('Cancel tournament?', DEMO_MODE ? 'This closes registration and releases the reserved ground times.' : 'This closes registration on the server.', [
     { text: 'Keep tournament', style: 'cancel' },
-    { text: 'Cancel tournament', style: 'destructive', onPress: () => dispatch(cancelTournament({ tournamentId: tournament.id })) },
+    { text: 'Cancel tournament', style: 'destructive', onPress: async () => {
+      if (!DEMO_MODE) {
+        try { await backendApi.cancelTournament(tournament.id); dispatch({ type: 'community/tournamentUpdated', payload: { id: tournament.id, actorUserId: currentUser.id, changes: { status: 'cancelled', registrationOpen: false } } }); }
+        catch (requestError) { setError(requestError.message); }
+      } else dispatch(cancelTournament({ tournamentId: tournament.id }));
+    } },
   ]);
-  const saveStandings = () => {
+  const saveStandings = async () => {
     const invalidScore = tournament.participants.some(participant => {
       const draft = scoreDraft[participant.userId] || {};
       return !Number.isInteger(Number(draft.wins)) || Number(draft.wins) < 0 || !Number.isInteger(Number(draft.points)) || Number(draft.points) < 0;
@@ -1017,15 +1210,35 @@ export function TournamentDetailsScreen({ navigation, route }) {
         joinedAt: participant.joinedAt,
       };
     }).sort((first, second) => second.points - first.points || second.wins - first.wins || String(first.joinedAt).localeCompare(String(second.joinedAt)));
+    if (!DEMO_MODE) {
+      try {
+        const results = standings.map(row => ({ participantId: tournament.participants.find(item => item.userId === row.userId)?.id, wins: row.wins, points: row.points })).filter(row => row.participantId);
+        await backendApi.standings(tournament.id, { status: 'ACTIVE', results });
+        const fresh = await backendApi.tournament(tournament.id);
+        dispatch(tournamentCreated(normalizeTournament(fresh)));
+        setError('Tournament standings saved on the server.');
+      } catch (requestError) { setError(requestError.message); }
+      return;
+    }
     const result = dispatch(updateTournamentAsVendor({ tournamentId: tournament.id, changes: { standings } }));
     setError(result.ok ? 'Tournament standings saved on this device.' : result.error);
   };
-  const completeTournament = () => {
+  const completeTournament = async () => {
     if (!tournament.standings?.length) {
       setError('Save the tournament standings before completing it.');
       return;
     }
     const winner = [...tournament.standings].sort((first, second) => second.points - first.points || second.wins - first.wins)[0];
+    if (!DEMO_MODE) {
+      try {
+        const results = tournament.participants.map(row => ({ participantId: row.id, wins: Number(scoreDraft[row.userId]?.wins || row.wins || 0), points: Number(scoreDraft[row.userId]?.points || row.points || 0) }));
+        await backendApi.standings(tournament.id, { status: 'COMPLETED', winnerTeamName: winner.teamName, results });
+        const fresh = await backendApi.tournament(tournament.id);
+        dispatch(tournamentCreated(normalizeTournament(fresh)));
+        setError('Tournament completed and results saved on the server.');
+      } catch (requestError) { setError(requestError.message); }
+      return;
+    }
     const result = dispatch(updateTournamentAsVendor({ tournamentId: tournament.id, changes: { status: 'completed', registrationOpen: false, winnerTeamName: winner.teamName } }));
     setError(result.ok ? 'Tournament completed and winner recorded locally.' : result.error);
   };
@@ -1036,7 +1249,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
       <ScrollView contentContainerStyle={styles.pageContent}>
         <ScreenHeader title={tournament.title} subtitle={`${tournament.sport} · ${formatCommunityDate(tournament.date)}`} eyebrow="TOURNAMENT DETAILS" onBack={() => navigation.goBack()} />
-        <LocalDemoNote />
+        {DEMO_MODE ? <LocalDemoNote /> : null}
         <DesignCard>
           <Text style={[styles.cardTitle, { color: colors.ink }]}>{tournament.venueName || tournament.location || 'Host venue'}</Text>
           {tournament.endTime ? <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Playing hours · {formatCommunityTime(tournament.startTime)}–{formatCommunityTime(tournament.endTime)}</Text> : null}
@@ -1055,7 +1268,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
               <Text style={[styles.cardTitle, { color: colors.ink }]}>{participant.teamName || participant.name}</Text>
               <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Team leader · {participant.name}</Text>
               <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{participant.teamMembers?.join(' · ') || participant.name}</Text>
-              <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Entry · {formatPKR(participant.totalEntryFeePKR ?? entryFee)} · {participant.paymentStatus === 'simulated-paid' ? 'demo paid' : participant.paymentStatus === 'simulated-refunded' ? 'demo refunded' : participant.paymentStatus === 'simulated-settled' ? 'settled' : 'demo record'}</Text>
+              <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Entry · {formatPKR(participant.totalEntryFeePKR ?? entryFee)} · {DEMO_MODE ? participant.paymentStatus === 'simulated-paid' ? 'demo paid' : participant.paymentStatus === 'simulated-refunded' ? 'demo refunded' : participant.paymentStatus === 'simulated-settled' ? 'settled' : 'demo record' : `server status: ${participant.paymentStatus || 'pending'}`}</Text>
             </View>
           </View>
         ))}
@@ -1067,7 +1280,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
         {canRegister && !isParticipant && !isOrganizer && remaining > 0 && registrationOpen ? <>
           <SectionHeading title="Registration payment" />
           <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Entry fee {formatPKR(entryFee)} per player × {isTeamTournament ? `${teamSize} players` : '1 player'} = {formatPKR(registrationTotal)}</Text>
-          <InlineNotice>Demo entry payment is recorded before your team is registered. If the host cancels, the full entry fee is marked refunded. No money is collected or transferred.</InlineNotice>
+          <InlineNotice>{DEMO_MODE ? 'Demo entry payment is recorded before your team is registered. If the host cancels, the full entry fee is marked refunded. No money is collected or transferred.' : 'Team registration is saved by the server. Entry payment is not collected in this app flow and remains pending.'}</InlineNotice>
         </> : null}
         {isOrganizer ? <>
           {registrationOpen ? <AppButton title="Close team registration" variant="secondary" testID="tournament-close-registration" onPress={toggleRegistration} /> : !['completed', 'cancelled'].includes(tournament.status) ? <AppButton title="Reopen team registration" variant="secondary" testID="tournament-reopen-registration" onPress={toggleRegistration} /> : null}
@@ -1085,8 +1298,8 @@ export function TournamentDetailsScreen({ navigation, route }) {
             <AppButton title="Save tournament results" variant="secondary" testID="tournament-save-standings" onPress={saveStandings} />
             {tournament.status !== 'completed' ? <AppButton title="Complete tournament" testID="tournament-complete" onPress={completeTournament} style={styles.spacedButton} /> : null}
           </> : null}
-        </> : isParticipant ? <AppButton title="Leave tournament · full demo refund" variant="secondary" testID="tournament-leave" onPress={leave} /> : canRegister && (remaining === 0 || !registrationOpen) ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : canRegister ? <AppButton title={`Pay ${formatPKR(registrationTotal)} & register`} testID="tournament-join" onPress={join} /> : !isOrganizer ? <InlineNotice testID="tournament-player-account-required">Vendor accounts cannot register teams. Use a player account to participate.</InlineNotice> : null}
-        {isOrganizer && tournament.status === 'completed' ? <InlineNotice testID="tournament-demo-payout">Demo settlement released after completion: venue share {formatPKR(tournament.vendorPayoutPKR || 0)} · prize allocation {formatPKR(tournament.prizePayoutPKR || 0)}{tournament.vendorPrizeTopUpPKR ? ` · organizer prize top-up ${formatPKR(tournament.vendorPrizeTopUpPKR)}` : ''}. No money moved.</InlineNotice> : null}
+        </> : isParticipant ? <AppButton title={DEMO_MODE ? 'Leave tournament · full demo refund' : 'Leave tournament'} variant="secondary" testID="tournament-leave" onPress={leave} /> : canRegister && (remaining === 0 || !registrationOpen) ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : canRegister ? <AppButton title={DEMO_MODE ? `Pay ${formatPKR(registrationTotal)} & register` : 'Register team'} testID="tournament-join" onPress={join} /> : !isOrganizer ? <InlineNotice testID="tournament-player-account-required">Vendor accounts cannot register teams. Use a player account to participate.</InlineNotice> : null}
+        {isOrganizer && tournament.status === 'completed' ? <InlineNotice testID="tournament-demo-payout">{DEMO_MODE ? `Demo settlement released after completion: venue share ${formatPKR(tournament.vendorPayoutPKR || 0)} · prize allocation ${formatPKR(tournament.prizePayoutPKR || 0)}. No money moved.` : 'Tournament results are saved on the server. The app does not transfer venue revenue or prize money.'}</InlineNotice> : null}
         {isParticipant || isOrganizer ? <AppButton title="Open tournament private chat" variant="secondary" testID="tournament-chat" disabled={!conversation} onPress={() => conversation && navigation.navigate('ChatConversation', { conversationId: conversation.id })} style={styles.spacedButton} /> : <InlineNotice>Private chat is available to the tournament host and registered team leaders.</InlineNotice>}
         <SectionHeading title="Tournament leaderboard" />
         <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Standings are tournament-specific and saved by the host on this device.</Text>
@@ -1133,6 +1346,25 @@ export function CreateTournamentScreen({ navigation }) {
     }
     setErrors(validation);
     if (Object.keys(validation).length) return;
+    if (!DEMO_MODE) {
+      (async () => {
+        try {
+          const sportRecord = (await backendApi.sports()).find(item => item.name.toLowerCase() === sport.toLowerCase() || item.code.toLowerCase() === sport.toLowerCase());
+          if (!sportRecord) throw new Error(`The backend does not currently offer ${sport} in its active sports catalog.`);
+          const response = await backendApi.createTournament({
+            title: title.trim(), sportId: sportRecord.id, venueId: hostVenue.id,
+            startsAt: new Date(`${date}T${startTime}:00+05:00`).toISOString(),
+            endsAt: new Date(`${date}T${endTime}:00+05:00`).toISOString(),
+            maxTeams: Number(capacity), teamSize: Number(teamSize),
+            entryFeePerPlayerPaisa: Math.round(Number(entryFeePKR) * 100), prizePaisa: Math.round(Number(prizePKR) * 100),
+          });
+          const tournament = normalizeTournament(response);
+          dispatch(tournamentCreated(tournament));
+          navigation.replace('TournamentDetails', { tournamentId: tournament.id });
+        } catch (error) { setErrors({ reservation: error.message }); }
+      })();
+      return;
+    }
     const tournamentId = createCommunityId('tournament');
     const reservation = dispatch(reserveTournamentGrounds({
       tournamentId,
@@ -1200,7 +1432,7 @@ export function CreateTournamentScreen({ navigation }) {
         <FormField label="Maximum teams" value={capacity} onChangeText={setCapacity} error={errors.capacity} keyboardType="number-pad" testID="tournament-capacity" />
         <FormField label="Entry fee per player (PKR)" value={entryFeePKR} onChangeText={setEntryFeePKR} error={errors.entryFeePKR} keyboardType="number-pad" testID="tournament-entry-fee" />
         <FormField label="Winning prize (PKR)" value={prizePKR} onChangeText={setPrizePKR} error={errors.prizePKR} keyboardType="number-pad" testID="tournament-prize" />
-        <InlineNotice>Team registrations, entry fees and prizes are local demo records. No payment is collected and no prize is transferred.</InlineNotice>
+        <InlineNotice>{DEMO_MODE ? 'Team registrations, entry fees and prizes are local demo records. No payment is collected and no prize is transferred.' : 'The backend records tournament details and team registrations. Entry fees and prize transfers are not processed by this app.'}</InlineNotice>
         {errors.reservation ? <InlineNotice tone="danger">{errors.reservation}</InlineNotice> : null}
         <AppButton title="Create tournament" testID="tournament-create-submit" onPress={create} />
       </ScrollView>
@@ -1210,6 +1442,8 @@ export function CreateTournamentScreen({ navigation }) {
 
 export function LeaderboardScreen({ navigation, route }) {
   const { colors } = useTheme();
+  const [remoteRows, setRemoteRows] = useState([]);
+  const [remoteError, setRemoteError] = useState('');
   const accounts = useSelector(state => state.auth.accounts);
   const tournaments = useSelector(state => state.community.tournaments);
   const rows = useMemo(() => {
@@ -1234,8 +1468,21 @@ export function LeaderboardScreen({ navigation, route }) {
     }).sort((first, second) => first.sport.localeCompare(second.sport) || second.points - first.points || second.wins - first.wins || first.name.localeCompare(second.name));
   }, [accounts, tournaments]);
   const [sport, setSport] = useState(route.params?.sport || 'All');
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    let active = true;
+    (async () => {
+      try {
+        const catalog = await backendApi.sports();
+        const selected = catalog.find(item => item.name === sport);
+        const result = await backendApi.leaderboard({ limit: 100, sportId: selected?.id });
+        if (active) setRemoteRows((result || []).map(row => ({ id: row.userId, userId: row.userId, name: row.playerName, sport: selected?.name || 'All sports', wins: row.wins, points: row.points })));
+      } catch (error) { if (active) { setRemoteRows([]); setRemoteError(error.message); } }
+    })();
+    return () => { active = false; };
+  }, [sport]);
   const sports = useMemo(() => ['All', ...new Set(rows.map(row => row.sport))], [rows]);
-  const filtered = useMemo(() => rows.filter(row => sport === 'All' || row.sport === sport), [rows, sport]);
+  const filtered = useMemo(() => DEMO_MODE ? rows.filter(row => sport === 'All' || row.sport === sport) : remoteRows, [rows, remoteRows, sport]);
   const rankByRowId = useMemo(() => {
     const seen = {};
     return Object.fromEntries(filtered.map(row => {
@@ -1253,7 +1500,8 @@ export function LeaderboardScreen({ navigation, route }) {
         ListHeaderComponent={(
           <>
             <ScreenHeader title="Common leaderboard" subtitle="Every player account is listed under their chosen sports. Tournament results update their points and wins." eyebrow="PLAYER RANKS" onBack={() => navigation.goBack()} />
-            <LocalDemoNote />
+            {DEMO_MODE ? <LocalDemoNote /> : null}
+            {remoteError ? <InlineNotice tone="danger">{remoteError}</InlineNotice> : null}
             <ChoiceChips label="Sport" options={sports} selected={sport} onSelect={setSport} testID="leaderboard-sport" />
             <SectionHeading title="Rankings" />
           </>

@@ -439,7 +439,7 @@ const communitySlice = createSlice({
     messageSent(state, action) {
       const body = String(action.payload.body || '').trim();
       const conversation = state.conversations.find(item => item.id === action.payload.conversationId);
-      if (!body || !conversation) return;
+      if (!body || !conversation || state.messages.some(item => item.id === action.payload.id)) return;
       if (!conversation.participantIds?.includes(action.payload.senderId)) return;
       if (conversation.kind === 'game-room') {
         const room = state.rooms.find(item => item.id === conversation.roomId);
@@ -521,8 +521,10 @@ const communitySlice = createSlice({
       if (share) share.status = action.payload.status;
     },
     tournamentCreated(state, action) {
-      state.tournaments.unshift(action.payload);
-      syncTournamentConversation(state, state.tournaments[0]);
+      const index = state.tournaments.findIndex(item => item.id === action.payload.id);
+      if (index < 0) state.tournaments.unshift(action.payload);
+      else state.tournaments[index] = { ...state.tournaments[index], ...action.payload };
+      syncTournamentConversation(state, state.tournaments.find(item => item.id === action.payload.id));
     },
     tournamentUpdated(state, action) {
       const { id, actorUserId, changes } = action.payload || {};
