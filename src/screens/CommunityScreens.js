@@ -259,12 +259,30 @@ export function CreateGameRoomScreen({ navigation, route }) {
     setLocation('');
   };
 
-  const openVendorChat = () => {
+  const openVendorChat = async () => {
     const vendorUserId = selectedVendorProfile?.ownerUserId;
     if (!selectedVenue || !currentUser?.id || !vendorUserId) return;
     const existing = findVenueVendorConversation(conversations, selectedVenue.id, currentUser.id, vendorUserId);
     if (existing) {
       navigation.navigate('ChatConversation', { conversationId: existing.id });
+      return;
+    }
+    if (!DEMO_MODE) {
+      try {
+        const row = await backendApi.venueConversation(selectedVenue.id);
+        const members = row.members || [];
+        const conversation = {
+          ...row,
+          kind: 'venue-vendor', venueId: selectedVenue.id, venueName: selectedVenue.name,
+          vendorUserId, playerUserId: currentUser.id, playerName: currentUser.name,
+          participantIds: members.map(member => member.id),
+          lastMessage: row.lastMessage?.body || '', lastAt: row.lastMessage?.createdAt || row.updatedAt,
+        };
+        dispatch(conversationCreated(conversation));
+        navigation.navigate('ChatConversation', { conversationId: conversation.id });
+      } catch (error) {
+        setErrors(previous => ({ ...previous, location: error.message || 'Could not open this venue chat.' }));
+      }
       return;
     }
     const conversation = createVenueVendorConversation({
@@ -792,7 +810,12 @@ export function ChatConversationScreen({ navigation, route }) {
   useEffect(() => {
     if (canOpenConversation && conversation && currentUser?.id) {
       dispatch(conversationRead({ conversationId: conversation.id, userId: currentUser.id }));
+      if (!DEMO_MODE) backendApi.markNotificationsRead({ conversationId: conversation.id }).catch(error => {
+        if (active) setChatError(error.message || 'Could not update notification status.');
+      });
     }
+    let active = true;
+    return () => { active = false; };
   }, [canOpenConversation, conversation?.id, currentUser?.id, dispatch]);
 
   const send = async () => {
@@ -857,7 +880,7 @@ export function ChatConversationScreen({ navigation, route }) {
                 );
               }}
             />
-          ) : <EmptyState title={conversation?.kind === 'game-room' ? 'Join this game room to open its private chat' : 'Conversation not available'} description="Only current conversation participants can read or send these local demo messages." />}
+          ) : <EmptyState title={conversation?.kind === 'game-room' ? 'Join this game room to open its private chat' : 'Conversation not available'} description={DEMO_MODE ? 'Only current conversation participants can read or send these local demo messages.' : 'Only current conversation participants can read or send messages in this chat.'} />}
           {canOpenConversation ? <View style={[styles.composer, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
             <TextInput
               accessibilityLabel={DEMO_MODE ? 'Write a local demo message' : 'Write a message'}

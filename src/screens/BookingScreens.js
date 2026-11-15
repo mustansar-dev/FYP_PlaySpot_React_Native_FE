@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   Alert,
   Linking,
   FlatList,
@@ -36,6 +37,7 @@ import {
 import { bookingCancelled, confirmBookingAttendance, reserveBooking, refreshAvailability } from '../store/venueSlice';
 import { DEMO_MODE } from '../config/backendApi';
 import { backendApi } from '../services/backendApi';
+import { normalizeBooking } from '../services/backendState';
 import { cancelGameRoom, recordWalkInCashRefund } from '../store/communitySlice';
 import { selectBookingsForUser, selectBookingsForVendor, selectGameRoomsForUser } from '../store/selectors/bookingSelectors';
 import { selectVenueById, selectGroundsByVenueId, selectEquipmentByVenueId, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
@@ -365,10 +367,31 @@ export function BookingCheckoutScreen({ navigation, route }) {
       }
       if (!DEMO_MODE && paymentMode === 'ONLINE' && result.payment?.id) {
         const checkout = await backendApi.paymentCheckout(result.payment.id);
+        if (checkout.simulation) {
+          Alert.alert(
+            'Development payment simulation',
+            'This does not open a payment provider or move money. Choose whether to record a simulated success.',
+            [
+              { text: 'Later', style: 'cancel', onPress: () => navigation.replace('MyBookings', { highlightBookingId: result.booking.id }) },
+              { text: 'Simulate success', onPress: async () => {
+                try {
+                  await backendApi.simulatePayment(result.payment.id, 'succeeded');
+                  const fresh = await backendApi.booking(result.booking.id);
+                  const booking = fresh.booking || fresh;
+                  dispatch({ type: 'venues/bookingServerSynced', payload: { ...result.booking, ...booking, status: String(booking.status || '').toLowerCase().replaceAll('_', '-') } });
+                  navigation.replace('MyBookings', { highlightBookingId: result.booking.id });
+                } catch (error) { setError(error.message || 'The payment simulation could not be recorded.'); }
+              } },
+            ],
+          );
+          return;
+        }
         if (checkout.checkoutUrl) await Linking.openURL(checkout.checkoutUrl);
         else setError('The server did not return a checkout link. Your booking remains pending; refresh its status before retrying.');
       }
       navigation.replace('MyBookings', { highlightBookingId: result.booking.id });
+    } catch (error) {
+      setError(error.message || 'The booking could not be completed.');
     } finally {
       submitGuard.current = false;
       setSubmitting(false);
@@ -477,6 +500,7 @@ export function BookingSuccessScreen({ navigation, route }) {
 
 export function MyBookingsScreen({ navigation, route = { params: {} } }) {
   const { colors } = useTheme();
+  const dispatch = useDispatch();
   const { currentUser } = useSelector(state => state.auth);
   const bookings = useSelector(state => selectBookingsForUser(state, currentUser?.id || ''));
   const myRooms = useSelector(state => selectGameRoomsForUser(state, currentUser?.id || ''));
@@ -487,6 +511,28 @@ export function MyBookingsScreen({ navigation, route = { params: {} } }) {
     tournament.participants?.some(participant => participant.userId === currentUser?.id),
   ).slice().sort((first, second) => Number(second.id === highlightTournamentId) - Number(first.id === highlightTournamentId) || `${first.date}${first.startTime}`.localeCompare(`${second.date}${second.startTime}`)), [tournaments, currentUser?.id, highlightTournamentId]);
   const [filter, setFilter] = useState('Upcoming');
+  const [refreshError, setRefreshError] = useState('');
+  const refreshBookings = useCallback(async activeRef => {
+    if (DEMO_MODE || !currentUser?.id) return;
+    try {
+      const rows = await backendApi.myBookings({ page: 1, limit: 50 });
+      if (!activeRef.current) return;
+      rows.forEach(row => dispatch({ type: 'venues/bookingServerSynced', payload: normalizeBooking(row) }));
+      setRefreshError('');
+    } catch (error) {
+      if (activeRef.current) setRefreshError(error.message || 'Booking status could not be refreshed.');
+    }
+  }, [currentUser?.id, dispatch]);
+  useEffect(() => {
+    const activeRef = { current: true };
+    const refresh = () => { void refreshBookings(activeRef); };
+    refresh();
+    const removeFocusListener = navigation?.addListener?.('focus', refresh);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refresh();
+    });
+    return () => { activeRef.current = false; removeFocusListener?.(); subscription.remove(); };
+  }, [navigation, refreshBookings]);
   const filtered = useMemo(() => bookings.filter(booking => {
     const status = getBookingDisplayStatus(booking);
     return filter === 'Upcoming' ? status === 'Confirmed'
@@ -502,7 +548,8 @@ export function MyBookingsScreen({ navigation, route = { params: {} } }) {
         keyExtractor={item => item.id}
         ListHeaderComponent={(
           <>
-            <ScreenHeader title="My bookings" subtitle="Upcoming and completed local reservations." onBack={() => navigation.goBack()} />
+            <ScreenHeader title="My bookings" subtitle={DEMO_MODE ? 'Upcoming and completed local reservations.' : 'Reservations synced with PlaySpot.'} onBack={() => navigation.goBack()} />
+            {refreshError ? <InlineNotice tone="danger">{refreshError}</InlineNotice> : null}
             <View style={styles.roomSectionHeader}>
               <View style={styles.roomSectionCopy}>
                 <Text style={[styles.roomSectionTitle, { color: colors.ink }]}>My game rooms</Text>
@@ -622,7 +669,7 @@ export function BookingDetailsScreen({ navigation, route }) {
   });
 
   return (
-    <PageShell navigation={navigation} eyebrow={booking.source === 'walk-in' ? 'VENDOR WALK-IN' : booking.source === 'tournament' ? 'TOURNAMENT BOOKING' : 'BOOKING'} title="Booking details" subtitle="Reservation details stored on this device.">
+    <PageShell navigation={navigation} eyebrow={booking.source === 'walk-in' ? 'VENDOR WALK-IN' : booking.source === 'tournament' ? 'TOURNAMENT BOOKING' : 'BOOKING'} title="Booking details" subtitle={DEMO_MODE ? 'Reservation details stored on this device.' : 'Reservation details from PlaySpot.'}>
       <DesignCard>
         <View style={styles.rowBetween}><Text style={[styles.eyebrow, { color: colors.primary }]}>{booking.source === 'walk-in' ? 'SOURCE · WALK-IN' : booking.source === 'tournament' ? 'SOURCE · HOSTED TOURNAMENT' : 'SOURCE · PLAYER'}</Text><StatusBadge label={getBookingDisplayStatus(booking)} tone={active ? 'success' : booking.status === 'cancelled' ? 'danger' : 'neutral'} /></View>
         <Text style={[styles.cardTitle, styles.cardTop, { color: colors.ink }]}>{venue?.name || booking.venueName}</Text>

@@ -15,7 +15,7 @@ const lower = value => String(value || '').toLowerCase();
 const bookingStatus = value => ({ PENDING_PAYMENT: 'pending-payment', CONFIRMED: 'confirmed', CANCELLED: 'cancelled', COMPLETED: 'completed', EXPIRED: 'expired' }[value] || lower(value));
 const paymentStatus = value => ({ DUE_AT_VENUE: 'due-at-venue', AWAITING_TRANSFER: 'awaiting-transfer', PROOF_SUBMITTED: 'proof-submitted', PARTIALLY_PAID: 'partially-paid' }[value] || lower(value));
 
-function normalizeBooking(row) {
+export function normalizeBooking(row) {
   return {
     ...row, status: bookingStatus(row.status), paymentStatus: paymentStatus(row.paymentStatus),
     paymentMode: lower(row.paymentMode).replaceAll('_', '-'),
@@ -55,6 +55,18 @@ export function normalizeTournament(row) {
   };
 }
 
+export function normalizeNotification(row) {
+  const payload = row?.payload && typeof row.payload === 'object' ? row.payload : {};
+  return {
+    ...row,
+    recipientId: row.userId || row.recipientId,
+    conversationId: payload.conversationId || row.conversationId || null,
+    roomId: payload.gameRoomId || row.roomId || null,
+    messageId: payload.messageId || row.messageId || null,
+    persisted: true,
+  };
+}
+
 function normalizeVenue(row, vendorId) {
   return {
     ...row, vendorId: vendorId || null,
@@ -72,7 +84,7 @@ async function settled(load, fallback, errors, label) {
 
 export async function loadBackendState(user) {
   const errors = [];
-  const [venueRows, roomRows, tournamentRows, leaderboard, bookings, vendorVenues, vendorBookings, conversations] = await Promise.all([
+  const [venueRows, roomRows, tournamentRows, leaderboard, bookings, vendorVenues, vendorBookings, conversations, notificationRows] = await Promise.all([
     settled(() => backendApi.venues({ page: 1, limit: 50 }), [], errors, 'Venues'),
     settled(() => backendApi.rooms({ page: 1, limit: 50 }), [], errors, 'Game rooms'),
     settled(() => backendApi.tournaments({ page: 1, limit: 50 }), [], errors, 'Tournaments'),
@@ -81,6 +93,7 @@ export async function loadBackendState(user) {
     user?.role === 'vendor' ? settled(() => backendApi.myVenues(), [], errors, 'Your venues') : Promise.resolve([]),
     user?.role === 'vendor' ? settled(() => backendApi.vendorBookings({ page: 1, limit: 50 }), [], errors, 'Your bookings') : Promise.resolve([]),
     user ? settled(() => backendApi.conversations(), [], errors, 'Conversations') : Promise.resolve([]),
+    user ? settled(() => backendApi.notifications({ page: 1, limit: 50 }), [], errors, 'Notifications') : Promise.resolve([]),
   ]);
   const ownRows = Array.isArray(vendorVenues) ? vendorVenues : [];
   const publicRows = Array.isArray(venueRows) ? venueRows : [];
@@ -101,10 +114,15 @@ export async function loadBackendState(user) {
       conversations: (Array.isArray(conversations) ? conversations : []).map(row => ({
         ...row, kind: lower(row.kind).replaceAll('_', '-'), roomId: row.gameRoom?.id || null,
         tournamentId: row.tournament?.id || null, participantIds: (row.members || []).map(member => member.id),
+        venueId: row.venueId || null, venueName: row.venueName || null,
+        vendorUserId: row.vendorUserId || (row.members || []).find(member => member.role === 'VENDOR')?.id || null,
+        playerUserId: row.playerUserId || (row.members || []).find(member => member.role === 'PLAYER')?.id || null,
+        playerName: row.playerName || (row.members || []).find(member => member.role === 'PLAYER')?.name || null,
         lastMessage: row.lastMessage?.body || '', lastAt: row.lastMessage?.createdAt || row.updatedAt,
       })),
       messages: [], tournaments: (Array.isArray(tournamentRows) ? tournamentRows : []).map(normalizeTournament),
-      leaderboard: Array.isArray(leaderboard) ? leaderboard : [], splits: [], notifications: [],
+      leaderboard: Array.isArray(leaderboard) ? leaderboard : [], splits: [],
+      notifications: (Array.isArray(notificationRows) ? notificationRows : []).map(normalizeNotification),
     },
     notice: errors.length ? `Some live data could not be loaded. ${errors.join(' Â· ')}` : null,
   };

@@ -7,6 +7,8 @@ import ChoiceChips from '../components/ChoiceChips';
 import { DesignCard, EmptyState, InlineNotice } from '../components/DesignPrimitives';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { DEMO_MODE } from '../config/backendApi';
+import { backendApi } from '../services/backendApi';
 import { endSession, updateAccountProfile } from '../services/authRepository';
 import { profileUpdated, sessionEnded } from '../store/authSlice';
 import { notificationMarkedRead, notificationsMarkedRead } from '../store/communitySlice';
@@ -52,9 +54,9 @@ export function ProfileScreen({ navigation }) {
   const vendorGrounds = useSelector(state => selectGroundsByVenueId(state, vendorVenues[0]?.id));
   const vendorEquipment = useSelector(state => selectEquipmentByVenueId(state, vendorVenues[0]?.id));
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content}>
-    <ScreenHeader title="Profile" subtitle="Your local PlaySpot demo account" onBack={() => navigation.goBack()} />
+    <ScreenHeader title="Profile" subtitle={DEMO_MODE ? 'Your local PlaySpot demo account' : 'Your PlaySpot account'} onBack={() => navigation.goBack()} />
     <DesignCard style={{ borderRadius: radius.lg }}>
-      <View style={styles.row}><View style={[styles.avatar, { backgroundColor: colors.limePale }]}><Text style={[styles.avatarText, { color: colors.primary }]}>{user?.name?.trim()?.[0]?.toUpperCase() || 'P'}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: colors.ink }]}>{user?.name}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{user?.email}</Text><Text style={[styles.copy, { color: colors.primary, marginTop: 3 }]}>{vendor ? 'Venue provider' : 'Player'} · local demo</Text></View></View>
+      <View style={styles.row}><View style={[styles.avatar, { backgroundColor: colors.limePale }]}><Text style={[styles.avatarText, { color: colors.primary }]}>{user?.name?.trim()?.[0]?.toUpperCase() || 'P'}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: colors.ink }]}>{user?.name}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{user?.email}</Text><Text style={[styles.copy, { color: colors.primary, marginTop: 3 }]}>{vendor ? 'Venue provider' : 'Player'}{DEMO_MODE ? ' · local demo' : ''}</Text></View></View>
       <View style={styles.metricRow}><View style={[styles.metric, { backgroundColor: colors.limePale }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{count}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>{vendor ? 'LOCAL BOOKINGS' : 'MY BOOKINGS'}</Text></View><View style={[styles.metric, { backgroundColor: colors.limePale }]}><Text style={[styles.metricValue, { color: colors.primaryDark }]}>{vendor ? vendorVenues.length : (user?.preferredSports || []).length}</Text><Text style={[styles.metricLabel, { color: colors.inkSoft }]}>{vendor ? 'VENUES' : 'SPORTS'}</Text></View></View>
       {vendor && profile ? <Text style={[styles.copy, { color: colors.inkSoft, marginTop: 12 }]}>{profile.businessName} · {profile.verificationStatus === 'demo-approved' ? 'demo approved' : 'pending demo'}</Text> : null}
     </DesignCard>
@@ -121,7 +123,7 @@ export function EditProfileScreen({ navigation }) {
         dispatch(venueUpdated({ venue, grounds, equipment, vendorProfile: { ...vendorProfile, businessName: businessName.trim(), contactPhone: phone.trim() } }));
       }
       navigation.goBack();
-    } catch (saveError) { setError(saveError.message || 'Profile could not be saved on this device.'); }
+    } catch (saveError) { setError(saveError.message || (DEMO_MODE ? 'Profile could not be saved on this device.' : 'Profile could not be saved to your PlaySpot account.')); }
     finally { setLoading(false); }
   };
   const field = (label, value, setter, id, keyboardType = 'default') => <><Text style={[styles.label, { color: colors.inkSoft }]}>{label}</Text><TextInput accessibilityLabel={label} testID={id} value={value} onChangeText={setter} keyboardType={keyboardType} style={[styles.input, { color: colors.ink, backgroundColor: colors.surface, borderColor: colors.border }]} /></>;
@@ -134,6 +136,14 @@ export function EditProfileScreen({ navigation }) {
 }
 
 function makeNotifications(user, bookings, reviews, conversations, roomNotifications, rooms) {
+  if (!DEMO_MODE) {
+    return roomNotifications.filter(item => item.recipientId === user?.id).map(item => ({
+      ...item,
+      title: item.title || `New message in ${rooms.find(room => room.id === item.roomId)?.title || 'your PlaySpot chat'}`,
+      route: item.conversationId ? 'ChatConversation' : null,
+      params: item.conversationId ? { conversationId: item.conversationId } : undefined,
+    }));
+  }
   const items = [];
   bookings.slice(0, 8).forEach(booking => items.push({ id: `booking-${booking.id}`, title: booking.source === 'walk-in' ? 'Walk-in booking recorded' : 'Booking update', body: `${booking.venueName || 'Venue'} · ${booking.date} at ${booking.startTime}`, route: booking.id ? 'BookingDetails' : null, params: { bookingId: booking.id } }));
   if (user?.role === 'vendor') reviews.slice(0, 5).forEach(review => items.push({ id: `review-${review.id}`, title: `New ${review.stars}-star review`, body: `${review.playerName}: ${review.comment}`, route: 'VendorReviews' }));
@@ -165,22 +175,34 @@ export function NotificationsScreen({ navigation }) {
   const dispatch = useDispatch();
   const notifications = useMemo(() => makeNotifications(user, bookings, reviews, conversations, roomNotifications, rooms), [user, bookings, reviews, conversations, roomNotifications, rooms]);
   const [readIds, setReadIds] = useState([]);
-  const openNotification = item => {
-    if (item.persisted) dispatch(notificationMarkedRead({ notificationId: item.id, userId: user.id }));
+  const [error, setError] = useState('');
+  const openNotification = async item => {
+    if (item.persisted) {
+      try {
+        if (!DEMO_MODE) await backendApi.markNotificationRead(item.id);
+        dispatch(notificationMarkedRead({ notificationId: item.id, userId: user.id }));
+      } catch (readError) { setError(readError.message || 'Notification could not be marked as read.'); return; }
+    }
     else setReadIds(current => current.includes(item.id) ? current : [...current, item.id]);
     if (item.route) navigation.navigate(item.route, item.params);
   };
-  const markAllRead = () => {
+  const markAllRead = async () => {
+    setError('');
+    if (!DEMO_MODE) {
+      try { await backendApi.markNotificationsRead(); }
+      catch (readError) { setError(readError.message || 'Notifications could not be marked as read.'); return; }
+    }
     dispatch(notificationsMarkedRead({ userId: user?.id }));
     setReadIds(notifications.map(item => item.id));
   };
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content}>
-    <ScreenHeader title="Notifications" subtitle="Generated from local demo records" onBack={() => navigation.goBack()} />
-    <InlineNotice>These updates are stored on this device. No push notifications are sent.</InlineNotice>
+    <ScreenHeader title="Notifications" subtitle={DEMO_MODE ? 'Generated from local demo records' : 'Updates from your PlaySpot conversations'} onBack={() => navigation.goBack()} />
+    <InlineNotice>{DEMO_MODE ? 'These updates are stored on this device. No push notifications are sent.' : 'Chat notifications are saved to your PlaySpot account. Push notifications are not enabled.'}</InlineNotice>
+    {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
     {notifications.length ? notifications.map(item => {
       const isRead = item.persisted ? Boolean(item.readAt) : readIds.includes(item.id);
       return <Pressable key={item.id} accessibilityRole="button" testID={`notification-item-${item.id}`} onPress={() => openNotification(item)}><DesignCard style={{ opacity: isRead ? 0.62 : 1 }}><Text style={[styles.reviewTitle, { color: colors.ink }]}>{item.title}{isRead ? ' · read' : ' · new'}</Text><Text style={[styles.copy, { color: colors.inkSoft, marginTop: 5 }]}>{item.body}</Text><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '800', marginTop: 8 }}>Open related screen</Text></DesignCard></Pressable>;
-    }) : <DesignCard><EmptyState title="You’re all caught up" description="Booking, review and chat updates will appear here when local records are available." /></DesignCard>}
+    }) : <DesignCard><EmptyState title="You’re all caught up" description={DEMO_MODE ? 'Booking, review and chat updates will appear here when local records are available.' : 'Messages from your room and venue chats will appear here.'} /></DesignCard>}
     {notifications.length ? <AppButton title="Mark all as read" variant="secondary" testID="notifications-mark-read" onPress={markAllRead} /> : null}
   </ScrollView></SafeAreaView>;
 }
@@ -197,11 +219,11 @@ export function SettingsScreen({ navigation }) {
     finally { setLoading(false); }
   };
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content}>
-    <ScreenHeader title="Settings" subtitle="A few preferences for this demo" onBack={() => navigation.goBack()} />
+    <ScreenHeader title="Settings" subtitle={DEMO_MODE ? 'A few preferences for this demo' : 'Account preferences'} onBack={() => navigation.goBack()} />
     <DesignCard><ActionRow title={`Appearance · ${mode === 'dark' ? 'Dark' : 'Light'}`} subtitle="Change the app colors for this session" testID="settings-theme-toggle" onPress={toggleMode} colors={colors} last /></DesignCard>
-    <DesignCard><Text style={[styles.reviewTitle, { color: colors.ink }]}>About PlaySpot PK</Text><Text style={[styles.copy, { color: colors.inkSoft, marginTop: 7 }]}>A frontend-only sports venue discovery, booking and player matchmaking project.</Text><Text style={[styles.copy, { color: colors.inkSoft, marginTop: 8 }]}>Simulated room payments only update local demo status. No money moves, and there is no email, push notification or multi-device service.</Text></DesignCard>
+    <DesignCard><Text style={[styles.reviewTitle, { color: colors.ink }]}>About PlaySpot PK</Text><Text style={[styles.copy, { color: colors.inkSoft, marginTop: 7 }]}>{DEMO_MODE ? 'A local demo of sports venue discovery, booking and player matchmaking.' : 'PlaySpot connects players with sports venues and community game rooms.'}</Text><Text style={[styles.copy, { color: colors.inkSoft, marginTop: 8 }]}>{DEMO_MODE ? 'Demo payments update local status only. No money moves, and there is no email or push notification service.' : 'Payment simulation is limited to development. No live funds or push notifications are processed.'}</Text></DesignCard>
     {error ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
-    <AppButton title="Log out of demo account" testID="settings-logout" variant="secondary" onPress={logout} loading={loading} disabled={loading} />
+    <AppButton title={DEMO_MODE ? 'Log out of demo account' : 'Log out'} testID="settings-logout" variant="secondary" onPress={logout} loading={loading} disabled={loading} />
   </ScrollView></SafeAreaView>;
 }
 
@@ -214,8 +236,8 @@ export function VendorReviewsScreen({ navigation }) {
   const summary = getVenueRating(reviews);
   const venueById = new Map(venues.map(venue => [venue.id, venue]));
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><ScrollView contentContainerStyle={styles.content}>
-    <ScreenHeader title="Venue reviews" subtitle="Feedback attached to your local venues" onBack={() => navigation.goBack()} />
-    <DesignCard><Text style={[styles.name, { color: colors.ink }]}>{summary.count ? `${summary.average.toFixed(1)} / 5` : 'No rating yet'}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{summary.count} local demo reviews · averages update from saved reviews</Text></DesignCard>
+    <ScreenHeader title="Venue reviews" subtitle={DEMO_MODE ? 'Feedback attached to your local venues' : 'Player feedback for your venues'} onBack={() => navigation.goBack()} />
+    <DesignCard><Text style={[styles.name, { color: colors.ink }]}>{summary.count ? `${summary.average.toFixed(1)} / 5` : 'No rating yet'}</Text><Text style={[styles.copy, { color: colors.inkSoft }]}>{summary.count} {DEMO_MODE ? 'local demo reviews · averages update from saved reviews' : 'reviews'}</Text></DesignCard>
     {reviews.length ? reviews.map(review => <DesignCard key={review.id}><View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><Text style={[styles.reviewTitle, { color: colors.ink }]}>{review.playerName}</Text><Text style={styles.star}>{'★'.repeat(review.stars)}{'☆'.repeat(5 - review.stars)}</Text></View><Text style={[styles.copy, { color: colors.primary, marginTop: 4 }]}>{venueById.get(review.venueId)?.name || 'Your venue'}</Text><Text style={[styles.copy, { color: colors.ink, marginTop: 7 }]}>{review.comment}</Text></DesignCard>) : <DesignCard><EmptyState title="No reviews yet" description="Player feedback for your published venues will show here." /></DesignCard>}
   </ScrollView></SafeAreaView>;
 }

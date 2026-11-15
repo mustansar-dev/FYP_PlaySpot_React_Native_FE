@@ -38,6 +38,7 @@ export const backendApi = {
   createMediaUpload: (venueId, body) => apiRequest(`/venues/${encodeURIComponent(venueId)}/media/signed-upload`, { method: 'POST', body }),
   confirmMediaUpload: (venueId, body) => apiRequest(`/venues/${encodeURIComponent(venueId)}/media/confirm`, { method: 'POST', body }),
   reviews: venueId => apiRequest(`/venues/${encodeURIComponent(venueId)}/reviews`, { auth: false }),
+  venueConversation: venueId => apiRequest(`/venues/${encodeURIComponent(venueId)}/conversations`, { method: 'POST', body: {} }),
   createReview: (venueId, body) => apiRequest(`/venues/${encodeURIComponent(venueId)}/reviews`, { method: 'POST', body }),
   updateReview: (venueId, reviewId, body) => apiRequest(`/venues/${encodeURIComponent(venueId)}/reviews/${encodeURIComponent(reviewId)}`, { method: 'PATCH', body }),
   availability: (courtId, date) => apiRequest(`/courts/${encodeURIComponent(courtId)}/availability${query({ date })}`, { auth: false }),
@@ -76,4 +77,7 @@ export const backendApi = {
   tournamentLeaderboard: id => apiRequest(`/tournaments/${encodeURIComponent(id)}/leaderboard`, { auth: false }),
   leaderboard: filters => apiRequest(`/leaderboards${query(filters)}`, { auth: false }),
   vendorAnalytics: filters => apiRequest(`/vendors/me/analytics${query(filters)}`),
+  notifications: filters => apiRequest(`/notifications${query(filters)}`),
+  markNotificationRead: id => apiRequest(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH', body: {} }),
+  markNotificationsRead: body => apiRequest('/notifications/read-all', { method: 'POST', body: body || {} }),
 };

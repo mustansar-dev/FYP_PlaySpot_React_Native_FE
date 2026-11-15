@@ -52,7 +52,10 @@ import {
 } from '../screens/CommunityScreens';
 import { theme } from '../theme/tokens';
 import BottomNavBar, { BOTTOM_NAV_ROUTES } from '../components/BottomNavBar';
-import { reconcileGameRoomLifecycle } from '../store/communitySlice';
+import { DEMO_MODE } from '../config/backendApi';
+import { normalizeNotification } from '../services/backendState';
+import { connectChatSocket, disconnectChatSocket } from '../services/realtimeClient';
+import { notificationReceived, reconcileGameRoomLifecycle } from '../store/communitySlice';
 
 const Stack = createNativeStackNavigator();
 
@@ -72,7 +75,7 @@ function BootScreen() {
   return (
     <View style={styles.boot}>
       <ActivityIndicator color={theme.colors.primary} size="large" />
-      <Text style={styles.bootText}>Preparing your PlaySpot demo…</Text>
+      <Text style={styles.bootText}>Preparing PlaySpot…</Text>
     </View>
   );
 }
@@ -91,6 +94,22 @@ export default function RootNavigator() {
     const timer = setInterval(reconcile, 30000);
     return () => clearInterval(timer);
   }, [dispatch, communityHydrated]);
+  useEffect(() => {
+    if (DEMO_MODE || !currentUser?.id) return undefined;
+    let active = true;
+    let liveSocket = null;
+    const receive = row => dispatch(notificationReceived(normalizeNotification(row)));
+    connectChatSocket().then(socket => {
+      if (!active || !socket) return;
+      liveSocket = socket;
+      socket.on('notification:new', receive);
+    }).catch(() => {});
+    return () => {
+      active = false;
+      liveSocket?.off('notification:new', receive);
+      disconnectChatSocket();
+    };
+  }, [currentUser?.id, dispatch]);
   const hasNotifications = useSelector(state => Boolean(currentUser?.id &&
     state.community.notifications?.some(notification => notification.recipientId === currentUser.id && !notification.readAt)));
   const showBottomNav = currentUser && (currentUser.role === 'player'

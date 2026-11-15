@@ -500,6 +500,13 @@ const communitySlice = createSlice({
           : item,
       );
     },
+    notificationReceived(state, action) {
+      const item = action.payload;
+      if (!item?.id) return;
+      const syntheticId = item.messageId && item.recipientId ? `notification-${item.messageId}-${item.recipientId}` : null;
+      state.notifications = (state.notifications || []).filter(notification => notification.id !== syntheticId);
+      if (!state.notifications.some(notification => notification.id === item.id)) state.notifications.unshift(item);
+    },
     roomPaymentSharesUpdated(state, action) {
       const room = state.rooms.find(item => item.id === action.payload.roomId);
       if (!room) return;
@@ -616,6 +623,7 @@ export const {
   gameRoomMemberRemoved,
   messageSent,
   notificationMarkedRead,
+  notificationReceived,
   notificationsMarkedRead,
   roomMemberPaymentUpdated,
   roomPaymentSharesUpdated,
