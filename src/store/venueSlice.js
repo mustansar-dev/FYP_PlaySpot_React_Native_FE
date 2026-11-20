@@ -28,7 +28,12 @@ export const reserveBooking = request => (dispatch, getState) => {
         ? await backendApi.walkInBooking({ courtId: request.groundId, date: local.date, startTime: local.startTime, endTime: local.endTime, customerName: request.customerName, customerPhone: request.customerContact || undefined, addOns: [] })
         : await backendApi.createBooking({ courtId: request.groundId, date: local.date, startTime: local.startTime, endTime: local.endTime, addOns: request.addOns || [], paymentMode: request.paymentMode || 'PAY_AT_VENUE' }, request.idempotencyKey || `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
       const raw = response.booking || response;
-      const booking = { ...raw, groundId: raw.groundId || raw.courtId, status: ({ PENDING_PAYMENT: 'pending-payment', CONFIRMED: 'confirmed', CANCELLED: 'cancelled', COMPLETED: 'completed', EXPIRED: 'expired' })[raw.status] || String(raw.status || '').toLowerCase(), paymentStatus: String(raw.paymentStatus || '').toLowerCase().replaceAll('_', '-'), paymentMode: String(raw.paymentMode || '').toLowerCase().replaceAll('_', '-'), playerUserId: raw.customerUserId || raw.createdByUserId };
+      const initialPayment = response.payment?.payment || response.payment;
+      const existingPayments = raw.payments || [];
+      const payments = initialPayment?.id
+        ? [...existingPayments, { ...initialPayment, userId: initialPayment.userId || getState().auth?.currentUser?.id, method: String(initialPayment.method || '').toLowerCase().replaceAll('_', '-'), status: String(initialPayment.status || '').toLowerCase().replaceAll('_', '-') }]
+        : existingPayments;
+      const booking = { ...raw, payments, groundId: raw.groundId || raw.courtId, status: ({ PENDING_PAYMENT: 'pending-payment', CONFIRMED: 'confirmed', CANCELLED: 'cancelled', COMPLETED: 'completed', EXPIRED: 'expired' })[raw.status] || String(raw.status || '').toLowerCase(), paymentStatus: String(raw.paymentStatus || '').toLowerCase().replaceAll('_', '-'), paymentMode: String(raw.paymentMode || '').toLowerCase().replaceAll('_', '-'), playerUserId: raw.customerUserId || raw.createdByUserId };
       dispatch(bookingServerSynced(booking));
       return { ok: true, booking, payment: response.payment || null };
     } catch (error) { return { ok: false, error: error.message }; } })();

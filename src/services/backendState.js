@@ -21,6 +21,10 @@ export function normalizeBooking(row) {
     paymentMode: lower(row.paymentMode).replaceAll('_', '-'),
     playerUserId: row.customerUserId || row.createdByUserId,
     addOns: (row.addOns || []).map(item => ({ ...item, priceMode: lower(item.priceMode) })),
+    payments: (row.payments || []).map(payment => ({
+      ...payment, method: lower(payment.method).replaceAll('_', '-'),
+      status: paymentStatus(payment.status), amountPKR: payment.amountPKR ?? (payment.amountPaisa || 0) / 100,
+    })),
   };
 }
 
@@ -28,27 +32,43 @@ export function normalizeRoom(row) {
   const { date, time: startTime } = localDateTime(row.startsAt, row.timeZone);
   const { time: endTime } = localDateTime(row.endsAt, row.timeZone);
   const status = row.status === 'FULL' ? 'full' : lower(row.status);
+  const paymentShares = (row.paymentShares || []).map(share => ({
+    ...share, amountPKR: share.amountPKR ?? (share.amountPaisa || 0) / 100,
+    status: lower(share.status).replaceAll('_', '-'),
+  }));
+  const shareBySeat = new Map(paymentShares.map(share => [share.seatIndex, share]));
   return {
     ...row, sport: row.sport?.name || '', location: row.locationLabel,
     date, startTime, endTime, visibility: lower(row.visibility), status,
     createdBy: row.organizerUserId, createdByName: row.members?.find(item => item.role === 'ORGANIZER')?.name || 'Room organizer',
     costPerParticipantPKR: (row.perPlayerSharePaisa || 0) / 100,
     totalCostPKR: (row.totalCostPaisa || 0) / 100,
-    members: (row.members || []).map(member => ({ ...member, joinedAt: row.createdAt, paymentStatus: 'unpaid', sharePKR: (row.perPlayerSharePaisa || 0) / 100 })),
-    joinCode: '',
+    paymentShares,
+    members: (row.members || []).map(member => {
+      const share = shareBySeat.get(member.seatIndex);
+      return {
+        ...member, joinedAt: row.createdAt,
+        paymentStatus: member.paymentStatus || share?.status || 'unpaid',
+        sharePKR: member.sharePKR ?? share?.amountPKR ?? (row.perPlayerSharePaisa || 0) / 100,
+      };
+    }),
+    joinCode: row.inviteCode || '',
   };
 }
 
 export function normalizeTournament(row) {
   const { date, time: startTime } = localDateTime(row.startsAt, row.timeZone);
+  const { time: endTime } = localDateTime(row.endsAt, row.timeZone);
   const participants = (row.participants || []).map(item => ({
     ...item, userId: item.userId || item.user?.id, name: item.user?.name || item.name,
     teamMembers: item.teamMemberNames || item.teamMembers || [], joinedAt: item.joinedAt || row.createdAt,
     paymentStatus: lower(item.paymentStatus), totalEntryFeePKR: (item.totalEntryFeePaisa || 0) / 100,
   }));
   return {
-    ...row, date, startTime, status: lower(row.status), capacity: row.maxTeams,
+    ...row, date, startTime, endTime, status: lower(row.status), capacity: row.maxTeams,
     venueName: row.venue?.name || row.venueName, sport: row.sport?.name || row.sport,
+    groundNames: row.reservations?.map(item => item.court?.name).filter(Boolean) || row.groundNames || [],
+    groundIds: row.reservations?.map(item => item.courtId).filter(Boolean) || row.groundIds || [],
     entryFeePKR: (row.entryFeePerPlayerPaisa || 0) / 100, prizePKR: (row.prizePaisa || 0) / 100,
     createdBy: row.organizerUserId, participants, standings: participants,
     registeredTeams: row.registeredTeams || 0,
@@ -84,9 +104,10 @@ async function settled(load, fallback, errors, label) {
 
 export async function loadBackendState(user) {
   const errors = [];
-  const [venueRows, roomRows, tournamentRows, leaderboard, bookings, vendorVenues, vendorBookings, conversations, notificationRows] = await Promise.all([
+  const [venueRows, roomRows, ownRoomRows, tournamentRows, leaderboard, bookings, vendorVenues, vendorBookings, conversations, notificationRows] = await Promise.all([
     settled(() => backendApi.venues({ page: 1, limit: 50 }), [], errors, 'Venues'),
     settled(() => backendApi.rooms({ page: 1, limit: 50 }), [], errors, 'Game rooms'),
+    user ? settled(() => backendApi.myRooms(), [], errors, 'Your game rooms') : Promise.resolve([]),
     settled(() => backendApi.tournaments({ page: 1, limit: 50 }), [], errors, 'Tournaments'),
     settled(() => backendApi.leaderboard({ limit: 50 }), [], errors, 'Leaderboard'),
     user?.role === 'player' ? settled(() => backendApi.myBookings({ page: 1, limit: 50 }), [], errors, 'Bookings') : Promise.resolve([]),
@@ -103,6 +124,7 @@ export async function loadBackendState(user) {
   const venues = allRows.map(row => normalizeVenue(row, ownedIds.has(row.id) ? vendorId : null));
   const bookingsList = [...(Array.isArray(bookings) ? bookings : []), ...(Array.isArray(vendorBookings) ? vendorBookings : [])];
   const uniqueBookings = [...new Map(bookingsList.map(item => [item.id, normalizeBooking(item)])).values()];
+  const uniqueRooms = [...new Map([...(Array.isArray(roomRows) ? roomRows : []), ...(Array.isArray(ownRoomRows) ? ownRoomRows : [])].map(item => [item.id, normalizeRoom(item)])).values()];
   return {
     venueData: {
       version: 1, vendorProfiles: user?.vendorProfile ? [{ ...user.vendorProfile, ownerUserId: user.id }] : [],
@@ -110,7 +132,7 @@ export async function loadBackendState(user) {
       slots: [], bookings: uniqueBookings, reviews: [], hydrated: true,
     },
     community: {
-      hydrated: true, rooms: (Array.isArray(roomRows) ? roomRows : []).map(normalizeRoom),
+      hydrated: true, rooms: uniqueRooms,
       conversations: (Array.isArray(conversations) ? conversations : []).map(row => ({
         ...row, kind: lower(row.kind).replaceAll('_', '-'), roomId: row.gameRoom?.id || null,
         tournamentId: row.tournament?.id || null, participantIds: (row.members || []).map(member => member.id),

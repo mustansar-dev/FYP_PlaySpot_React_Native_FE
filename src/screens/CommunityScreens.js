@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   FlatList,
+  Linking,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -68,7 +69,7 @@ function formatTimestamp(value) {
 }
 
 function LocalDemoNote() {
-  return <InlineNotice>Local demo chat — messages do not sync across devices. Community activity stays on this device.</InlineNotice>;
+  return DEMO_MODE ? <InlineNotice>Local demo chat — messages do not sync across devices. Community activity stays on this device.</InlineNotice> : null;
 }
 
 function toChatMessage(row) {
@@ -558,13 +559,15 @@ export function CreateGameRoomScreen({ navigation, route }) {
           <View style={styles.costSummaryRow}><Text style={[styles.cardMetaStrong, { color: colors.ink }]}>Your organizer share</Text><Text style={[styles.price, { color: colors.primary }]}>{formatPKR(estimatedSharePKR)}</Text></View>
           <Text style={[styles.finePrint, { color: colors.inkSoft }]}>Whole-PKR shares are balanced so their total equals the venue slot price exactly.</Text>
         </DesignCard> : <InlineNotice>Select a venue time to see the total and per-player share.</InlineNotice>}
-        <InlineNotice>{`Your demo share (${formatPKR(estimatedSharePKR)}) is recorded when you create the room. Players pay their fixed share before joining. If fewer than 2 players are registered when the session starts, all recorded demo payments are refunded and the venue slot is released.`}</InlineNotice>
+        <InlineNotice>{DEMO_MODE
+          ? `Your demo share (${formatPKR(estimatedSharePKR)}) is recorded when you create the room. Players pay their fixed share before joining. No money moves.`
+          : `The server reserves the selected venue time. Your share (${formatPKR(estimatedSharePKR)}) is due at the venue; each joined player gets a server-calculated share.`}</InlineNotice>
         <ChoiceChips label="Room visibility" options={['public', 'private']} selected={visibility} onSelect={setVisibility} testID="room-visibility" />
         {visibility === 'private' ? <FormField label="Private join code" value={joinCode} onChangeText={setJoinCode} error={errors.joinCode} autoCapitalize="characters" placeholder="At least 4 characters" testID="room-join-code" /> : null}
         {errors.totalCostPKR ? <InlineNotice tone="danger">{errors.totalCostPKR}</InlineNotice> : null}
         {errors.form ? <InlineNotice tone="danger">{errors.form}</InlineNotice> : null}
         <AppButton
-          title={saving ? 'Processing demo payment…' : editing ? 'Save game room settings' : `Pay ${formatPKR(estimatedSharePKR)} & create room`}
+          title={saving ? (DEMO_MODE ? 'Processing demo payment…' : 'Reserving venue time…') : editing ? 'Save game room settings' : DEMO_MODE ? `Pay ${formatPKR(estimatedSharePKR)} & create room` : 'Reserve venue time & create room'}
           testID="room-submit"
           onPress={create}
           loading={saving}
@@ -639,11 +642,17 @@ export function GameRoomDetailsScreen({ navigation, route }) {
           <View style={styles.roomCostDivider} />
           <View style={styles.rowBetween}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Venue slot total</Text><Text style={[styles.price, { color: colors.ink }]}>{formatPKR(room.totalCostPKR ?? room.costPerParticipantPKR * room.capacity)}</Text></View>
           <View style={styles.rowBetween}><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Estimated share / player</Text><Text style={[styles.price, { color: colors.primary }]}>{formatPKR(room.costPerParticipantPKR)}</Text></View>
-          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Organizer share · {formatPKR(organizerShare?.amountPKR ?? room.costPerParticipantPKR)} · {organizerShare?.status === 'simulated-paid' ? 'demo paid' : organizerShare?.status === 'simulated-refunded' ? 'demo refunded' : organizerShare?.status === 'simulated-settled' ? 'settled after session' : 'unpaid'}</Text>
-          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Room creation records the organizer’s share only; the venue total is divided across the planned player seats.' : 'The backend stores the estimated per-player venue share. It does not collect room payments or reserve the court booking.'}</Text>
+          <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Organizer share · {formatPKR(organizerShare?.amountPKR ?? room.costPerParticipantPKR)} · {DEMO_MODE ? organizerShare?.status === 'simulated-paid' ? 'demo paid' : organizerShare?.status === 'simulated-refunded' ? 'demo refunded' : organizerShare?.status === 'simulated-settled' ? 'settled after session' : 'unpaid' : organizerShare?.status === 'due-at-venue' ? 'due at venue' : organizerShare?.status || 'paid'}</Text>
+          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Room creation records the organizer’s share only; the venue total is divided across the planned player seats.' : 'The venue slot is reserved for this room. The organizer and each joined player have a separate share; shares remain due until the venue confirms collection.'}</Text>
         </DesignCard>
-        {isOrganizer && room.status !== 'cancelled' ? <AppButton title="Edit game room settings" testID="room-edit" variant="secondary" onPress={() => navigation.navigate('CreateGameRoom', { roomId: room.id })} /> : null}
-        {isOrganizer && room.visibility === 'private' ? <InlineNotice>Private room code · {room.joinCode}</InlineNotice> : null}
+        {isOrganizer && DEMO_MODE && room.status !== 'cancelled' ? <AppButton title="Edit game room settings" testID="room-edit" variant="secondary" onPress={() => navigation.navigate('CreateGameRoom', { roomId: room.id })} /> : null}
+        {isOrganizer && room.visibility === 'private' && room.joinCode ? <InlineNotice>Private room code · {room.joinCode}</InlineNotice> : null}
+        {isOrganizer && room.visibility === 'private' && !room.joinCode && !DEMO_MODE ? <AppButton title="Generate a new private invite code" variant="secondary" testID="room-generate-invite" onPress={async () => {
+          try {
+            const result = await backendApi.rotateRoomInvite(room.id);
+            dispatch(gameRoomUpdated({ ...room, joinCode: result.inviteCode }));
+          } catch (requestError) { setError(requestError.message); }
+        }} /> : null}
         <SectionHeading title="Players" />
         {room.members.map((item, index) => (
           <DesignCard key={item.userId} style={styles.memberPaymentCard}>
@@ -653,8 +662,8 @@ export function GameRoomDetailsScreen({ navigation, route }) {
               <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{formatPKR(item.sharePKR ?? room.paymentShares?.find(share => share.userId === item.userId)?.amountPKR ?? room.costPerParticipantPKR)} share</Text>
             </View>
             <StatusBadge
-              label={item.paymentStatus === 'simulated-paid' ? 'Demo paid' : item.paymentStatus === 'simulated-refunded' ? 'Demo refunded' : item.paymentStatus === 'simulated-settled' ? 'Settled' : 'Unpaid'}
-              tone={['simulated-paid', 'simulated-settled'].includes(item.paymentStatus) ? 'success' : item.paymentStatus === 'simulated-refunded' ? 'neutral' : 'warning'}
+              label={DEMO_MODE ? item.paymentStatus === 'simulated-paid' ? 'Demo paid' : item.paymentStatus === 'simulated-refunded' ? 'Demo refunded' : item.paymentStatus === 'simulated-settled' ? 'Settled' : 'Unpaid' : item.paymentStatus === 'due-at-venue' ? 'Due at venue' : item.paymentStatus || 'Paid'}
+              tone={DEMO_MODE ? ['simulated-paid', 'simulated-settled'].includes(item.paymentStatus) ? 'success' : item.paymentStatus === 'simulated-refunded' ? 'neutral' : 'warning' : item.paymentStatus === 'paid' ? 'success' : 'warning'}
             />
           </DesignCard>
         ))}
@@ -677,7 +686,7 @@ export function GameRoomDetailsScreen({ navigation, route }) {
         ) : (
           <>
             {room.visibility === 'private' ? <FormField label="Private join code" value={joinCode} onChangeText={setJoinCode} autoCapitalize="characters" placeholder="Enter the code from the organizer" testID="room-detail-code" /> : null}
-          <AppButton title={DEMO_MODE ? `Pay ${formatPKR(room.costPerParticipantPKR)} & join` : 'Join game room'} testID="room-join" onPress={join} disabled={room.visibility === 'private' && !joinCode.trim()} />
+        <AppButton title={DEMO_MODE ? `Pay ${formatPKR(room.costPerParticipantPKR)} & join` : 'Join room · share due at venue'} testID="room-join" onPress={join} disabled={room.visibility === 'private' && !joinCode.trim()} />
           </>
         )}
         {error ? <InlineNotice tone="danger" testID="room-join-error">{error}</InlineNotice> : null}
@@ -1136,6 +1145,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const [error, setError] = useState('');
   const [teamName, setTeamName] = useState('');
   const [teammates, setTeammates] = useState('');
+  const [entryPaymentMethod, setEntryPaymentMethod] = useState('ONLINE');
   const paymentMode = 'simulated';
   const [scoreDraft, setScoreDraft] = useState({});
   const isParticipant = tournament?.participants.some(item => item.userId === currentUser?.id);
@@ -1148,6 +1158,43 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const registrationTotal = entryFee * (isTeamTournament ? teamSize : 1);
   const remaining = useMemo(() => tournament ? Math.max(0, tournament.capacity - tournament.participants.length) : 0, [tournament]);
   const tournamentLeaderboard = useMemo(() => getTournamentLeaderboardRows(tournament), [tournament]);
+  const refreshTournament = async () => {
+    const fresh = await backendApi.tournament(tournament.id);
+    dispatch(tournamentCreated(normalizeTournament(fresh)));
+    return fresh;
+  };
+  const startEntryPayment = async () => {
+    if (DEMO_MODE || registrationTotal <= 0) return;
+    const result = await backendApi.tournamentPayment(tournament.id, entryPaymentMethod);
+    if (entryPaymentMethod === 'PAY_AT_VENUE') {
+      await refreshTournament();
+      setError(`Team registered. ${formatPKR(registrationTotal)} is due at the tournament venue.`);
+      return;
+    }
+    const checkout = await backendApi.paymentCheckout(result.payment.id);
+    if (checkout.simulation) {
+      Alert.alert(
+        'Development payment simulation',
+        'No hosted checkout or real payment was created. Choose whether to record a simulated success.',
+        [
+          { text: 'Later', style: 'cancel', onPress: () => { void refreshTournament().catch(error => setError(error.message)); } },
+          { text: 'Simulate success', onPress: async () => {
+            try {
+              await backendApi.simulatePayment(result.payment.id, 'succeeded');
+              await refreshTournament();
+              setError('Tournament entry payment recorded by the development simulator. No money moved.');
+            } catch (error) { setError(error.message || 'The payment simulation could not be recorded.'); }
+          } },
+        ],
+      );
+      await refreshTournament();
+      return;
+    }
+    if (!checkout.checkoutUrl) throw new Error('The server did not return a tournament checkout link.');
+    await Linking.openURL(checkout.checkoutUrl);
+    await refreshTournament();
+    setError('Checkout opened. The tournament entry remains unpaid until the server confirms payment.');
+  };
   useEffect(() => {
     if (!tournament) return;
     const currentScores = Object.fromEntries((tournament.standings || []).map(row => [row.userId, row]));
@@ -1166,10 +1213,23 @@ export function TournamentDetailsScreen({ navigation, route }) {
     if (!DEMO_MODE && tournament) {
       try {
         await backendApi.joinTournament(tournament.id, { teamName: teamName.trim() || currentUser.name, teamMemberNames: teammates.split(',').map(item => item.trim()).filter(Boolean) });
-        const fresh = await backendApi.tournament(tournament.id);
+        setTeamName('');
+        setTeammates('');
+        if (registrationTotal > 0) await startEntryPayment();
+        else setError('Your team is registered. No entry fee is due.');
+        const fresh = await refreshTournament();
+        const conversations = await backendApi.conversations();
+        const tournamentChat = conversations.find(item => item.tournament?.id === tournament.id);
+        if (tournamentChat) dispatch(conversationCreated({
+          ...tournamentChat, kind: 'tournament', tournamentId: tournament.id,
+          participantIds: (tournamentChat.members || []).map(member => member.id),
+          lastMessage: tournamentChat.lastMessage?.body || '', lastAt: tournamentChat.lastMessage?.createdAt || tournamentChat.updatedAt,
+        }));
         dispatch(tournamentCreated(normalizeTournament(fresh)));
-        navigation.replace('MyBookings', { highlightTournamentId: tournament.id });
-      } catch (requestError) { setError(requestError.message); }
+      } catch (requestError) {
+        setError(requestError.message);
+        try { await refreshTournament(); } catch { /* Keep the original registration/payment error visible. */ }
+      }
       return;
     }
     const result = dispatch(joinTournament({ tournamentId: tournament?.id, user: currentUser, teamName, teammateNames: teammates.split(','), paymentMode }));
@@ -1281,7 +1341,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
           <Text style={[styles.cardMetaStrong, { color: colors.ink }]}>{tournament.participants.length}/{tournament.capacity} {isTeamTournament ? 'teams' : 'players'} · {remaining} spots left</Text>
           {isTeamTournament ? <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Team size · {teamSize} players</Text> : null}
           <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(tournament.entryFeePKR ?? tournament.demoEntryFeePKR ?? 0)} entry per player · {formatPKR(tournament.prizePKR || 0)} winning prize</Text>
-          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>Local demo listing only. Payment choices are recorded here; no money is collected and no prize is paid.</Text>
+          <Text style={[styles.finePrint, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Local demo listing only. Payment choices are recorded here; no money is collected and no prize is paid.' : 'Court reservations and team entries are saved on the server. Online payments require provider confirmation; prize payouts are not automated.'}</Text>
         </DesignCard>
         <SectionHeading title={isTeamTournament ? 'Registered teams' : 'Registered players'} />
         {tournament.participants.map((participant, index) => (
@@ -1303,7 +1363,10 @@ export function TournamentDetailsScreen({ navigation, route }) {
         {canRegister && !isParticipant && !isOrganizer && remaining > 0 && registrationOpen ? <>
           <SectionHeading title="Registration payment" />
           <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Entry fee {formatPKR(entryFee)} per player × {isTeamTournament ? `${teamSize} players` : '1 player'} = {formatPKR(registrationTotal)}</Text>
-          <InlineNotice>{DEMO_MODE ? 'Demo entry payment is recorded before your team is registered. If the host cancels, the full entry fee is marked refunded. No money is collected or transferred.' : 'Team registration is saved by the server. Entry payment is not collected in this app flow and remains pending.'}</InlineNotice>
+          {DEMO_MODE ? <InlineNotice>Demo entry payment is recorded before your team is registered. If the host cancels, the full entry fee is marked refunded. No money is collected or transferred.</InlineNotice> : <>
+            <ChoiceChips label="Entry payment" options={['Online checkout', 'Pay at venue']} selected={entryPaymentMethod === 'ONLINE' ? 'Online checkout' : 'Pay at venue'} onSelect={value => setEntryPaymentMethod(value === 'Online checkout' ? 'ONLINE' : 'PAY_AT_VENUE')} testID="tournament-payment-method" />
+            <InlineNotice>Online entry payment is confirmed by the server provider callback. Pay at venue remains due until the host confirms collection.</InlineNotice>
+          </>}
         </> : null}
         {isOrganizer ? <>
           {registrationOpen ? <AppButton title="Close team registration" variant="secondary" testID="tournament-close-registration" onPress={toggleRegistration} /> : !['completed', 'cancelled'].includes(tournament.status) ? <AppButton title="Reopen team registration" variant="secondary" testID="tournament-reopen-registration" onPress={toggleRegistration} /> : null}
@@ -1321,7 +1384,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
             <AppButton title="Save tournament results" variant="secondary" testID="tournament-save-standings" onPress={saveStandings} />
             {tournament.status !== 'completed' ? <AppButton title="Complete tournament" testID="tournament-complete" onPress={completeTournament} style={styles.spacedButton} /> : null}
           </> : null}
-        </> : isParticipant ? <AppButton title={DEMO_MODE ? 'Leave tournament · full demo refund' : 'Leave tournament'} variant="secondary" testID="tournament-leave" onPress={leave} /> : canRegister && (remaining === 0 || !registrationOpen) ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : canRegister ? <AppButton title={DEMO_MODE ? `Pay ${formatPKR(registrationTotal)} & register` : 'Register team'} testID="tournament-join" onPress={join} /> : !isOrganizer ? <InlineNotice testID="tournament-player-account-required">Vendor accounts cannot register teams. Use a player account to participate.</InlineNotice> : null}
+        </> : isParticipant ? <AppButton title={DEMO_MODE ? 'Leave tournament · full demo refund' : 'Leave tournament'} variant="secondary" testID="tournament-leave" onPress={leave} /> : canRegister && (remaining === 0 || !registrationOpen) ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : canRegister ? <AppButton title={DEMO_MODE ? `Pay ${formatPKR(registrationTotal)} & register` : registrationTotal > 0 ? 'Register team & continue to payment' : 'Register team'} testID="tournament-join" onPress={join} /> : !isOrganizer ? <InlineNotice testID="tournament-player-account-required">Vendor accounts cannot register teams. Use a player account to participate.</InlineNotice> : null}
         {isOrganizer && tournament.status === 'completed' ? <InlineNotice testID="tournament-demo-payout">{DEMO_MODE ? `Demo settlement released after completion: venue share ${formatPKR(tournament.vendorPayoutPKR || 0)} · prize allocation ${formatPKR(tournament.prizePayoutPKR || 0)}. No money moved.` : 'Tournament results are saved on the server. The app does not transfer venue revenue or prize money.'}</InlineNotice> : null}
         {isParticipant || isOrganizer ? <AppButton title="Open tournament private chat" variant="secondary" testID="tournament-chat" disabled={!conversation} onPress={() => conversation && navigation.navigate('ChatConversation', { conversationId: conversation.id })} style={styles.spacedButton} /> : <InlineNotice>Private chat is available to the tournament host and registered team leaders.</InlineNotice>}
         <SectionHeading title="Tournament leaderboard" />
@@ -1376,6 +1439,7 @@ export function CreateTournamentScreen({ navigation }) {
           if (!sportRecord) throw new Error(`The backend does not currently offer ${sport} in its active sports catalog.`);
           const response = await backendApi.createTournament({
             title: title.trim(), sportId: sportRecord.id, venueId: hostVenue.id,
+          courtIds: selectedGrounds.map(ground => ground.id),
             startsAt: new Date(`${date}T${startTime}:00+05:00`).toISOString(),
             endsAt: new Date(`${date}T${endTime}:00+05:00`).toISOString(),
             maxTeams: Number(capacity), teamSize: Number(teamSize),

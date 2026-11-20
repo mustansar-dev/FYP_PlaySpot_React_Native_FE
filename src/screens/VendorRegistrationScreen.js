@@ -341,7 +341,7 @@ export default function VendorRegistrationScreen({ navigation }) {
         setupNotice,
       });
     } catch (error) {
-      setSubmitError(error.message || 'Registration could not be saved on this device.');
+      setSubmitError(error.message || (DEMO_MODE ? 'Registration could not be saved on this device.' : 'Registration could not be saved to PlaySpot.'));
     } finally {
       setLoading(false);
     }
@@ -786,7 +786,7 @@ export default function VendorRegistrationScreen({ navigation }) {
       <View style={[styles.reviewCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg }]}>
         <Text style={[styles.reviewCardTitle, { color: colors.ink }]}>{draft.venueName || 'Venue review'}</Text>
         <Text style={[styles.reviewCardSubtitle, { color: colors.inkSoft }]}>
-          Local demo profile · {draft.city || 'City'}
+          {DEMO_MODE ? 'Local demo profile' : 'Backend draft profile'} · {draft.city || 'City'}
         </Text>
         <ReviewRow label="Owner" value={`${draft.name} · ${draft.email}`} />
         <ReviewRow label="Business" value={draft.businessName} />
@@ -809,7 +809,9 @@ export default function VendorRegistrationScreen({ navigation }) {
         <ReviewRow label="Media" value={`${draft.photoUris.length} photo(s)${draft.videoUri ? ' · video selected' : ''}`} />
       </View>
       <Text style={[styles.localNote, { color: colors.inkSoft }]}>
-        Submitting saves a local demo profile and publishes this venue inside this app. No venue is sent to a server.
+        {DEMO_MODE
+          ? 'Submitting saves a local demo profile and publishes this venue inside this app. No venue is sent to a server.'
+          : 'Submitting creates your vendor account and sends venue, court and equipment records to the backend. Selected media files remain on this device until upload support is connected.'}
       </Text>
     </>
   );
@@ -843,7 +845,7 @@ export default function VendorRegistrationScreen({ navigation }) {
           <ScreenHeader
             eyebrow="VENUE PROVIDER SETUP"
             title={STEPS[step]}
-            subtitle="Your details stay in this demo until you finish registration."
+            subtitle={DEMO_MODE ? 'Your details stay in this demo until you finish registration.' : 'Your account and venue draft are sent to PlaySpot as you complete registration.'}
             onBack={previousStep}
           />
           <View style={styles.progressMeta}>
@@ -890,7 +892,7 @@ export default function VendorRegistrationScreen({ navigation }) {
               />
             )}
           </View>
-          <Text style={[styles.localNote, { color: colors.inkSoft }]}>Local frontend demo · no payment, email, or server verification</Text>
+          <Text style={[styles.localNote, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Local frontend demo · no payment, email, or server verification' : 'Vendor approval and payment/provider verification require separate workflows.'}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

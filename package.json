@@ -5,6 +5,7 @@
   "description": "PlaySpot PK local React Native demo",
   "main": "index.js",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "android": "react-native run-android",
     "start": "react-native start",
     "test": "jest"

@@ -15,6 +15,7 @@ import AppButton from '../components/AppButton';
 import FormField from '../components/FormField';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { DEMO_MODE } from '../config/backendApi';
 import { signIn } from '../services/authRepository';
 import { sessionStarted } from '../store/authSlice';
 import { validateLogin } from '../utils/validation';
@@ -48,7 +49,7 @@ export default function LoginScreen({ navigation }) {
       const result = await signIn(email, password);
       dispatch(sessionStarted(result));
     } catch (error) {
-      setSubmitError(error.message || 'Unable to sign in on this device.');
+      setSubmitError(error.message || (DEMO_MODE ? 'Unable to sign in on this device.' : 'Unable to sign in to PlaySpot.'));
     } finally {
       setLoading(false);
     }
@@ -132,10 +133,14 @@ export default function LoginScreen({ navigation }) {
           />
 
           <View style={[styles.demoBox, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-            <Text style={[styles.demoEyebrow, { color: colors.primary }]}>FICTIONAL DEMO ACCOUNTS</Text>
-            <Text style={[styles.demoLine, { color: colors.ink }]}>Player · player@playspot.pk · FieldDay2026</Text>
-            <Text style={[styles.demoLine, { color: colors.ink }]}>Venue provider · vendor@playspot.pk · VenueDay2026</Text>
-            <Text style={[styles.demoFoot, { color: colors.inkSoft }]}>These credentials are for this local demo only.</Text>
+            <Text style={[styles.demoEyebrow, { color: colors.primary }]}>{DEMO_MODE ? 'FICTIONAL DEMO ACCOUNTS' : 'PLAYSPOT ACCOUNT'}</Text>
+            {DEMO_MODE ? (
+              <>
+                <Text style={[styles.demoLine, { color: colors.ink }]}>Player · player@playspot.pk · FieldDay2026</Text>
+                <Text style={[styles.demoLine, { color: colors.ink }]}>Venue provider · vendor@playspot.pk · VenueDay2026</Text>
+                <Text style={[styles.demoFoot, { color: colors.inkSoft }]}>These credentials are for this local demo only.</Text>
+              </>
+            ) : <Text style={[styles.demoLine, { color: colors.inkSoft }]}>Sign in with an account registered on the configured backend.</Text>}
           </View>
 
           <View style={styles.signupRow}>

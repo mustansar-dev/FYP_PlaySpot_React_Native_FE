@@ -1,6 +1,14 @@
 # FYP_PlaySpot_React_Native_FE
 
-PlaySpot PK is a frontend-only sports venue discovery, booking, and player matchmaking demo. This repository had no app scaffold at the start of Day 1; the Android React Native CLI setup follows the team's lab6 project.
+PlaySpot PK is a React Native sports venue discovery, booking, and player matchmaking app. Normal app builds use the PlaySpot backend; local mock accounts and domain records are only used by Jest or when demo mode is explicitly enabled. The dated Day 1–7 notes below are historical development checkpoints, not a description of the current runtime mode.
+
+## Current backend integration
+
+- Player/vendor registration, login, token refresh, profile changes, venue discovery, booking, payments, rooms, REST chat, tournaments, leaderboards, analytics and notifications use the configured backend API outside demo mode.
+- The backend owns availability, slot conflicts, prices, booking state, payment state and private chat membership. A network error is shown to the user; the app does not silently load mock records.
+- Safepay Sandbox requires issued sandbox credentials. Without them, the local backend may use its explicitly labelled development payment simulation. No live payment or payout is claimed.
+- Venue photos/videos remain on the device until binary upload is configured in the app. The offline map has no GPS or tile provider. Tournament entry fee/prize settlement and room share collection are not yet a complete online workflow; the UI must show their pending/manual status.
+- Backend and database setup are documented in the backend root README and can be run with `npm run setup` from that repository.
 
 ## Day 1 status
 
@@ -81,14 +89,16 @@ At the Day 3 checkpoint, booking and community flows were future work. Day 4 and
 
 ## Setup and run
 
-Requirements from the lab6 baseline: Node.js `>=22.11`, npm, JDK 17, Android SDK/platform tools, and an Android emulator or connected device.
+Requirements: Node.js `>=22.11`, npm, JDK 17, Android SDK/platform tools, and an Android emulator or connected device.
 
 ```sh
-npm install
+npm run setup
 npm start
 # In another terminal, with an Android emulator/device available:
 npm run android
 ```
+
+`npm run setup` creates the ignored `.env` from `.env.example` when missing, installs the exact lockfile dependencies with `npm ci`, and configures Metro to inline the public API URL. The default URL is `http://10.0.2.2:4000/api/v1` for an Android Emulator. For a physical Android phone, set `PLAYSPOT_API_BASE_URL` in `.env` to the development computer's reachable LAN/tunnel address and restart Metro with `npm start -- --reset-cache`. For the iOS simulator, set `http://localhost:4000/api/v1`. The backend must be running and reachable before using live flows.
 
 The app uses React Native CLI `0.86.2`, React `19.2.3`, npm, React Navigation 7, Redux Toolkit `2.8.2`, React Redux `9.3.0`, and AsyncStorage `3.1.1`. The checked-in Android project uses application ID `com.playspotpk`. No FYP iOS project or iOS launch check was created in this Linux setup.
 
@@ -97,11 +107,11 @@ The app uses React Native CLI `0.86.2`, React `19.2.3`, npm, React Navigation 7,
 - Player: `player@playspot.pk` / `FieldDay2026`
 - Venue Provider: `vendor@playspot.pk` / `VenueDay2026`
 
-These are fictional local-demo credentials. Do not use a real password.
+These fictional credentials are available only in explicit local demo mode/Jest. Normal app builds authenticate against the backend and do not accept these accounts unless they have separately been created in that database. Do not use a real password in the demo.
 
 ## Local auth and storage limits
 
-The versioned AsyncStorage key `playspot-pk.auth.v1` stores the demo account records and current session user ID. New account records store a password salt and SHA-256 verifier, not a plaintext password. This is classroom-demo handling only: the hash is fast, local data can be extracted, and the salt source is not a cryptographic random generator. There is no server authentication, email/OTP delivery, account recovery, or secure production session. The Forgot Password screen explicitly says no email or OTP was sent.
+In backend mode, AsyncStorage stores the access/refresh token pair and safe user DTO; passwords are sent only to the API and are never saved in the app. Demo mode uses the old versioned local account store with a fast SHA-256 verifier and is for tests/class demos only. No email/OTP delivery or account recovery is implemented; Forgot Password explicitly says no email or OTP was sent.
 
 Vendor media is optional. Selected photos/video remain device-local URIs; there is no upload service. GPS/location is not requested during Day 1 registration; address and area are entered manually. The welcome marquee uses bundled-in-code sport illustrations and does not depend on a remote image URL.
 

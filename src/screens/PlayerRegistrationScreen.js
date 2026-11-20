@@ -14,6 +14,7 @@ import ChoiceChips from '../components/ChoiceChips';
 import FormField from '../components/FormField';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
+import { DEMO_MODE } from '../config/backendApi';
 import { registerAccount } from '../services/authRepository';
 import { accountRegistered } from '../store/authSlice';
 import { PLAYER_SPORTS } from '../constants/sports';
@@ -78,7 +79,7 @@ export default function PlayerRegistrationScreen({ navigation }) {
         role: result.account.role,
       });
     } catch (error) {
-      setSubmitError(error.message || 'Registration could not be saved on this device.');
+      setSubmitError(error.message || (DEMO_MODE ? 'Registration could not be saved on this device.' : 'Registration could not be saved to the PlaySpot backend.'));
     } finally {
       setLoading(false);
     }
@@ -178,7 +179,7 @@ export default function PlayerRegistrationScreen({ navigation }) {
             style={styles.submit}
           />
           <Text style={[styles.localNote, { color: colors.inkSoft }]}>
-            Demo only: account details stay on this device. Do not use a real password.
+            {DEMO_MODE ? 'Demo only: account details stay on this device. Do not use a real password.' : 'Your PlaySpot account will be created on the configured backend.'}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

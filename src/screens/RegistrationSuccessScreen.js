@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import AppButton from '../components/AppButton';
+import { DEMO_MODE } from '../config/backendApi';
 import { useTheme } from '../context/ThemeContext';
 import { startSession } from '../services/authRepository';
 import { sessionStarted } from '../store/authSlice';
@@ -10,7 +11,7 @@ import { sessionStarted } from '../store/authSlice';
 export default function RegistrationSuccessScreen({ route }) {
   const dispatch = useDispatch();
   const { colors, radius } = useTheme();
-  const { userId, name, role } = route.params || {};
+  const { userId, name, role, setupNotice } = route.params || {};
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,7 +25,7 @@ export default function RegistrationSuccessScreen({ route }) {
       const session = await startSession(userId);
       dispatch(sessionStarted(session));
     } catch (requestError) {
-      setError(requestError.message || 'Could not open the new demo account.');
+      setError(requestError.message || (DEMO_MODE ? 'Could not open the new demo account.' : 'Could not open the new PlaySpot account.'));
     } finally {
       setLoading(false);
     }
@@ -41,13 +42,20 @@ export default function RegistrationSuccessScreen({ route }) {
         <Text style={[styles.eyebrow, { color: colors.primary }]}>ACCOUNT CREATED</Text>
         <Text style={[styles.title, { color: colors.ink }]}>You’re in, {name || 'player'}.</Text>
         <Text style={[styles.body, { color: colors.inkSoft }]}>
-          {isVendor
-            ? 'Your venue provider profile is saved on this device. Continue to the vendor demo dashboard.'
-            : 'Your player profile is saved on this device. Continue to your PlaySpot demo home.'}
+          {DEMO_MODE
+            ? isVendor
+              ? 'Your venue provider profile is saved on this device. Continue to the vendor demo dashboard.'
+              : 'Your player profile is saved on this device. Continue to your PlaySpot demo home.'
+            : isVendor
+              ? 'Your provider account was created on the backend. Venue setup was submitted separately and may need approval.'
+              : 'Your player account was created on the PlaySpot backend.'}
         </Text>
-        <View style={[styles.demoLabel, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-          <Text style={[styles.demoLabelText, { color: colors.inkSoft }]}>LOCAL FRONTEND DEMO · NO SERVER ACCOUNT CREATED</Text>
-        </View>
+        {DEMO_MODE ? (
+          <View style={[styles.demoLabel, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
+            <Text style={[styles.demoLabelText, { color: colors.inkSoft }]}>LOCAL FRONTEND DEMO · NO SERVER ACCOUNT CREATED</Text>
+          </View>
+        ) : null}
+        {setupNotice ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{setupNotice}</Text> : null}
         {error ? <Text accessibilityRole="alert" testID="registration-success-error" style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
         <AppButton
           title={isVendor ? 'Open vendor dashboard' : 'Start exploring'}
