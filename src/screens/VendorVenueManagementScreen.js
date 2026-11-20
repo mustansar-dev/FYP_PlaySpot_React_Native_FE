@@ -3,6 +3,9 @@ import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, Scrol
 import { launchImageLibrary } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
+import { DEMO_MODE } from '../config/backendApi';
+import { backendApi } from '../services/backendApi';
+import { normalizeVenue } from '../services/backendState';
 import AppButton from '../components/AppButton';
 import ChoiceChips from '../components/ChoiceChips';
 import FormField from '../components/FormField';
@@ -14,8 +17,21 @@ import {
   selectVenueById,
   selectVendorProfileById,
 } from '../store/selectors/venueSelectors';
-import { venuePublicationChanged, venueUpdated } from '../store/venueSlice';
+import { venuePublicationChanged, venueUpdated, venuesHydrated } from '../store/venueSlice';
 import { createSlotsForGround, DEFAULT_GROUND_DAYS, isBookingActive, timeToMinutes, WEEK_DAYS } from '../utils/booking';
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function courtPayload(ground) {
+  return {
+    name: ground.name.trim(), sport: ground.sport,
+    widthMeters: Number(ground.widthMeters), lengthMeters: Number(ground.lengthMeters),
+    indoorOutdoor: String(ground.indoorOutdoor).toUpperCase(), surface: ground.surface,
+    conditionRating: Number(ground.conditionRating), hourlyPricePKR: Math.round(Number(ground.hourlyPricePKR)),
+    slotDurationMinutes: Number(ground.slotDurationMinutes), openingTime: ground.openingTime || '09:00',
+    closingTime: ground.closingTime || '17:00', availableDays: [...ground.availableDays],
+  };
+}
 
 export default function VendorVenueManagementScreen({ navigation, route }) {
   const dispatch = useDispatch();
@@ -26,7 +42,8 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
   const venue = useSelector(state => selectVenueById(state, venueId));
   const grounds = useSelector(state => selectGroundsByVenueId(state, venueId));
   const equipment = useSelector(state => selectEquipmentByVenueId(state, venueId));
-  const { slots: storedSlots, bookings } = useSelector(state => state.venues);
+  const venueState = useSelector(state => state.venues);
+  const { slots: storedSlots, bookings } = venueState;
   const vendorProfile = useSelector(state => venue ? selectVendorProfileById(state, venue.vendorId) : null);
   const [draft, setDraft] = useState(() => ({
     venueName: venue?.name || '',
@@ -54,6 +71,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
   const [mediaError, setMediaError] = useState('');
   const [pickerBusy, setPickerBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [groundAddedNotice, setGroundAddedNotice] = useState('');
 
   const setField = (key, value) => {
@@ -144,6 +162,53 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
   };
   const profileId = venue?.vendorId;
   const ready = Boolean(venue && currentUser && vendorProfile?.ownerUserId === currentUser.id);
+
+  const refreshBackendVenueCache = async updatedVendorProfile => {
+    const rows = await backendApi.myVenues();
+    const ownerProfileId = updatedVendorProfile?.id || profileId;
+    const refreshedOwnedVenues = rows.map(row => normalizeVenue(row, ownerProfileId));
+    const refreshedVenueIds = new Set(refreshedOwnedVenues.map(item => item.id));
+    const previousOwnedVenueIds = new Set(venueState.venues.filter(item => item.vendorId === ownerProfileId).map(item => item.id));
+    const previousOwnedGroundIds = new Set(venueState.grounds
+      .filter(item => previousOwnedVenueIds.has(item.venueId)).map(item => item.id));
+    const otherVenues = venueState.venues.filter(item => item.vendorId !== ownerProfileId && !refreshedVenueIds.has(item.id));
+    const allVenues = [...refreshedOwnedVenues, ...otherVenues];
+    const allVenueIds = new Set(allVenues.map(item => item.id));
+    const allGrounds = [
+      ...venueState.grounds.filter(item => !previousOwnedVenueIds.has(item.venueId) && allVenueIds.has(item.venueId)),
+      ...refreshedOwnedVenues.flatMap(item => item.grounds),
+    ];
+    const allEquipment = [
+      ...venueState.equipment.filter(item => !previousOwnedVenueIds.has(item.venueId) && allVenueIds.has(item.venueId)),
+      ...refreshedOwnedVenues.flatMap(item => item.equipment),
+    ];
+    dispatch(venuesHydrated({
+      data: {
+        ...venueState,
+        vendorProfiles: venueState.vendorProfiles.map(item => item.id === ownerProfileId ? (updatedVendorProfile || item) : item),
+        venues: allVenues, grounds: allGrounds, equipment: allEquipment,
+        slots: venueState.slots.filter(item => !previousOwnedGroundIds.has(item.groundId)),
+      },
+      notice: null,
+    }));
+  };
+  const togglePublished = async () => {
+    if (DEMO_MODE) {
+      dispatch(venuePublicationChanged({ venueId: venue.id, published: !venue.published }));
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await backendApi.updateVenue(venue.id, { published: !venue.published });
+      await refreshBackendVenueCache();
+      setSaved(true);
+    } catch (publishError) {
+      setError(publishError.message || 'Venue visibility could not be changed.');
+    } finally {
+      setSaving(false);
+    }
+  };
   const coordsError = useMemo(() => {
     if (Boolean(draft.latitude) !== Boolean(draft.longitude)) {
       return 'Enter both coordinates, or leave both blank to use the address fallback.';
@@ -157,7 +222,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
     return '';
   }, [draft.latitude, draft.longitude]);
 
-  const save = () => {
+  const save = async () => {
     if (!ready) {
       setError('This venue is not attached to the signed-in vendor profile.');
       return;
@@ -170,7 +235,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       setError('A ground uses a sport that is not selected for the venue. Update that ground first, or keep its sport selected.');
       return;
     }
-    if (section === 'details' && !draft.photoUris.length) {
+    if (DEMO_MODE && section === 'details' && !draft.photoUris.length) {
       setError('Add at least one venue photo in Photos and video before saving venue details.');
       return;
     }
@@ -214,7 +279,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       setError('Each ground needs a valid opening and closing time, and at least one available day.');
       return;
     }
-    if (section === 'media' && !draft.photoUris.length) {
+    if (DEMO_MODE && section === 'media' && !draft.photoUris.length) {
       setError('Add at least one venue photo before saving this section.');
       return;
     }
@@ -230,6 +295,63 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       closingTime: ground.closingTime || '17:00',
       availableDays: [...ground.availableDays],
     }));
+
+    if (!DEMO_MODE) {
+      if (section === 'media') {
+        setError('Venue photos and videos are selected on this device but binary upload is not connected yet. Other venue and court changes save to PlaySpot.');
+        return;
+      }
+      setSaving(true);
+      setError('');
+      let persistedGrounds = [];
+      try {
+        let updatedVendorProfile;
+        if (section === 'details') {
+          updatedVendorProfile = await backendApi.updateVendor({
+            businessName: draft.businessName.trim(), contactPhone: draft.contactPhone.trim(),
+          });
+          await backendApi.updateVenue(venue.id, {
+            name: draft.venueName.trim(), address: draft.address.trim(), city: draft.city.trim(),
+            locationNote: draft.locationNote.trim() || null, sports: draft.sports,
+            latitude: draft.latitude ? Number(draft.latitude) : null,
+            longitude: draft.longitude ? Number(draft.longitude) : null,
+          });
+        } else if (section === 'facilities') {
+          await backendApi.updateVenue(venue.id, {
+            facilities: [...draft.facilities], parkingAvailable: draft.parkingAvailable,
+            parkingSpaces: draft.parkingAvailable ? Number(draft.parkingSpaces) : 0,
+          });
+        } else if (section === 'grounds') {
+          const retainedIds = new Set(savedGrounds.filter(ground => uuidPattern.test(ground.id)).map(ground => ground.id));
+          for (const ground of savedGrounds) {
+            const body = courtPayload(ground);
+            const savedCourt = uuidPattern.test(ground.id)
+              ? await backendApi.updateCourt(venue.id, ground.id, body)
+              : await backendApi.createCourt(venue.id, body);
+            persistedGrounds.push({ ...ground, id: savedCourt.id || ground.id, venueId: venue.id });
+          }
+          setDraft(previous => ({ ...previous, grounds: persistedGrounds }));
+          for (const ground of grounds) {
+            if (uuidPattern.test(ground.id) && !retainedIds.has(ground.id)) {
+              await backendApi.deleteCourt(venue.id, ground.id);
+            }
+          }
+        }
+        await refreshBackendVenueCache(updatedVendorProfile);
+        setSaved(true);
+        setError('');
+        navigation.goBack();
+        Alert.alert('Saved successfully', `${section === 'grounds' ? 'Courts and booking hours' : section === 'facilities' ? 'Facilities and parking' : 'Venue details'} were saved to PlaySpot.`);
+      } catch (saveError) {
+        if (persistedGrounds.length) setDraft(previous => ({ ...previous, grounds: persistedGrounds }));
+        setError(saveError.message || 'Changes could not be saved to PlaySpot.');
+        try { await refreshBackendVenueCache(); } catch { /* Keep the original save error visible. */ }
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     let scheduleSlots;
     if (section === 'grounds') {
       const previousSlots = storedSlots.filter(slot => grounds.some(ground => ground.id === slot.groundId));
@@ -288,7 +410,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
           <ScreenHeader
             eyebrow="VENDOR TOOLS"
             title={section === 'details' ? 'Venue details' : section === 'grounds' ? 'Grounds and courts' : section === 'facilities' ? 'Facilities and parking' : 'Photos and video'}
-            subtitle="Edit one section at a time. Changes are saved locally as demo data."
+            subtitle={DEMO_MODE ? 'Edit one section at a time. Changes are saved locally as demo data.' : 'Edit one section at a time. Venue, court and facility changes save to PlaySpot.'}
             onBack={() => navigation.goBack()}
           />
           {section === 'details' ? <>
@@ -361,6 +483,7 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
           {section === 'media' ? <>
           <Text style={[styles.sectionTitle, { color: colors.ink }]}>Venue photos and video</Text>
           <Text style={[styles.hint, { color: colors.inkSoft }]}>At least one photo is required. Video is optional.</Text>
+          {!DEMO_MODE ? <Text style={[styles.hint, { color: colors.orange }]}>Binary upload for venue media is not connected yet; selected files remain on this device.</Text> : null}
           <AppButton title={pickerBusy ? 'Opening gallery…' : 'Choose venue photos'} variant="secondary" testID="manage-pick-photos" onPress={pickPhotos} disabled={pickerBusy} loading={pickerBusy} style={styles.addButton} />
           {draft.photoUris.length > 0 ? (
             <View style={styles.photoGrid}>
@@ -388,16 +511,18 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
 
 
           {error ? <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
-          {saved ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>Changes saved on this device.</Text> : null}
-          <AppButton title={section === 'details' ? 'Save venue details' : section === 'grounds' ? 'Save grounds and availability' : section === 'facilities' ? 'Save facilities and parking' : 'Save photos and video'} testID="manage-venue-save" onPress={save} />
+          {saved ? <Text accessibilityLiveRegion="polite" style={[styles.success, { color: colors.success }]}>{DEMO_MODE ? 'Changes saved on this device.' : 'Changes saved to PlaySpot.'}</Text> : null}
+          <AppButton title={saving ? 'Saving…' : section === 'details' ? 'Save venue details' : section === 'grounds' ? 'Save grounds and availability' : section === 'facilities' ? 'Save facilities and parking' : 'Save photos and video'} testID="manage-venue-save" onPress={save} loading={saving} disabled={saving} />
           {section === 'details' ? <View style={[styles.publishCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-            <Text style={[styles.cardHeading, { color: colors.ink }]}>{venue.published ? 'Published in local discovery' : 'Hidden from local discovery'}</Text>
-            <Text style={[styles.hint, { color: colors.inkSoft }]}>Publishing only changes this local demo. No real approval or server listing exists.</Text>
+            <Text style={[styles.cardHeading, { color: colors.ink }]}>{venue.published ? 'Published in player discovery' : 'Hidden from player discovery'}</Text>
+            <Text style={[styles.hint, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Publishing changes local demo visibility.' : 'Publishing makes this venue visible to players. The backend enforces vendor approval policy for production.'}</Text>
             <AppButton
-              title={venue.published ? 'Unpublish demo venue' : 'Publish demo venue'}
+              title={saving ? 'Updating visibility…' : venue.published ? 'Unpublish venue' : 'Publish venue for players'}
               variant="secondary"
               testID="manage-venue-publish"
-              onPress={() => dispatch(venuePublicationChanged({ venueId: venue.id, published: !venue.published }))}
+              onPress={togglePublished}
+              disabled={saving}
+              loading={saving}
             />
           </View> : null}
         </ScrollView>

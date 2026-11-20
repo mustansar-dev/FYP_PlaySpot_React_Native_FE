@@ -21,9 +21,9 @@ export default function VendorVenueScreen({ navigation }) {
         <ScreenHeader title="Your venue" subtitle="Manage venue details, courts and player add-ons." eyebrow="VENUE TOOLS" />
         {venue ? <>
           <View style={[styles.venueSummary, { backgroundColor: colors.primary, borderRadius: 20 }]}>
-            <Text style={styles.summaryLabel}>ACTIVE VENUE</Text>
+            <Text style={styles.summaryLabel}>{venue.published ? 'PUBLISHED VENUE' : 'DRAFT VENUE'}</Text>
             <Text style={styles.summaryName}>{venue.name}</Text>
-            <Text style={styles.summaryMeta}>{venue.locationNote || venue.city} · {grounds.length} grounds · {equipment.length} add-ons</Text>
+            <Text style={styles.summaryMeta}>{venue.locationNote || venue.city} · {grounds.length} grounds · {equipment.length} add-ons · {venue.published ? 'visible to players' : 'hidden from players until published'}</Text>
           </View>
           <Pressable accessibilityRole="button" testID="vendor-venue-manage-card" onPress={() => navigation.push('VendorVenueManagement', { venueId: venue.id, section: 'details' })}>
             <DesignCard style={styles.actionCard}>

@@ -6,9 +6,11 @@ PlaySpot PK is a React Native sports venue discovery, booking, and player matchm
 
 - Player/vendor registration, login, token refresh, profile changes, venue discovery, booking, payments, rooms, REST chat, tournaments, leaderboards, analytics and notifications use the configured backend API outside demo mode.
 - The backend owns availability, slot conflicts, prices, booking state, payment state and private chat membership. A network error is shown to the user; the app does not silently load mock records.
-- Safepay Sandbox requires issued sandbox credentials. Without them, the local backend may use its explicitly labelled development payment simulation. No live payment or payout is claimed.
-- Venue photos/videos remain on the device until binary upload is configured in the app. The offline map has no GPS or tile provider. Tournament entry fee/prize settlement and room share collection are not yet a complete online workflow; the UI must show their pending/manual status.
-- Backend and database setup are documented in the backend root README and can be run with `npm run setup` from that repository.
+- Booking checkout supports online, pay-at-venue, and bank transfer receipt upload/review. Tournament entry supports online checkout and pay-at-venue confirmation. Safepay Sandbox requires issued credentials; without them the local backend provides an explicitly labelled development simulation. No live payment or payout is claimed.
+- Court-hosted game rooms and tournaments reserve backend court time. Tournament entry and room shares use server payment records, but room share cash collection is still managed through the backend vendor payment API rather than a dedicated room payment screen. Tournament bank transfer, prize payouts and automatic refunds are not exposed as complete mobile workflows.
+- Venue photos/videos remain on the device until binary venue-media upload is connected. The offline map has no GPS or tile provider.
+- Backend and database setup are documented in the sibling backend root README. Run `npm run setup` in each repository; start the backend before using live frontend flows.
+- In live mode, editing venue details, facilities and courts sends changes to the backend. New courts receive server UUIDs before the frontend refreshes. Open Venue details and choose **Publish venue for players** to list the venue in player discovery; local development permits vendor self-publishing, while production still requires approval.
 
 ## Day 1 status
 
@@ -99,6 +101,8 @@ npm run android
 ```
 
 `npm run setup` creates the ignored `.env` from `.env.example` when missing, installs the exact lockfile dependencies with `npm ci`, and configures Metro to inline the public API URL. The default URL is `http://10.0.2.2:4000/api/v1` for an Android Emulator. For a physical Android phone, set `PLAYSPOT_API_BASE_URL` in `.env` to the development computer's reachable LAN/tunnel address and restart Metro with `npm start -- --reset-cache`. For the iOS simulator, set `http://localhost:4000/api/v1`. The backend must be running and reachable before using live flows.
+
+For a physical Android phone, the backend must listen on a reachable host interface and any computer firewall must allow the API port. Native requests do not use browser CORS; if you run a browser-based client, set backend `APP_ORIGINS` to that origin. Keep backend secrets only in the backend `.env`.
 
 The app uses React Native CLI `0.86.2`, React `19.2.3`, npm, React Navigation 7, Redux Toolkit `2.8.2`, React Redux `9.3.0`, and AsyncStorage `3.1.1`. The checked-in Android project uses application ID `com.playspotpk`. No FYP iOS project or iOS launch check was created in this Linux setup.
 

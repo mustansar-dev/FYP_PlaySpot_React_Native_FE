@@ -11,6 +11,9 @@ function createBookingId() {
 
 export const refreshAvailability = ({ courtId, groundId = courtId, date }) => async (dispatch) => {
   if (DEMO_MODE || !courtId || !date) return { ok: true };
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(courtId)) {
+    return { ok: false, error: 'This court is not saved on PlaySpot yet. Save it from Venue → Grounds and courts, then refresh availability.' };
+  }
   try {
     const result = await backendApi.availability(courtId, date);
     const slots = (result.slots || []).map(slot => ({ id: `${courtId}:${date}:${slot.startTime}`, groundId: courtId, date, startTime: slot.startTime, endTime: slot.endTime, status: slot.available ? 'available' : 'unavailable', reason: slot.reason || null }));

@@ -633,6 +633,17 @@ export function BookingDetailsScreen({ navigation, route }) {
   const { currentUser } = useSelector(state => state.auth);
   const { venues, grounds, equipment, bookings } = useSelector(state => state.venues);
   const booking = bookings.find(item => item.id === route.params?.bookingId);
+  const [paymentMessage, setPaymentMessage] = useState('');
+  const [paymentInstructions, setPaymentInstructions] = useState(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  useEffect(() => {
+    if (DEMO_MODE || !route.params?.bookingId) return undefined;
+    let active = true;
+    backendApi.booking(route.params.bookingId).then(result => {
+      if (active) dispatch({ type: 'venues/bookingServerSynced', payload: normalizeBooking(result.booking || result) });
+    }).catch(error => { if (active) setPaymentMessage(error.message); });
+    return () => { active = false; };
+  }, [dispatch, route.params?.bookingId]);
   const venue = venues.find(item => item.id === booking?.venueId);
   const ground = grounds.find(item => item.id === booking?.groundId);
   const ownedVenues = useSelector(state => selectVenuesByOwnerId(state, currentUser?.id || ''));
@@ -640,6 +651,123 @@ export function BookingDetailsScreen({ navigation, route }) {
   const canCancel = currentUser?.role === 'vendor' ? isOwner : booking?.playerUserId === currentUser?.id;
   const active = booking && getBookingDisplayStatus(booking) === 'Confirmed';
   const beforeStart = booking && getBookingStartTimestamp(booking) > Date.now();
+  const myPayments = (booking?.payments || []).filter(payment => payment.userId === currentUser?.id);
+  const venueDuePayments = (booking?.payments || []).filter(payment => payment.method === 'pay-at-venue' && payment.status === 'due-at-venue');
+  const transferReviewPayments = (booking?.payments || []).filter(payment => payment.method === 'bank-transfer' && payment.status === 'proof-submitted');
+
+  const refreshBookingFromServer = async () => {
+    const result = await backendApi.booking(booking.id);
+    const latest = normalizeBooking(result.booking || result);
+    dispatch({ type: 'venues/bookingServerSynced', payload: latest });
+    return latest;
+  };
+
+  const continueOnlinePayment = async payment => {
+    setPaymentBusy(true);
+    setPaymentMessage('');
+    try {
+      const checkout = await backendApi.paymentCheckout(payment.id);
+      if (checkout.simulation) {
+        Alert.alert('Development payment simulation', 'No hosted checkout or real payment was created.', [
+          { text: 'Later', style: 'cancel', onPress: () => { void refreshBookingFromServer().catch(error => setPaymentMessage(error.message)); } },
+          { text: 'Simulate success', onPress: async () => {
+            try {
+              await backendApi.simulatePayment(payment.id, 'succeeded');
+              await refreshBookingFromServer();
+              setPaymentMessage('Development payment was recorded. No money moved.');
+            } catch (error) { setPaymentMessage(error.message || 'The payment simulation could not be recorded.'); }
+          } },
+        ]);
+      } else if (checkout.checkoutUrl) {
+        await Linking.openURL(checkout.checkoutUrl);
+        setPaymentMessage('Checkout opened. The booking remains unpaid until the server confirms payment.');
+      } else setPaymentMessage('The server did not return a checkout link. Refresh the booking before retrying.');
+    } catch (error) { setPaymentMessage(error.message || 'The online checkout could not be opened.'); }
+    finally { setPaymentBusy(false); }
+  };
+
+  const loadPaymentInstructions = async () => {
+    setPaymentBusy(true);
+    setPaymentMessage('');
+    try {
+      const instructions = await backendApi.paymentInstructions(booking.id);
+      setPaymentInstructions(instructions);
+    } catch (error) { setPaymentMessage(error.message || 'Bank transfer instructions could not be loaded.'); }
+    finally { setPaymentBusy(false); }
+  };
+
+  const submitTransferReceipt = async payment => {
+    setPaymentBusy(true);
+    setPaymentMessage('');
+    try {
+      const { launchImageLibrary } = require('react-native-image-picker');
+      const pickerResult = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+      if (pickerResult.didCancel) return;
+      if (pickerResult.errorCode) throw new Error(pickerResult.errorMessage || 'The receipt image could not be selected.');
+      const asset = pickerResult.assets?.[0];
+      if (!asset?.uri) throw new Error('Choose a PNG or JPEG transfer receipt.');
+      const mimeType = String(asset.type || '').toLowerCase();
+      if (!['image/jpeg', 'image/png'].includes(mimeType)) throw new Error('Transfer receipts must be PNG or JPEG images.');
+      if (!Number.isInteger(asset.fileSize) || asset.fileSize <= 0 || asset.fileSize > 5 * 1024 * 1024) {
+        throw new Error('The receipt image must be smaller than 5 MB.');
+      }
+      const fileName = asset.fileName || `transfer-receipt.${mimeType === 'image/png' ? 'png' : 'jpg'}`;
+      const upload = await backendApi.createPaymentReceiptUpload(payment.id, { fileName, mimeType, sizeBytes: asset.fileSize });
+      const fileResponse = await fetch(asset.uri);
+      if (!fileResponse.ok) throw new Error('The selected receipt file could not be read.');
+      const objectResponse = await fetch(upload.signedUrl, {
+        method: 'PUT', headers: { 'Content-Type': mimeType }, body: await fileResponse.blob(),
+      });
+      if (!objectResponse.ok) throw new Error('The receipt could not be uploaded to secure storage.');
+      await backendApi.confirmPaymentReceipt(payment.id, { fileName, mimeType, sizeBytes: asset.fileSize, storagePath: upload.storagePath });
+      await refreshBookingFromServer();
+      setPaymentMessage('Transfer receipt submitted. The venue must review it before the payment is marked paid.');
+    } catch (error) { setPaymentMessage(error.message || 'The transfer receipt could not be submitted.'); }
+    finally { setPaymentBusy(false); }
+  };
+
+  const confirmVenueCash = async payment => {
+    setPaymentBusy(true);
+    setPaymentMessage('');
+    try {
+      await backendApi.markCashReceived(payment.id, { amountPaisa: payment.amountPaisa });
+      await refreshBookingFromServer();
+      setPaymentMessage(`Cash received · ${formatPKR(payment.amountPKR)} recorded.`);
+    } catch (error) { setPaymentMessage(error.message || 'The payment could not be recorded.'); }
+    finally { setPaymentBusy(false); }
+  };
+
+  const reviewTransferReceipt = async payment => {
+    try {
+      const result = await backendApi.paymentReceipt(payment.id);
+      await Linking.openURL(result.signedUrl);
+    } catch (error) { setPaymentMessage(error.message || 'The transfer receipt could not be opened.'); }
+  };
+
+  const approveTransfer = async payment => {
+    setPaymentBusy(true);
+    setPaymentMessage('');
+    try {
+      await backendApi.approveTransfer(payment.id);
+      await refreshBookingFromServer();
+      setPaymentMessage('The bank transfer was approved and recorded as paid.');
+    } catch (error) { setPaymentMessage(error.message || 'The transfer could not be approved.'); }
+    finally { setPaymentBusy(false); }
+  };
+
+  const rejectTransfer = payment => Alert.alert('Reject this transfer receipt?', 'The payer can submit a corrected receipt after the venue rejects this one.', [
+    { text: 'Keep for review', style: 'cancel' },
+    { text: 'Reject receipt', style: 'destructive', onPress: async () => {
+      setPaymentBusy(true);
+      setPaymentMessage('');
+      try {
+        await backendApi.rejectTransfer(payment.id, 'The venue could not verify this transfer receipt.');
+        await refreshBookingFromServer();
+        setPaymentMessage('The receipt was rejected. The player can submit a corrected image.');
+      } catch (error) { setPaymentMessage(error.message || 'The receipt could not be rejected.'); }
+      finally { setPaymentBusy(false); }
+    } },
+  ]);
 
   const cancel = () => {
     if (!booking || !canCancel || !active) return;
@@ -687,6 +815,41 @@ export function BookingDetailsScreen({ navigation, route }) {
         <Text style={[styles.cardCopy, { color: colors.inkSoft, marginTop: 8 }]}>Payment: {booking.source === 'tournament' ? 'hosted tournament; no player booking payment' : booking.paymentStatus === 'simulated-paid' ? 'demo payment recorded; no money moved' : booking.paymentStatus === 'simulated-refunded' ? 'fully refunded in demo - ' + formatPKR(booking.refundAmountPKR ?? booking.totalPKR) : booking.paymentStatus === 'split-collecting' ? 'room shares are being collected in demo' : booking.paymentStatus === 'cash-refund-due' ? 'cash refund due to customer - ' + formatPKR(booking.totalPKR) : booking.paymentStatus === 'cash-refunded' ? 'cash refund recorded by vendor' : booking.paymentStatus}</Text>
         {currentUser?.role === 'vendor' && booking.source === 'player' ? <InlineNotice>{booking.status === 'cancelled' && booking.paymentStatus === 'simulated-refunded' ? 'The demo refund is recorded; no money moved.' : getBookingDisplayStatus(booking) === 'Completed' && booking.paymentStatus === 'simulated-paid' ? 'Demo payout released to venue after the completed session. No money moved.' : 'Demo payout is pending until the completed session.'}</InlineNotice> : null}
       </DesignCard>
+      {!DEMO_MODE && currentUser?.role === 'player' ? <>
+        {myPayments.filter(payment => payment.method === 'online' && payment.status === 'pending').map(payment => <AppButton
+          key={payment.id} title={paymentBusy ? 'Opening checkout…' : `Continue online payment · ${formatPKR(payment.amountPKR)}`}
+          testID={`booking-payment-online-${payment.id}`} loading={paymentBusy} disabled={paymentBusy}
+          onPress={() => continueOnlinePayment(payment)} style={styles.buttonGap}
+        />)}
+        {myPayments.some(payment => payment.method === 'bank-transfer' && ['awaiting-transfer', 'rejected'].includes(payment.status)) ? <>
+          <SectionHeading title="Bank transfer" />
+          <AppButton title="View venue bank instructions" variant="secondary" testID="booking-bank-instructions" loading={paymentBusy} disabled={paymentBusy} onPress={loadPaymentInstructions} />
+          {paymentInstructions ? <InlineNotice>
+            {paymentInstructions.bankName} · {paymentInstructions.accountTitle}
+            {paymentInstructions.iban ? ` · IBAN ${paymentInstructions.iban}` : ''}
+            {paymentInstructions.accountNumber ? ` · Account ${paymentInstructions.accountNumber}` : ''}
+            {paymentInstructions.instructions ? ` · ${paymentInstructions.instructions}` : ''}
+          </InlineNotice> : null}
+          {myPayments.filter(payment => payment.method === 'bank-transfer' && ['awaiting-transfer', 'rejected'].includes(payment.status)).map(payment => <AppButton
+            key={payment.id} title={paymentBusy ? 'Submitting receipt…' : `Upload transfer receipt · ${formatPKR(payment.amountPKR)}`}
+            variant="secondary" testID={`booking-transfer-receipt-${payment.id}`} loading={paymentBusy} disabled={paymentBusy}
+            onPress={() => submitTransferReceipt(payment)} style={styles.buttonGap}
+          />)}
+        </> : null}
+      </> : null}
+      {!DEMO_MODE && currentUser?.role === 'vendor' && isOwner ? <>
+        {venueDuePayments.map(payment => <AppButton
+          key={payment.id} title={paymentBusy ? 'Recording…' : `Confirm cash received · ${formatPKR(payment.amountPKR)}`}
+          variant="secondary" testID={`booking-cash-received-${payment.id}`} loading={paymentBusy} disabled={paymentBusy}
+          onPress={() => confirmVenueCash(payment)} style={styles.buttonGap}
+        />)}
+        {transferReviewPayments.map(payment => <View key={payment.id}>
+          <AppButton title="Review bank transfer receipt" variant="secondary" testID={`booking-review-transfer-${payment.id}`} onPress={() => reviewTransferReceipt(payment)} />
+          <AppButton title={paymentBusy ? 'Approving…' : `Approve transfer · ${formatPKR(payment.amountPKR)}`} testID={`booking-approve-transfer-${payment.id}`} loading={paymentBusy} disabled={paymentBusy} onPress={() => approveTransfer(payment)} style={styles.buttonGap} />
+          <AppButton title="Reject receipt" variant="quiet" testID={`booking-reject-transfer-${payment.id}`} disabled={paymentBusy} onPress={() => rejectTransfer(payment)} style={styles.buttonGap} />
+        </View>)}
+      </> : null}
+      {paymentMessage ? <InlineNotice tone={paymentMessage.toLowerCase().includes('could not') || paymentMessage.toLowerCase().includes('must') ? 'danger' : 'neutral'} testID="booking-payment-message">{paymentMessage}</InlineNotice> : null}
       {active && beforeStart && canCancel ? <AppButton title="Cancel booking · full demo refund" variant="secondary" testID="booking-cancel" onPress={cancel} textStyle={{ color: colors.error }} /> : null}
       {currentUser?.role === 'vendor' && isOwner && booking.source === 'walk-in' && booking.status === 'cancelled' && booking.paymentStatus === 'cash-refund-due' ? <AppButton title={`Record cash refund · ${formatPKR(booking.totalPKR)}`} testID="walkin-record-refund" onPress={() => dispatch(recordWalkInCashRefund({ bookingId: booking.id }))} style={styles.buttonGap} /> : null}
       {currentUser?.role === 'vendor' ? <AppButton title="Vendor bookings" variant="quiet" testID="booking-vendor-list" onPress={() => navigation.navigate('VendorBookings')} style={styles.buttonGap} /> : <AppButton title="My bookings" variant="quiet" testID="booking-player-list" onPress={() => navigation.navigate('MyBookings')} style={styles.buttonGap} />}

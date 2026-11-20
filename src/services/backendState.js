@@ -62,7 +62,7 @@ export function normalizeTournament(row) {
   const participants = (row.participants || []).map(item => ({
     ...item, userId: item.userId || item.user?.id, name: item.user?.name || item.name,
     teamMembers: item.teamMemberNames || item.teamMembers || [], joinedAt: item.joinedAt || row.createdAt,
-    paymentStatus: lower(item.paymentStatus), totalEntryFeePKR: (item.totalEntryFeePaisa || 0) / 100,
+    paymentStatus: lower(item.paymentStatus).replaceAll('_', '-'), totalEntryFeePKR: (item.totalEntryFeePaisa || 0) / 100,
   }));
   return {
     ...row, date, startTime, endTime, status: lower(row.status), capacity: row.maxTeams,
@@ -87,7 +87,7 @@ export function normalizeNotification(row) {
   };
 }
 
-function normalizeVenue(row, vendorId) {
+export function normalizeVenue(row, vendorId) {
   return {
     ...row, vendorId: vendorId || null,
     photoUris: (row.media || []).filter(item => item.kind === 'PHOTO' && item.url).map(item => item.url),

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   Alert,
   FlatList,
   Linking,
@@ -1133,6 +1134,8 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const tournament = useSelector(state => state.community.tournaments.find(item => item.id === route.params?.tournamentId));
+  const [venueDuePayments, setVenueDuePayments] = useState([]);
+  const [myTeam, setMyTeam] = useState(null);
   useEffect(() => {
     if (DEMO_MODE || !route.params?.tournamentId) return undefined;
     let active = true;
@@ -1141,6 +1144,14 @@ export function TournamentDetailsScreen({ navigation, route }) {
     }).catch(error => { if (active) setError(error.message); });
     return () => { active = false; };
   }, [dispatch, route.params?.tournamentId]);
+  useEffect(() => {
+    if (DEMO_MODE || currentUser?.role !== 'vendor' || !route.params?.tournamentId) return undefined;
+    let active = true;
+    backendApi.vendorVenueDuePayments({ page: 1, limit: 50 }).then(rows => {
+      if (active) setVenueDuePayments(rows.filter(item => item.tournament?.id === route.params.tournamentId));
+    }).catch(requestError => { if (active) setError(requestError.message); });
+    return () => { active = false; };
+  }, [currentUser?.role, route.params?.tournamentId]);
   const conversation = useSelector(state => state.community.conversations.find(item => item.kind === 'tournament' && item.tournamentId === route.params?.tournamentId));
   const [error, setError] = useState('');
   const [teamName, setTeamName] = useState('');
@@ -1149,6 +1160,7 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const paymentMode = 'simulated';
   const [scoreDraft, setScoreDraft] = useState({});
   const isParticipant = tournament?.participants.some(item => item.userId === currentUser?.id);
+  const currentParticipant = tournament?.participants.find(item => item.userId === currentUser?.id);
   const isOrganizer = currentUser?.role === 'vendor' && tournament?.createdBy === currentUser.id;
   const canRegister = currentUser?.role === 'player';
   const registrationOpen = isTournamentRegistrationOpen(tournament);
@@ -1158,16 +1170,56 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const registrationTotal = entryFee * (isTeamTournament ? teamSize : 1);
   const remaining = useMemo(() => tournament ? Math.max(0, tournament.capacity - tournament.participants.length) : 0, [tournament]);
   const tournamentLeaderboard = useMemo(() => getTournamentLeaderboardRows(tournament), [tournament]);
+  const refreshVenueDuePayments = async () => {
+    const rows = await backendApi.vendorVenueDuePayments({ page: 1, limit: 50 });
+    const matching = rows.filter(item => item.tournament?.id === tournament.id);
+    setVenueDuePayments(matching);
+    return matching;
+  };
+  const refreshMyTeam = async () => {
+    try {
+      const result = await backendApi.myTournamentTeam(tournament.id);
+      setMyTeam(result);
+      if (result.activePayment?.method) setEntryPaymentMethod(result.activePayment.method);
+      return result;
+    } catch (requestError) {
+      if (requestError.code === 'TEAM_NOT_FOUND') { setMyTeam(null); return null; }
+      throw requestError;
+    }
+  };
   const refreshTournament = async () => {
     const fresh = await backendApi.tournament(tournament.id);
     dispatch(tournamentCreated(normalizeTournament(fresh)));
     return fresh;
   };
+  useEffect(() => {
+    if (DEMO_MODE || currentUser?.role !== 'player' || !tournament) return undefined;
+    let active = true;
+    backendApi.myTournamentTeam(tournament.id).then(result => {
+      if (!active) return;
+      setMyTeam(result);
+      if (result.activePayment?.method) setEntryPaymentMethod(result.activePayment.method);
+    }).catch(requestError => {
+      if (active && requestError.code !== 'TEAM_NOT_FOUND') setError(requestError.message);
+    });
+    return () => { active = false; };
+  }, [currentUser?.role, tournament?.id]);
+  useEffect(() => {
+    if (DEMO_MODE || !tournament) return undefined;
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active') return;
+      void refreshTournament().catch(requestError => setError(requestError.message));
+      if (currentUser?.role === 'player') void refreshMyTeam().catch(requestError => setError(requestError.message));
+      if (currentUser?.role === 'vendor') void refreshVenueDuePayments().catch(requestError => setError(requestError.message));
+    });
+    return () => subscription.remove();
+  }, [currentUser?.role, tournament?.id]);
   const startEntryPayment = async () => {
     if (DEMO_MODE || registrationTotal <= 0) return;
     const result = await backendApi.tournamentPayment(tournament.id, entryPaymentMethod);
     if (entryPaymentMethod === 'PAY_AT_VENUE') {
       await refreshTournament();
+      await refreshMyTeam();
       setError(`Team registered. ${formatPKR(registrationTotal)} is due at the tournament venue.`);
       return;
     }
@@ -1181,19 +1233,33 @@ export function TournamentDetailsScreen({ navigation, route }) {
           { text: 'Simulate success', onPress: async () => {
             try {
               await backendApi.simulatePayment(result.payment.id, 'succeeded');
-              await refreshTournament();
+              await Promise.all([refreshTournament(), refreshMyTeam()]);
               setError('Tournament entry payment recorded by the development simulator. No money moved.');
             } catch (error) { setError(error.message || 'The payment simulation could not be recorded.'); }
           } },
         ],
       );
-      await refreshTournament();
+      await Promise.all([refreshTournament(), refreshMyTeam()]);
       return;
     }
     if (!checkout.checkoutUrl) throw new Error('The server did not return a tournament checkout link.');
     await Linking.openURL(checkout.checkoutUrl);
-    await refreshTournament();
+    await Promise.all([refreshTournament(), refreshMyTeam()]);
     setError('Checkout opened. The tournament entry remains unpaid until the server confirms payment.');
+  };
+  const retryEntryPayment = async () => {
+    try { await startEntryPayment(); }
+    catch (requestError) {
+      setError(requestError.message || 'The tournament entry payment could not be started.');
+      try { await refreshTournament(); } catch { /* Keep the payment error visible. */ }
+    }
+  };
+  const confirmTournamentCash = async payment => {
+    try {
+      await backendApi.markCashReceived(payment.payment.id, { amountPaisa: payment.payment.amountPaisa });
+      await Promise.all([refreshTournament(), refreshVenueDuePayments()]);
+      setError(`Cash entry payment of ${formatPKR(payment.payment.amountPKR)} recorded.`);
+    } catch (requestError) { setError(requestError.message || 'The venue payment could not be recorded.'); }
   };
   useEffect(() => {
     if (!tournament) return;
@@ -1384,7 +1450,23 @@ export function TournamentDetailsScreen({ navigation, route }) {
             <AppButton title="Save tournament results" variant="secondary" testID="tournament-save-standings" onPress={saveStandings} />
             {tournament.status !== 'completed' ? <AppButton title="Complete tournament" testID="tournament-complete" onPress={completeTournament} style={styles.spacedButton} /> : null}
           </> : null}
-        </> : isParticipant ? <AppButton title={DEMO_MODE ? 'Leave tournament · full demo refund' : 'Leave tournament'} variant="secondary" testID="tournament-leave" onPress={leave} /> : canRegister && (remaining === 0 || !registrationOpen) ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : canRegister ? <AppButton title={DEMO_MODE ? `Pay ${formatPKR(registrationTotal)} & register` : registrationTotal > 0 ? 'Register team & continue to payment' : 'Register team'} testID="tournament-join" onPress={join} /> : !isOrganizer ? <InlineNotice testID="tournament-player-account-required">Vendor accounts cannot register teams. Use a player account to participate.</InlineNotice> : null}
+        </> : isParticipant ? <>
+          {!DEMO_MODE && registrationTotal > 0 && currentParticipant?.paymentStatus !== 'paid' ? <>
+            <SectionHeading title="Complete entry payment" />
+            <InlineNotice>Your team is registered. Entry payment status: {currentParticipant?.paymentStatus || 'unpaid'}.</InlineNotice>
+            <ChoiceChips label="Entry payment" options={['Online checkout', 'Pay at venue']} selected={entryPaymentMethod === 'ONLINE' ? 'Online checkout' : 'Pay at venue'} onSelect={value => setEntryPaymentMethod(value === 'Online checkout' ? 'ONLINE' : 'PAY_AT_VENUE')} testID="tournament-payment-retry-method" />
+            <AppButton title={entryPaymentMethod === 'ONLINE' ? 'Continue to entry checkout' : `Record entry due · ${formatPKR(registrationTotal)}`} testID="tournament-payment-retry" onPress={retryEntryPayment} />
+          </> : null}
+          <AppButton title={DEMO_MODE ? 'Leave tournament · full demo refund' : 'Leave tournament'} variant="secondary" testID="tournament-leave" onPress={leave} />
+        </> : canRegister && (remaining === 0 || !registrationOpen) ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : canRegister ? <AppButton title={DEMO_MODE ? `Pay ${formatPKR(registrationTotal)} & register` : registrationTotal > 0 ? 'Register team & continue to payment' : 'Register team'} testID="tournament-join" onPress={join} /> : !isOrganizer ? <InlineNotice testID="tournament-player-account-required">Vendor accounts cannot register teams. Use a player account to participate.</InlineNotice> : null}
+        {isOrganizer && venueDuePayments.length ? <>
+          <SectionHeading title="Tournament entry cash due" />
+          {venueDuePayments.map(item => <DesignCard key={item.payment.id}>
+            <Text style={[styles.cardTitle, { color: colors.ink }]}>{item.payer?.name || 'Team leader'} · {formatPKR(item.payment.amountPKR)}</Text>
+            <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Confirm venue cash only after you have received the entry fee.</Text>
+            <AppButton title="Confirm cash received" testID={`tournament-cash-${item.payment.id}`} onPress={() => confirmTournamentCash(item)} />
+          </DesignCard>)}
+        </> : null}
         {isOrganizer && tournament.status === 'completed' ? <InlineNotice testID="tournament-demo-payout">{DEMO_MODE ? `Demo settlement released after completion: venue share ${formatPKR(tournament.vendorPayoutPKR || 0)} · prize allocation ${formatPKR(tournament.prizePayoutPKR || 0)}. No money moved.` : 'Tournament results are saved on the server. The app does not transfer venue revenue or prize money.'}</InlineNotice> : null}
         {isParticipant || isOrganizer ? <AppButton title="Open tournament private chat" variant="secondary" testID="tournament-chat" disabled={!conversation} onPress={() => conversation && navigation.navigate('ChatConversation', { conversationId: conversation.id })} style={styles.spacedButton} /> : <InlineNotice>Private chat is available to the tournament host and registered team leaders.</InlineNotice>}
         <SectionHeading title="Tournament leaderboard" />
@@ -1439,7 +1521,7 @@ export function CreateTournamentScreen({ navigation }) {
           if (!sportRecord) throw new Error(`The backend does not currently offer ${sport} in its active sports catalog.`);
           const response = await backendApi.createTournament({
             title: title.trim(), sportId: sportRecord.id, venueId: hostVenue.id,
-          courtIds: selectedGrounds.map(ground => ground.id),
+            courtIds: selectedGrounds.map(ground => ground.id),
             startsAt: new Date(`${date}T${startTime}:00+05:00`).toISOString(),
             endsAt: new Date(`${date}T${endTime}:00+05:00`).toISOString(),
             maxTeams: Number(capacity), teamSize: Number(teamSize),
