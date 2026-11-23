@@ -72,6 +72,19 @@ describe('local community rules and totals', () => {
     expect(shares.reduce((sum, share) => sum + share.amountPKR, 0)).toBe(2201);
   });
 
+  test('backend rooms accept pay-at-venue as their supported reservation payment method', () => {
+    const future = new Date(Date.now() + 2 * 86_400_000);
+    const selectedSlot = {
+      date: `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`,
+      startTime: '16:00', endTime: '17:00', sport: 'Badminton',
+    };
+    const errors = validateGameRoomDraft({
+      title: 'Badminton doubles', sport: 'Badminton', location: 'Lahore Arena', selectedSlot,
+      capacity: '4', totalCostPKR: 2400, visibility: 'public', paymentMode: 'PAY_AT_VENUE',
+    });
+    expect(errors.paymentMode).toBeUndefined();
+  });
+
   test('room form requires a future sport-matched slot and a supported local payment mode', () => {
     expect(validateGameRoomDraft({
       title: '', sport: 'Badminton', location: '', date: '2026-01-01', startTime: '25:00',

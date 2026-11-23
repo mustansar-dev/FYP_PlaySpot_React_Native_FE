@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Share,
   ScrollView,
   StyleSheet,
   Text,
@@ -39,6 +40,8 @@ import {
   tournamentCreated,
   updateTournamentAsVendor,
   tournamentParticipantRemoved,
+  publicRoomsSynced,
+  tournamentsSynced,
   joinTournament,
   leaveTournament,
   updateGameRoomPaymentShares,
@@ -103,6 +106,7 @@ function RoomCard({ room, onPress, testID }) {
 export function GameRoomsScreen({ navigation }) {
   const dispatch = useDispatch();
   const { colors } = useTheme();
+  const currentUser = useSelector(state => state.auth.currentUser);
   const rooms = useSelector(state => state.community.rooms);
   const [visibility, setVisibility] = useState('all');
   const [sport, setSport] = useState('All');
@@ -110,10 +114,19 @@ export function GameRoomsScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [loadError, setLoadError] = useState('');
   useEffect(() => {
-    if (DEMO_MODE) return;
-    backendApi.rooms({ page: 1, limit: 50 }).then(rows => rows.forEach(row => dispatch(gameRoomCreated(normalizeRoom(row)))))
-      .catch(error => setLoadError(error.message));
-  }, [dispatch]);
+    if (DEMO_MODE) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const rows = await backendApi.rooms({ page: 1, limit: 50 });
+        if (active) dispatch(publicRoomsSynced({ rooms: rows.map(normalizeRoom), currentUserId: currentUser?.id }));
+        if (active) setLoadError('');
+      } catch (error) { if (active) setLoadError(error.message); }
+    };
+    void refresh();
+    const unsubscribe = navigation.addListener('focus', refresh);
+    return () => { active = false; unsubscribe?.(); };
+  }, [currentUser?.id, dispatch, navigation]);
   const openRoom = useCallback(roomId => navigation.navigate('GameRoomDetails', { roomId }), [navigation]);
   const renderRoom = useCallback(({ item }) => (
     <RoomCard room={item} testID={`game-room-${item.id}`} onPress={() => openRoom(item.id)} />
@@ -569,6 +582,7 @@ export function CreateGameRoomScreen({ navigation, route }) {
         <ChoiceChips label="Room visibility" options={['public', 'private']} selected={visibility} onSelect={setVisibility} testID="room-visibility" />
         {visibility === 'private' ? <FormField label="Private join code" value={joinCode} onChangeText={setJoinCode} error={errors.joinCode} autoCapitalize="characters" placeholder="At least 4 characters" testID="room-join-code" /> : null}
         {errors.totalCostPKR ? <InlineNotice tone="danger">{errors.totalCostPKR}</InlineNotice> : null}
+        {errors.paymentMode ? <InlineNotice tone="danger">{errors.paymentMode}</InlineNotice> : null}
         {errors.form ? <InlineNotice tone="danger">{errors.form}</InlineNotice> : null}
         <AppButton
           title={saving ? (DEMO_MODE ? 'Processing demo payment…' : 'Reserving venue time…') : editing ? 'Save game room settings' : DEMO_MODE ? `Pay ${formatPKR(estimatedSharePKR)} & create room` : 'Reserve venue time & create room'}
@@ -1096,10 +1110,24 @@ export function TournamentsScreen({ navigation }) {
   const [status, setStatus] = useState('upcoming');
   const [loadError, setLoadError] = useState('');
   useEffect(() => {
-    if (DEMO_MODE) return;
-    backendApi.tournaments({ page: 1, limit: 50 }).then(rows => rows.forEach(row => dispatch(tournamentCreated(normalizeTournament(row)))))
-      .catch(error => setLoadError(error.message));
-  }, [dispatch]);
+    if (DEMO_MODE) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const [rows, myRows] = await Promise.all([
+          backendApi.tournaments({ page: 1, limit: 50 }),
+          currentUser?.role === 'player' ? backendApi.myTournaments() : Promise.resolve([]),
+        ]);
+        const publicRows = rows.map(row => ({ ...normalizeTournament(row), participants: [], participantsLoaded: true }));
+        const registeredRows = myRows.map(normalizeTournament);
+        if (active) dispatch(tournamentsSynced([...new Map([...publicRows, ...registeredRows].map(row => [row.id, row])).values()]));
+        if (active) setLoadError('');
+      } catch (error) { if (active) setLoadError(error.message); }
+    };
+    void refresh();
+    const unsubscribe = navigation.addListener('focus', refresh);
+    return () => { active = false; unsubscribe?.(); };
+  }, [currentUser?.role, dispatch, navigation]);
   const openTournament = useCallback(tournamentId => navigation.navigate('TournamentDetails', { tournamentId }), [navigation]);
   const renderTournament = useCallback(({ item }) => (
     <TournamentCard tournament={item} testID={`tournament-${item.id}`} onPress={() => openTournament(item.id)} />
@@ -1176,6 +1204,9 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const [teamName, setTeamName] = useState('');
   const [teammates, setTeammates] = useState('');
   const [entryPaymentMethod, setEntryPaymentMethod] = useState('ONLINE');
+  const [entryPayment, setEntryPayment] = useState(null);
+  const [entryBankInstructions, setEntryBankInstructions] = useState(null);
+  const [entryPaymentBusy, setEntryPaymentBusy] = useState(false);
   const paymentMode = 'simulated';
   const [scoreDraft, setScoreDraft] = useState({});
   const isParticipant = tournament?.participants.some(item => item.userId === currentUser?.id);
@@ -1200,6 +1231,8 @@ export function TournamentDetailsScreen({ navigation, route }) {
       const result = await backendApi.myTournamentTeam(tournament.id);
       setMyTeam(result);
       if (result.activePayment?.method) setEntryPaymentMethod(result.activePayment.method);
+      if (result.activePayment) setEntryPayment(result.activePayment);
+      if (result.activePayment?.method === 'BANK_TRANSFER') setEntryBankInstructions(await backendApi.tournamentPaymentInstructions(tournament.id));
       return result;
     } catch (requestError) {
       if (requestError.code === 'TEAM_NOT_FOUND') { setMyTeam(null); return null; }
@@ -1212,12 +1245,50 @@ export function TournamentDetailsScreen({ navigation, route }) {
     return fresh;
   };
   useEffect(() => {
+    if (DEMO_MODE || !route.params?.tournamentId) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const [row, team, conversations, payments] = await Promise.all([
+          backendApi.tournament(route.params.tournamentId),
+          currentUser?.role === 'player' ? backendApi.myTournamentTeam(route.params.tournamentId).catch(error => error.code === 'TEAM_NOT_FOUND' ? null : Promise.reject(error)) : Promise.resolve(null),
+          currentUser?.id ? backendApi.conversations() : Promise.resolve([]),
+          currentUser?.role === 'vendor' ? backendApi.vendorVenueDuePayments({ page: 1, limit: 50 }) : Promise.resolve([]),
+        ]);
+        if (!active) return;
+        const normalized = normalizeTournament(row);
+        dispatch(tournamentCreated(normalized));
+        if (currentUser?.role === 'player') {
+          setMyTeam(team);
+          setEntryPayment(team?.activePayment || null);
+          if (team?.activePayment?.method === 'BANK_TRANSFER') {
+            const instructions = await backendApi.tournamentPaymentInstructions(route.params.tournamentId);
+            if (active) setEntryBankInstructions(instructions);
+          } else setEntryBankInstructions(null);
+        }
+        if (currentUser?.role === 'vendor') setVenueDuePayments(payments.filter(item => item.tournament?.id === route.params.tournamentId));
+        const chat = conversations.find(item => item.tournament?.id === route.params.tournamentId);
+        if (chat) dispatch(conversationCreated({
+          ...chat, kind: 'tournament', tournamentId: route.params.tournamentId,
+          participantIds: (chat.members || []).map(member => member.id),
+          lastMessage: chat.lastMessage?.body || '', lastAt: chat.lastMessage?.createdAt || chat.updatedAt,
+        }));
+        setError('');
+      } catch (requestError) { if (active) setError(requestError.message || 'Tournament details could not be refreshed.'); }
+    };
+    void refresh();
+    const unsubscribe = navigation.addListener('focus', refresh);
+    return () => { active = false; unsubscribe?.(); };
+  }, [currentUser?.id, currentUser?.role, dispatch, navigation, route.params?.tournamentId]);
+  useEffect(() => {
     if (DEMO_MODE || currentUser?.role !== 'player' || !tournament) return undefined;
     let active = true;
     backendApi.myTournamentTeam(tournament.id).then(result => {
       if (!active) return;
       setMyTeam(result);
       if (result.activePayment?.method) setEntryPaymentMethod(result.activePayment.method);
+      if (result.activePayment) setEntryPayment(result.activePayment);
+      if (result.activePayment?.method === 'BANK_TRANSFER') backendApi.tournamentPaymentInstructions(tournament.id).then(setEntryBankInstructions).catch(requestError => setError(requestError.message));
     }).catch(requestError => {
       if (active && requestError.code !== 'TEAM_NOT_FOUND') setError(requestError.message);
     });
@@ -1236,13 +1307,23 @@ export function TournamentDetailsScreen({ navigation, route }) {
   const startEntryPayment = async () => {
     if (DEMO_MODE || registrationTotal <= 0) return;
     const result = await backendApi.tournamentPayment(tournament.id, entryPaymentMethod);
+    const payment = result.payment || result;
+    setEntryPayment(payment);
     if (entryPaymentMethod === 'PAY_AT_VENUE') {
       await refreshTournament();
       await refreshMyTeam();
       setError(`Team registered. ${formatPKR(registrationTotal)} is due at the tournament venue.`);
       return;
     }
-    const checkout = await backendApi.paymentCheckout(result.payment.id);
+    if (entryPaymentMethod === 'BANK_TRANSFER') {
+      const instructions = await backendApi.tournamentPaymentInstructions(tournament.id);
+      setEntryBankInstructions(instructions);
+      await refreshTournament();
+      await refreshMyTeam();
+      setError('Team registered. Transfer the full team entry fee and upload the receipt for vendor review.');
+      return;
+    }
+    const checkout = await backendApi.paymentCheckout(payment.id);
     if (checkout.simulation) {
       Alert.alert(
         'Development payment simulation',
@@ -1267,11 +1348,50 @@ export function TournamentDetailsScreen({ navigation, route }) {
     setError('Checkout opened. The tournament entry remains unpaid until the server confirms payment.');
   };
   const retryEntryPayment = async () => {
+    setEntryPaymentBusy(true);
     try { await startEntryPayment(); }
     catch (requestError) {
       setError(requestError.message || 'The tournament entry payment could not be started.');
       try { await refreshTournament(); } catch { /* Keep the payment error visible. */ }
-    }
+    } finally { setEntryPaymentBusy(false); }
+  };
+  const shareTournamentBankDetails = async () => {
+    if (!entryBankInstructions) return;
+    const accountLines = [
+      `Tournament: ${tournament.title}`,
+      `Team: ${currentParticipant?.teamName || myTeam?.participant?.teamName || teamName || currentUser?.name}`,
+      `Team entry total: ${formatPKR(registrationTotal)}`,
+      `Bank: ${entryBankInstructions.bankName}`,
+      `Account title: ${entryBankInstructions.accountTitle}`,
+      entryBankInstructions.iban ? `IBAN: ${entryBankInstructions.iban}` : null,
+      entryBankInstructions.accountNumber ? `Account number: ${entryBankInstructions.accountNumber}` : null,
+      entryBankInstructions.instructions || null,
+    ].filter(Boolean);
+    try { await Share.share({ message: accountLines.join('\n') }); }
+    catch (shareError) { setError(shareError.message || 'Bank details could not be shared.'); }
+  };
+  const uploadTournamentReceipt = async () => {
+    const paymentId = entryPayment?.id || myTeam?.activePayment?.id;
+    if (!paymentId || entryPaymentBusy) return;
+    setEntryPaymentBusy(true);
+    setError('');
+    try {
+      const { launchImageLibrary } = require('react-native-image-picker');
+      const pickerResult = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+      if (pickerResult.didCancel) return;
+      if (pickerResult.errorCode) throw new Error(pickerResult.errorMessage || 'The receipt image could not be selected.');
+      const asset = pickerResult.assets?.[0];
+      if (!asset?.uri) throw new Error('Choose a PNG or JPEG transfer receipt.');
+      const mimeType = String(asset.type || '').toLowerCase();
+      if (!['image/jpeg', 'image/png'].includes(mimeType)) throw new Error('Transfer receipts must be PNG or JPEG images.');
+      if (!Number.isInteger(asset.fileSize) || asset.fileSize <= 0 || asset.fileSize > 5 * 1024 * 1024) throw new Error('The receipt image must be smaller than 5 MB.');
+      const form = new FormData();
+      form.append('receipt', { uri: asset.uri, name: asset.fileName || `tournament-receipt.${mimeType === 'image/png' ? 'png' : 'jpg'}`, type: mimeType });
+      await backendApi.uploadPaymentReceipt(paymentId, form);
+      await Promise.all([refreshTournament(), refreshMyTeam()]);
+      setError('Tournament team transfer receipt submitted for vendor review.');
+    } catch (uploadError) { setError(uploadError.message || 'The tournament transfer receipt could not be submitted.'); }
+    finally { setEntryPaymentBusy(false); }
   };
   const confirmTournamentCash = async payment => {
     try {
@@ -1338,7 +1458,20 @@ export function TournamentDetailsScreen({ navigation, route }) {
     const result = dispatch(leaveTournament({ tournamentId: tournament.id }));
     setError(result.ok ? 'You left the tournament. Your full entry fee is marked refunded in this demo.' : result.error);
   };
-  const toggleRegistration = () => {
+  const toggleRegistration = async () => {
+    if (!DEMO_MODE) {
+      const open = !registrationOpen;
+      try {
+        await backendApi.setTournamentRegistration(tournament.id, open);
+        const fresh = await backendApi.tournament(tournament.id);
+        dispatch(tournamentCreated(normalizeTournament(fresh)));
+        setError(open ? 'Registration reopened for players.' : 'Registration closed. The tournament remains visible in the list.');
+      } catch (requestError) {
+        setError(requestError.message || 'Tournament registration could not be changed.');
+        try { await refreshTournament(); } catch { /* Keep the registration error visible. */ }
+      }
+      return;
+    }
     const result = dispatch(updateTournamentAsVendor({
       tournamentId: tournament.id,
       changes: {
@@ -1449,12 +1582,12 @@ export function TournamentDetailsScreen({ navigation, route }) {
           <SectionHeading title="Registration payment" />
           <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Entry fee {formatPKR(entryFee)} per player × {isTeamTournament ? `${teamSize} players` : '1 player'} = {formatPKR(registrationTotal)}</Text>
           {DEMO_MODE ? <InlineNotice>Demo entry payment is recorded before your team is registered. If the host cancels, the full entry fee is marked refunded. No money is collected or transferred.</InlineNotice> : <>
-            <ChoiceChips label="Entry payment" options={['Online checkout', 'Pay at venue']} selected={entryPaymentMethod === 'ONLINE' ? 'Online checkout' : 'Pay at venue'} onSelect={value => setEntryPaymentMethod(value === 'Online checkout' ? 'ONLINE' : 'PAY_AT_VENUE')} testID="tournament-payment-method" />
-            <InlineNotice>Online entry payment is confirmed by the server provider callback. Pay at venue remains due until the host confirms collection.</InlineNotice>
+            <ChoiceChips label="Entry payment" options={['Online checkout', 'Pay at venue', 'Bank transfer']} selected={{ ONLINE: 'Online checkout', PAY_AT_VENUE: 'Pay at venue', BANK_TRANSFER: 'Bank transfer' }[entryPaymentMethod]} onSelect={value => setEntryPaymentMethod({ 'Online checkout': 'ONLINE', 'Pay at venue': 'PAY_AT_VENUE', 'Bank transfer': 'BANK_TRANSFER' }[value])} testID="tournament-payment-method" />
+            <InlineNotice>{entryPaymentMethod === 'BANK_TRANSFER' ? 'The team lead can share the vendor account details with teammates. Upload one receipt for the full team entry fee.' : entryPaymentMethod === 'ONLINE' ? 'Online entry payment is confirmed by the server provider callback.' : 'Pay at venue remains due until the host confirms collection.'}</InlineNotice>
           </>}
         </> : null}
         {isOrganizer ? <>
-          {registrationOpen ? <AppButton title="Close team registration" variant="secondary" testID="tournament-close-registration" onPress={toggleRegistration} /> : !['completed', 'cancelled'].includes(tournament.status) ? <AppButton title="Reopen team registration" variant="secondary" testID="tournament-reopen-registration" onPress={toggleRegistration} /> : null}
+          {registrationOpen ? <AppButton title="Close team registration" variant="secondary" testID="tournament-close-registration" onPress={toggleRegistration} /> : tournament.status === 'upcoming' && (!tournament.startsAt || new Date(tournament.startsAt).getTime() > Date.now()) ? <AppButton title="Reopen team registration" variant="secondary" testID="tournament-reopen-registration" onPress={toggleRegistration} /> : null}
           {!['completed', 'cancelled'].includes(tournament.status) ? <AppButton title="Cancel tournament and release grounds" variant="quiet" testID="tournament-cancel" onPress={cancel} textStyle={{ color: colors.error }} /> : null}
           {tournament.participants.length ? <>
             <SectionHeading title="Record team results" />
@@ -1473,8 +1606,17 @@ export function TournamentDetailsScreen({ navigation, route }) {
           {!DEMO_MODE && registrationTotal > 0 && currentParticipant?.paymentStatus !== 'paid' ? <>
             <SectionHeading title="Complete entry payment" />
             <InlineNotice>Your team is registered. Entry payment status: {currentParticipant?.paymentStatus || 'unpaid'}.</InlineNotice>
-            <ChoiceChips label="Entry payment" options={['Online checkout', 'Pay at venue']} selected={entryPaymentMethod === 'ONLINE' ? 'Online checkout' : 'Pay at venue'} onSelect={value => setEntryPaymentMethod(value === 'Online checkout' ? 'ONLINE' : 'PAY_AT_VENUE')} testID="tournament-payment-retry-method" />
-            <AppButton title={entryPaymentMethod === 'ONLINE' ? 'Continue to entry checkout' : `Record entry due · ${formatPKR(registrationTotal)}`} testID="tournament-payment-retry" onPress={retryEntryPayment} />
+            {entryPayment?.method === 'BANK_TRANSFER' && ['AWAITING_TRANSFER', 'PROOF_SUBMITTED'].includes(entryPayment.status) ? <InlineNotice>Bank transfer status: {entryPayment.status === 'PROOF_SUBMITTED' ? 'receipt submitted for vendor review' : 'awaiting your receipt'}.</InlineNotice> : <ChoiceChips label="Entry payment" options={['Online checkout', 'Pay at venue', 'Bank transfer']} selected={{ ONLINE: 'Online checkout', PAY_AT_VENUE: 'Pay at venue', BANK_TRANSFER: 'Bank transfer' }[entryPaymentMethod]} onSelect={value => setEntryPaymentMethod({ 'Online checkout': 'ONLINE', 'Pay at venue': 'PAY_AT_VENUE', 'Bank transfer': 'BANK_TRANSFER' }[value])} testID="tournament-payment-retry-method" />}
+            {entryPaymentMethod === 'BANK_TRANSFER' && entryBankInstructions ? <DesignCard testID="tournament-bank-instructions">
+              <Text style={[styles.cardTitle, { color: colors.ink }]}>{entryBankInstructions.bankName} · {entryBankInstructions.accountTitle}</Text>
+              {entryBankInstructions.iban ? <Text selectable style={[styles.cardMeta, { color: colors.inkSoft }]}>IBAN · {entryBankInstructions.iban}</Text> : null}
+              {entryBankInstructions.accountNumber ? <Text selectable style={[styles.cardMeta, { color: colors.inkSoft }]}>Account · {entryBankInstructions.accountNumber}</Text> : null}
+              {entryBankInstructions.instructions ? <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{entryBankInstructions.instructions}</Text> : null}
+              <AppButton title="Share bank details with teammates" variant="secondary" testID="tournament-bank-share" onPress={shareTournamentBankDetails} style={styles.spacedButton} />
+            </DesignCard> : null}
+            {entryPayment?.method === 'BANK_TRANSFER' && ['AWAITING_TRANSFER', 'REJECTED'].includes(entryPayment.status) ? <AppButton title={entryPaymentBusy ? 'Uploading receipt…' : 'Upload team transfer receipt'} variant="secondary" testID="tournament-bank-receipt" loading={entryPaymentBusy} disabled={entryPaymentBusy} onPress={uploadTournamentReceipt} /> : null}
+            {entryPayment?.status === 'PROOF_SUBMITTED' ? <InlineNotice>The vendor is reviewing your team’s bank transfer receipt.</InlineNotice> : null}
+            {entryPayment?.status !== 'PROOF_SUBMITTED' && entryPayment?.status !== 'AWAITING_TRANSFER' ? <AppButton title={entryPaymentBusy ? 'Processing…' : entryPaymentMethod === 'ONLINE' ? 'Continue to entry checkout' : entryPaymentMethod === 'BANK_TRANSFER' ? `Create bank transfer · ${formatPKR(registrationTotal)}` : `Record entry due · ${formatPKR(registrationTotal)}`} testID="tournament-payment-retry" loading={entryPaymentBusy} disabled={entryPaymentBusy} onPress={retryEntryPayment} /> : null}
           </> : null}
           <AppButton title={DEMO_MODE ? 'Leave tournament · full demo refund' : 'Leave tournament'} variant="secondary" testID="tournament-leave" onPress={leave} />
         </> : canRegister && (remaining === 0 || !registrationOpen) ? <AppButton title={remaining === 0 ? 'Tournament is full' : 'Registration closed'} testID="tournament-closed" disabled /> : canRegister ? <AppButton title={DEMO_MODE ? `Pay ${formatPKR(registrationTotal)} & register` : registrationTotal > 0 ? 'Register team & continue to payment' : 'Register team'} testID="tournament-join" onPress={join} /> : !isOrganizer ? <InlineNotice testID="tournament-player-account-required">Vendor accounts cannot register teams. Use a player account to participate.</InlineNotice> : null}
@@ -1488,8 +1630,8 @@ export function TournamentDetailsScreen({ navigation, route }) {
         </> : null}
         {isOrganizer && tournament.status === 'completed' ? <InlineNotice testID="tournament-demo-payout">{DEMO_MODE ? `Demo settlement released after completion: venue share ${formatPKR(tournament.vendorPayoutPKR || 0)} · prize allocation ${formatPKR(tournament.prizePayoutPKR || 0)}. No money moved.` : 'Tournament results are saved on the server. The app does not transfer venue revenue or prize money.'}</InlineNotice> : null}
         {isParticipant || isOrganizer ? <AppButton title="Open tournament private chat" variant="secondary" testID="tournament-chat" disabled={!conversation} onPress={() => conversation && navigation.navigate('ChatConversation', { conversationId: conversation.id })} style={styles.spacedButton} /> : <InlineNotice>Private chat is available to the tournament host and registered team leaders.</InlineNotice>}
-        <SectionHeading title="Tournament leaderboard" />
-        <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Standings are tournament-specific and saved by the host on this device.</Text>
+          <SectionHeading title="Tournament leaderboard" />
+        <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Tournament standings are saved locally.' : 'Tournament standings are saved on the server and contribute to the common sport leaderboard.'}</Text>
         {tournamentLeaderboard.map((row, index) => <View key={`rank-${row.userId}`} style={[styles.memberRow, { borderColor: colors.border }]}>
           <Text style={[styles.rankNumber, { color: index === 0 && Number(row.points || 0) > 0 ? colors.orange : colors.primary }]}>{String(index + 1).padStart(2, '0')}</Text>
           <View style={{ flex: 1 }}><Text style={[styles.cardTitle, { color: colors.ink }]}>{row.teamName || row.name}</Text><Text style={[styles.cardMeta, { color: colors.inkSoft }]}>{row.wins || 0} wins · {row.points || 0} points</Text></View>
@@ -1631,7 +1773,9 @@ export function CreateTournamentScreen({ navigation }) {
 export function LeaderboardScreen({ navigation, route }) {
   const { colors } = useTheme();
   const [remoteRows, setRemoteRows] = useState([]);
+  const [remoteSports, setRemoteSports] = useState([]);
   const [remoteError, setRemoteError] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
   const accounts = useSelector(state => state.auth.accounts);
   const tournaments = useSelector(state => state.community.tournaments);
   const rows = useMemo(() => {
@@ -1656,20 +1800,25 @@ export function LeaderboardScreen({ navigation, route }) {
     }).sort((first, second) => first.sport.localeCompare(second.sport) || second.points - first.points || second.wins - first.wins || first.name.localeCompare(second.name));
   }, [accounts, tournaments]);
   const [sport, setSport] = useState(route.params?.sport || 'All');
+  useEffect(() => navigation?.addListener?.('focus', () => setRefreshToken(token => token + 1)), [navigation]);
   useEffect(() => {
     if (DEMO_MODE) return;
     let active = true;
     (async () => {
       try {
         const catalog = await backendApi.sports();
+        if (active) setRemoteSports(catalog.map(item => item.name));
         const selected = catalog.find(item => item.name === sport);
         const result = await backendApi.leaderboard({ limit: 100, sportId: selected?.id });
-        if (active) setRemoteRows((result || []).map(row => ({ id: row.userId, userId: row.userId, name: row.playerName, sport: selected?.name || 'All sports', wins: row.wins, points: row.points })));
+        if (active) {
+          setRemoteRows((result || []).map(row => ({ id: row.id || `${row.userId}-${row.sportId || 'all'}`, userId: row.userId, name: row.playerName, sport: row.sport || selected?.name || 'All sports', wins: row.wins, points: row.points })));
+          setRemoteError('');
+        }
       } catch (error) { if (active) { setRemoteRows([]); setRemoteError(error.message); } }
     })();
     return () => { active = false; };
-  }, [sport]);
-  const sports = useMemo(() => ['All', ...new Set(rows.map(row => row.sport))], [rows]);
+  }, [refreshToken, sport]);
+  const sports = useMemo(() => ['All', ...new Set((DEMO_MODE ? rows.map(row => row.sport) : remoteSports))], [rows, remoteSports]);
   const filtered = useMemo(() => DEMO_MODE ? rows.filter(row => sport === 'All' || row.sport === sport) : remoteRows, [rows, remoteRows, sport]);
   const rankByRowId = useMemo(() => {
     const seen = {};

@@ -1,7 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer, { authHydrated } from './authSlice';
-import communityReducer, { joinTournament, tournamentCreated, tournamentUpdated, updateTournamentAsVendor } from './communitySlice';
+import communityReducer, { joinTournament, tournamentCreated, tournamentUpdated, updateTournamentAsVendor, tournamentsSynced } from './communitySlice';
 import { isTournamentRegistrationOpen } from '../utils/community';
+import { normalizeTournament } from '../services/backendState';
 
 function createStore(currentUser) {
   const store = configureStore({ reducer: { auth: authReducer, community: communityReducer } });
@@ -48,6 +49,20 @@ test('the tournament owner can close and reopen registration while it remains up
     changes: { registrationOpen: true },
   }));
   expect(isTournamentRegistrationOpen(store.getState().community.tournaments[0])).toBe(true);
+});
+
+test('backend tournament cards retain server team counts when refreshed without participant details', () => {
+  const store = createStore({ id: 'player-1', role: 'player', name: 'Player One' });
+  const normalizedDetail = normalizeTournament({
+    id: 'tournament-owner-check', title: 'Demo cup', sport: { name: 'Badminton' },
+    startsAt: new Date(Date.now() + 86_400_000).toISOString(), endsAt: new Date(Date.now() + 90_000_000).toISOString(),
+    status: 'UPCOMING', maxTeams: 8, organizerUserId: 'vendor-owner',
+    participants: [{ id: 'participant-1', userId: 'player-1', user: { id: 'player-1', name: 'Player One' }, teamName: 'Rallies' }],
+  });
+  expect(normalizedDetail.registeredTeams).toBe(1);
+  store.dispatch(tournamentCreated(normalizedDetail));
+  store.dispatch(tournamentsSynced([{ ...normalizedDetail, participants: [], participantsLoaded: true, registeredTeams: 1 }]));
+  expect(store.getState().community.tournaments[0].registeredTeams).toBe(1);
 });
 
 test('raw tournament updates are rejected when the actor is not the owner', () => {

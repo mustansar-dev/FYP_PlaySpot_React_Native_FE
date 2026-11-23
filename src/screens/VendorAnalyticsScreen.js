@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
+import ChoiceChips from '../components/ChoiceChips';
 import { DesignCard, InlineNotice } from '../components/DesignPrimitives';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
@@ -21,6 +22,14 @@ import {
 function pakistanDateKey(value) {
   const local = new Date(value.getTime() + 5 * 60 * 60 * 1000);
   return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}-${String(local.getUTCDate()).padStart(2, '0')}`;
+}
+
+function shiftDateByMonths(dateKey, monthDelta) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const monthStart = new Date(Date.UTC(year, month - 1 + monthDelta, 1));
+  const lastDay = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 0)).getUTCDate();
+  monthStart.setUTCDate(Math.min(day, lastDay));
+  return monthStart.toISOString().slice(0, 10);
 }
 
 const styles = StyleSheet.create({
@@ -66,6 +75,10 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  rangeRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  rangeField: { flex: 1 },
+  rangeLabel: { fontSize: 10, fontWeight: '800', marginBottom: 5 },
+  rangeInput: { minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, fontSize: 12 },
 });
 
 function LiveDailyChart({ rows, valueKey, title, formatValue, colors }) {
@@ -92,27 +105,39 @@ function LiveDailyChart({ rows, valueKey, title, formatValue, colors }) {
   );
 }
 
-export default function VendorAnalyticsScreen() {
+export default function VendorAnalyticsScreen({ navigation }) {
   const { colors } = useTheme();
   const user = useSelector(state => state.auth.currentUser);
   const [remoteAnalytics, setRemoteAnalytics] = useState(null);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState('');
   const [refreshCount, setRefreshCount] = useState(0);
+  const [registrationDate, setRegistrationDate] = useState(() => user?.vendorProfile?.createdAt ? pakistanDateKey(new Date(user.vendorProfile.createdAt)) : null);
   const [period, setPeriod] = useState(() => {
     const today = pakistanDateKey(new Date());
     return { from: `${today.slice(0, 8)}01`, to: today };
   });
+  const [draftPeriod, setDraftPeriod] = useState(period);
+  const [selectedRange, setSelectedRange] = useState('This month');
   useEffect(() => {
     if (DEMO_MODE || user?.role !== 'vendor') return;
     let active = true;
     setRemoteLoading(true);
     setRemoteError('');
-    backendApi.vendorAnalytics(period).then(data => { if (active) setRemoteAnalytics(data); })
-      .catch(error => { if (active) setRemoteError(error.message); })
+    backendApi.vendorAnalytics(period).then(data => {
+      if (!active) return;
+      setRemoteAnalytics(data);
+      if (data.registeredOn) setRegistrationDate(data.registeredOn);
+    })
+      .catch(error => {
+        if (!active) return;
+        if (error.code === 'ANALYTICS_BEFORE_REGISTRATION' && error.details?.[0]?.registeredOn) setRegistrationDate(error.details[0].registeredOn);
+        setRemoteError(error.message);
+      })
       .finally(() => { if (active) setRemoteLoading(false); });
     return () => { active = false; };
   }, [period, refreshCount, user?.id, user?.role]);
+  useEffect(() => navigation?.addListener?.('focus', () => setRefreshCount(count => count + 1)), [navigation]);
   const venues = useSelector(state =>
     selectVenuesByOwnerId(state, user?.id || ''),
   );
@@ -156,10 +181,37 @@ export default function VendorAnalyticsScreen() {
   );
   if (!DEMO_MODE) {
     const money = value => `PKR ${Number(value || 0).toLocaleString()}`;
+    const todayKey = pakistanDateKey(new Date());
+    const registeredOn = registrationDate;
+    const setRangeMonths = months => {
+      const from = months === 1 ? `${todayKey.slice(0, 8)}01` : shiftDateByMonths(todayKey, -months);
+      setDraftPeriod({ from, to: todayKey });
+      setPeriod({ from, to: todayKey });
+      setSelectedRange(months === 1 ? 'This month' : months === 12 ? '1 year' : `${months} months`);
+      setRemoteError('');
+    };
+    const applyCustomRange = () => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(draftPeriod.from) || !/^\d{4}-\d{2}-\d{2}$/.test(draftPeriod.to)
+        || draftPeriod.from > draftPeriod.to || draftPeriod.to > todayKey
+        || (registeredOn && draftPeriod.from < registeredOn)
+        || new Date(`${draftPeriod.to}T00:00:00Z`).getTime() > (() => { const end = new Date(`${draftPeriod.from}T00:00:00Z`); end.setUTCFullYear(end.getUTCFullYear() + 1); return end.getTime(); })()) {
+        setRemoteError(`Choose valid dates from ${registeredOn || 'your registration'} through ${todayKey}, within a one-year period.`);
+        return;
+      }
+      setPeriod({ ...draftPeriod });
+      setSelectedRange('Custom');
+      setRemoteError('');
+    };
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
         <ScrollView contentContainerStyle={styles.content}>
-          <ScreenHeader title="Vendor analytics" subtitle="Verified booking totals for the current month" eyebrow="LIVE REPORT" />
+          <ScreenHeader title="Vendor analytics" subtitle="Choose a period from your registration date through today, up to one year." eyebrow="LIVE REPORT" />
+          <ChoiceChips label="Reporting period" options={['This month', '3 months', '6 months', '1 year', 'Custom']} selected={selectedRange} onSelect={value => value === 'Custom' ? setSelectedRange(value) : setRangeMonths(value === 'This month' ? 1 : value === '3 months' ? 3 : value === '6 months' ? 6 : 12)} testID="vendor-analytics-period" />
+          <View style={styles.rangeRow}>
+            <View style={styles.rangeField}><Text style={[styles.rangeLabel, { color: colors.inkSoft }]}>From · YYYY-MM-DD</Text><TextInput accessibilityLabel="Analytics start date" testID="vendor-analytics-from" value={draftPeriod.from} onChangeText={value => setDraftPeriod(current => ({ ...current, from: value }))} autoCapitalize="none" placeholder="2026-01-01" placeholderTextColor={colors.muted} style={[styles.rangeInput, { color: colors.ink, backgroundColor: colors.surface, borderColor: colors.border }]} /></View>
+            <View style={styles.rangeField}><Text style={[styles.rangeLabel, { color: colors.inkSoft }]}>To · YYYY-MM-DD</Text><TextInput accessibilityLabel="Analytics end date" testID="vendor-analytics-to" value={draftPeriod.to} onChangeText={value => setDraftPeriod(current => ({ ...current, to: value }))} autoCapitalize="none" placeholder={todayKey} placeholderTextColor={colors.muted} style={[styles.rangeInput, { color: colors.ink, backgroundColor: colors.surface, borderColor: colors.border }]} /></View>
+          </View>
+          <AppButton title="Apply date range" variant="secondary" testID="vendor-analytics-apply-range" onPress={applyCustomRange} style={{ marginBottom: 12 }} />
           <AppButton title={remoteLoading ? 'Refreshing live charts…' : 'Refresh live charts'} variant="secondary" testID="vendor-analytics-refresh" loading={remoteLoading} disabled={remoteLoading} onPress={() => setRefreshCount(count => count + 1)} style={{ marginBottom: 12 }} />
           <InlineNotice>Charts use your live bookings and verified payment data for this period.</InlineNotice>
           {remoteLoading ? <InlineNotice>Loading live analytics…</InlineNotice> : null}

@@ -40,8 +40,8 @@ import { bookingCancelled, confirmBookingAttendance, reserveBooking, refreshAvai
 import { API_BASE_URL, DEMO_MODE } from '../config/backendApi';
 import { backendApi } from '../services/backendApi';
 import { readStoredSession } from '../services/apiClient';
-import { normalizeBooking } from '../services/backendState';
-import { cancelGameRoom, conversationCreated, createCommunityId, recordWalkInCashRefund } from '../store/communitySlice';
+import { normalizeBooking, normalizeRoom, normalizeTournament } from '../services/backendState';
+import { cancelGameRoom, conversationCreated, createCommunityId, recordWalkInCashRefund, tournamentsSynced, gameRoomCreated } from '../store/communitySlice';
 import { selectBookingsForUser, selectBookingsForVendor, selectGameRoomsForUser } from '../store/selectors/bookingSelectors';
 import { selectVenueById, selectGroundsByVenueId, selectEquipmentByVenueId, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
 import { getRoomOpenSpots } from '../utils/community';
@@ -620,9 +620,18 @@ export function MyBookingsScreen({ navigation, route = { params: {} } }) {
   const refreshBookings = useCallback(async activeRef => {
     if (DEMO_MODE || !currentUser?.id) return;
     try {
-      const rows = await backendApi.myBookings({ page: 1, limit: 50 });
+      const [rows, tournamentRows, myTournamentRows, roomRows] = await Promise.all([
+        backendApi.myBookings({ page: 1, limit: 50 }),
+        backendApi.tournaments({ page: 1, limit: 50 }),
+        backendApi.myTournaments(),
+        backendApi.myRooms(),
+      ]);
       if (!activeRef.current) return;
       rows.forEach(row => dispatch({ type: 'venues/bookingServerSynced', payload: normalizeBooking(row) }));
+      const publicTournaments = tournamentRows.map(row => ({ ...normalizeTournament(row), participants: [], participantsLoaded: true }));
+      const myTournaments = myTournamentRows.map(normalizeTournament);
+      dispatch(tournamentsSynced([...new Map([...publicTournaments, ...myTournaments].map(row => [row.id, row])).values()]));
+      roomRows.forEach(row => dispatch(gameRoomCreated(normalizeRoom(row))));
       setRefreshError('');
     } catch (error) {
       if (activeRef.current) setRefreshError(error.message || 'Booking status could not be refreshed.');
@@ -1089,13 +1098,30 @@ export function VendorAvailabilityScreen({ navigation, route }) {
 }
 
 export function VendorBookingsScreen({ navigation, route = { params: {} } }) {
+  const dispatch = useDispatch();
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const bookings = useSelector(state => selectBookingsForVendor(state, currentUser?.id || ''));
   const rooms = useSelector(state => state.community.rooms);
   const tournaments = useSelector(state => state.community.tournaments);
   const [filter, setFilter] = useState('All');
+  const [refreshError, setRefreshError] = useState('');
   const highlightBookingId = route.params?.highlightBookingId;
+  useEffect(() => {
+    if (DEMO_MODE || !currentUser?.id) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const rows = await backendApi.vendorBookings({ page: 1, limit: 50 });
+        if (!active) return;
+        rows.forEach(row => dispatch({ type: 'venues/bookingServerSynced', payload: normalizeBooking(row) }));
+        setRefreshError('');
+      } catch (error) { if (active) setRefreshError(error.message || 'Vendor bookings could not be refreshed.'); }
+    };
+    void refresh();
+    const unsubscribe = navigation?.addListener?.('focus', refresh);
+    return () => { active = false; unsubscribe?.(); };
+  }, [currentUser?.id, dispatch, navigation]);
   const filtered = useMemo(() => bookings.filter(booking => {
     if (filter === 'Player') return booking.source === 'player' && booking.status !== 'cancelled';
     if (filter === 'Walk-in') return booking.source === 'walk-in' && booking.status !== 'cancelled';
@@ -1113,6 +1139,7 @@ export function VendorBookingsScreen({ navigation, route = { params: {} } }) {
         ListHeaderComponent={(
           <>
             <ScreenHeader title="Vendor bookings" subtitle="Player reservations, hosted tournaments and walk-ins in one list." eyebrow="BOOKING MANAGER" onBack={() => navigation.goBack()} />
+            {refreshError ? <InlineNotice tone="danger">{refreshError}</InlineNotice> : null}
             <ChoiceChips options={['All', 'Player', 'Tournament', 'Walk-in', 'Cancelled']} selected={filter} onSelect={setFilter} testID="vendor-bookings-filter" />
             <AppButton title="Record a walk-in" testID="vendor-bookings-walkin" onPress={() => navigation.navigate('ManualWalkInBooking')} style={styles.listAction} />
           </>

@@ -56,6 +56,7 @@ export default function VendorPaymentInstructionsScreen({ navigation }) {
         active: form.active,
       });
       setSaved(true);
+      navigation.navigate('VendorVenue', { bankDetailsSaved: true, bankDetailsSaveKey: Date.now() });
     } catch (saveError) { setError(saveError.message || 'Bank transfer details could not be saved.'); }
     finally { setSaving(false); }
   };

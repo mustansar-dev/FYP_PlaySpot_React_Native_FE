@@ -131,8 +131,8 @@ export function validateGameRoomDraft(values) {
   }
   const totalCost = Number(values.totalCostPKR);
   if (!Number.isInteger(totalCost) || totalCost < 0) errors.totalCostPKR = 'Choose a venue with a valid PKR price.';
-  if ((values.paymentMode || 'simulated') !== 'simulated') {
-    errors.paymentMode = 'Game room shares must be paid before joining.';
+  if (!['simulated', 'PAY_AT_VENUE'].includes(values.paymentMode || 'simulated')) {
+    errors.paymentMode = 'Court-hosted room shares are due at the venue. Use a regular booking for online or bank-transfer payments.';
   }
   if (values.visibility === 'private' && String(values.joinCode || '').trim().length < 4) {
     errors.joinCode = 'Use a private code with at least 4 characters.';

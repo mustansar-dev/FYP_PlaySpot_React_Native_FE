@@ -59,6 +59,7 @@ export function normalizeRoom(row) {
 export function normalizeTournament(row) {
   const { date, time: startTime } = localDateTime(row.startsAt, row.timeZone);
   const { time: endTime } = localDateTime(row.endsAt, row.timeZone);
+  const participantsLoaded = Array.isArray(row.participants);
   const participants = (row.participants || []).map(item => ({
     ...item, userId: item.userId || item.user?.id, name: item.user?.name || item.name,
     teamMembers: item.teamMemberNames || item.teamMembers || [], joinedAt: item.joinedAt || row.createdAt,
@@ -70,8 +71,8 @@ export function normalizeTournament(row) {
     groundNames: row.reservations?.map(item => item.court?.name).filter(Boolean) || row.groundNames || [],
     groundIds: row.reservations?.map(item => item.courtId).filter(Boolean) || row.groundIds || [],
     entryFeePKR: (row.entryFeePerPlayerPaisa || 0) / 100, prizePKR: (row.prizePaisa || 0) / 100,
-    createdBy: row.organizerUserId, participants, standings: participants,
-    registeredTeams: row.registeredTeams || 0,
+    createdBy: row.organizerUserId, participants, participantsLoaded, standings: participants,
+    registeredTeams: row.registeredTeams ?? row._count?.participants ?? participants.length,
   };
 }
 
@@ -104,11 +105,12 @@ async function settled(load, fallback, errors, label) {
 
 export async function loadBackendState(user) {
   const errors = [];
-  const [venueRows, roomRows, ownRoomRows, tournamentRows, leaderboard, bookings, vendorVenues, vendorBookings, conversations, notificationRows] = await Promise.all([
+  const [venueRows, roomRows, ownRoomRows, tournamentRows, myTournamentRows, leaderboard, bookings, vendorVenues, vendorBookings, conversations, notificationRows] = await Promise.all([
     settled(() => backendApi.venues({ page: 1, limit: 50 }), [], errors, 'Venues'),
     settled(() => backendApi.rooms({ page: 1, limit: 50 }), [], errors, 'Game rooms'),
     user ? settled(() => backendApi.myRooms(), [], errors, 'Your game rooms') : Promise.resolve([]),
     settled(() => backendApi.tournaments({ page: 1, limit: 50 }), [], errors, 'Tournaments'),
+    user?.role === 'player' ? settled(() => backendApi.myTournaments(), [], errors, 'Your tournament registrations') : Promise.resolve([]),
     settled(() => backendApi.leaderboard({ limit: 50 }), [], errors, 'Leaderboard'),
     user?.role === 'player' ? settled(() => backendApi.myBookings({ page: 1, limit: 50 }), [], errors, 'Bookings') : Promise.resolve([]),
     user?.role === 'vendor' ? settled(() => backendApi.myVenues(), [], errors, 'Your venues') : Promise.resolve([]),
@@ -125,6 +127,9 @@ export async function loadBackendState(user) {
   const bookingsList = [...(Array.isArray(bookings) ? bookings : []), ...(Array.isArray(vendorBookings) ? vendorBookings : [])];
   const uniqueBookings = [...new Map(bookingsList.map(item => [item.id, normalizeBooking(item)])).values()];
   const uniqueRooms = [...new Map([...(Array.isArray(roomRows) ? roomRows : []), ...(Array.isArray(ownRoomRows) ? ownRoomRows : [])].map(item => [item.id, normalizeRoom(item)])).values()];
+  const tournamentRowsById = new Map();
+  (Array.isArray(tournamentRows) ? tournamentRows : []).forEach(row => tournamentRowsById.set(row.id, row));
+  (Array.isArray(myTournamentRows) ? myTournamentRows : []).forEach(row => tournamentRowsById.set(row.id, row));
   return {
     venueData: {
       version: 1, vendorProfiles: user?.vendorProfile ? [{ ...user.vendorProfile, ownerUserId: user.id }] : [],
@@ -142,7 +147,7 @@ export async function loadBackendState(user) {
         playerName: row.playerName || (row.members || []).find(member => member.role === 'PLAYER')?.name || null,
         lastMessage: row.lastMessage?.body || '', lastAt: row.lastMessage?.createdAt || row.updatedAt,
       })),
-      messages: [], tournaments: (Array.isArray(tournamentRows) ? tournamentRows : []).map(normalizeTournament),
+      messages: [], tournaments: [...tournamentRowsById.values()].map(normalizeTournament),
       leaderboard: Array.isArray(leaderboard) ? leaderboard : [], splits: [],
       notifications: (Array.isArray(notificationRows) ? notificationRows : []).map(normalizeNotification),
     },

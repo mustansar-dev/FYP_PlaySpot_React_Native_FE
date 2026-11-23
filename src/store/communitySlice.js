@@ -317,7 +317,46 @@ const communitySlice = createSlice({
       return { ...action.payload, notifications: action.payload.notifications || [], hydrated: true };
     },
     gameRoomCreated(state, action) {
-      state.rooms.unshift(action.payload);
+      const index = state.rooms.findIndex(room => room.id === action.payload.id);
+      if (index < 0) state.rooms.unshift(action.payload);
+      else state.rooms[index] = { ...state.rooms[index], ...action.payload };
+    },
+    publicRoomsSynced(state, action) {
+      const { rooms, currentUserId } = action.payload;
+      const retained = state.rooms.filter(room => room.visibility !== 'public' || room.createdBy === currentUserId || room.organizerUserId === currentUserId);
+      state.rooms = [...new Map([...retained, ...rooms].map(room => [room.id, room])).values()];
+    },
+    tournamentsSynced(state, action) {
+      const previous = new Map(state.tournaments.map(item => [item.id, item]));
+      state.tournaments = action.payload.map(item => {
+        const old = previous.get(item.id);
+        return {
+          ...old, ...item,
+          participants: item.participantsLoaded ? item.participants : old?.participants || [],
+          registeredTeams: item.registeredTeams ?? item.participants?.length ?? old?.registeredTeams ?? 0,
+        };
+      });
+      state.tournaments.forEach(item => syncTournamentConversation(state, item));
+    },
+    tournamentsUpserted(state, action) {
+      action.payload.forEach(item => {
+        const index = state.tournaments.findIndex(existing => existing.id === item.id);
+        if (index < 0) state.tournaments.push(item);
+        else state.tournaments[index] = {
+          ...state.tournaments[index], ...item,
+          participants: item.participantsLoaded ? item.participants : state.tournaments[index].participants || [],
+          registeredTeams: item.registeredTeams ?? item.participants?.length ?? state.tournaments[index].registeredTeams ?? 0,
+        };
+        syncTournamentConversation(state, state.tournaments.find(existing => existing.id === item.id));
+      });
+    },
+    notificationsSynced(state, action) {
+      const serverRows = action.payload;
+      const serverIds = new Set(serverRows.map(item => item.id));
+      state.notifications = [
+        ...serverRows,
+        ...(state.notifications || []).filter(item => !serverIds.has(item.id)),
+      ];
     },
     gameRoomUpdated(state, action) {
       const index = state.rooms.findIndex(room => room.id === action.payload.id);
@@ -507,7 +546,9 @@ const communitySlice = createSlice({
       if (!item?.id) return;
       const syntheticId = item.messageId && item.recipientId ? `notification-${item.messageId}-${item.recipientId}` : null;
       state.notifications = (state.notifications || []).filter(notification => notification.id !== syntheticId);
-      if (!state.notifications.some(notification => notification.id === item.id)) state.notifications.unshift(item);
+      const existingIndex = state.notifications.findIndex(notification => notification.id === item.id);
+      if (existingIndex < 0) state.notifications.unshift(item);
+      else state.notifications[existingIndex] = { ...state.notifications[existingIndex], ...item };
     },
     roomPaymentSharesUpdated(state, action) {
       const room = state.rooms.find(item => item.id === action.payload.roomId);
@@ -617,6 +658,7 @@ export const {
   conversationCreated,
   conversationRead,
   gameRoomCreated,
+  publicRoomsSynced,
   gameRoomUpdated,
   gameRoomCancelled,
   gameRoomExpired,
@@ -627,6 +669,9 @@ export const {
   notificationMarkedRead,
   notificationReceived,
   notificationsMarkedRead,
+  notificationsSynced,
+  tournamentsSynced,
+  tournamentsUpserted,
   roomMemberPaymentUpdated,
   roomPaymentSharesUpdated,
   splitSaved,

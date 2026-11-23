@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -7,18 +7,25 @@ import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { selectEquipmentByVenueId, selectGroundsByVenueId, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
 
-export default function VendorVenueScreen({ navigation }) {
+export default function VendorVenueScreen({ navigation, route = { params: {} } }) {
   const { colors } = useTheme();
   const user = useSelector(state => state.auth.currentUser);
   const venues = useSelector(state => selectVenuesByOwnerId(state, user?.id || ''));
   const venue = venues[0];
   const grounds = useSelector(state => selectGroundsByVenueId(state, venue?.id));
   const equipment = useSelector(state => selectEquipmentByVenueId(state, venue?.id));
+  const [bankSavedNotice, setBankSavedNotice] = useState(false);
+  useEffect(() => {
+    if (!route.params?.bankDetailsSaved) return;
+    setBankSavedNotice(true);
+    navigation.setParams({ bankDetailsSaved: false, bankDetailsSaveKey: undefined });
+  }, [navigation, route.params?.bankDetailsSaveKey, route.params?.bankDetailsSaved]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenHeader title="Your venue" subtitle="Manage venue details, courts and player add-ons." eyebrow="VENUE TOOLS" />
+        {bankSavedNotice ? <View style={[styles.notice, { backgroundColor: colors.limePale }]}><Text style={[styles.cardMeta, { color: colors.primaryDark }]}>Bank transfer details saved. Players can now see them at checkout.</Text></View> : null}
         {venue ? <>
           <View style={[styles.venueSummary, { backgroundColor: colors.primary, borderRadius: 20 }]}>
             <Text style={styles.summaryLabel}>{venue.published ? 'PUBLISHED VENUE' : 'DRAFT VENUE'}</Text>
@@ -31,6 +38,16 @@ export default function VendorVenueScreen({ navigation }) {
               <View style={styles.copy}>
                 <Text style={[styles.cardTitle, { color: colors.ink }]}>Venue details</Text>
                 <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Update business, venue address, sports, facilities and parking.</Text>
+              </View>
+              <Text style={[styles.chevron, { color: colors.primary }]}>›</Text>
+            </DesignCard>
+          </Pressable>
+          <Pressable accessibilityRole="button" testID="vendor-venue-bank-details-card" onPress={() => navigation.navigate('VendorPaymentInstructions')}>
+            <DesignCard style={styles.actionCard}>
+              <View style={[styles.iconWrap, { backgroundColor: colors.limePale }]}><Text style={[styles.icon, { color: colors.primary, fontWeight: '900' }]}>$</Text></View>
+              <View style={styles.copy}>
+                <Text style={[styles.cardTitle, { color: colors.ink }]}>Bank transfer details</Text>
+                <Text style={[styles.cardMeta, { color: colors.inkSoft }]}>Set the account players use when paying for a booking or tournament.</Text>
               </View>
               <Text style={[styles.chevron, { color: colors.primary }]}>›</Text>
             </DesignCard>
@@ -85,6 +102,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { padding: 20, paddingTop: 14, paddingBottom: 30 },
   venueSummary: { padding: 18, marginBottom: 14 },
+  notice: { borderRadius: 12, padding: 12, marginBottom: 12 },
   summaryLabel: { color: '#DDF3E6', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   summaryName: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', marginTop: 8 },
   summaryMeta: { color: '#E7F6ED', fontSize: 10, marginTop: 5 },

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -11,7 +11,7 @@ import { DEMO_MODE } from '../config/backendApi';
 import { backendApi } from '../services/backendApi';
 import { endSession, updateAccountProfile } from '../services/authRepository';
 import { profileUpdated, sessionEnded } from '../store/authSlice';
-import { notificationMarkedRead, notificationsMarkedRead } from '../store/communitySlice';
+import { notificationMarkedRead, notificationsMarkedRead, notificationsSynced } from '../store/communitySlice';
 import { venueUpdated } from '../store/venueSlice';
 import { selectBookingsForUser, selectBookingsForVendor } from '../store/selectors/bookingSelectors';
 import { selectEquipmentByVenueId, selectGroundsByVenueId, selectVendorProfileById, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
@@ -70,7 +70,6 @@ export function ProfileScreen({ navigation }) {
     </DesignCard> : null}
     <DesignCard>
       <ActionRow title="Edit profile" subtitle="Update your name and contact details" testID="profile-edit" onPress={() => navigation.navigate('EditProfile')} colors={colors} />
-      {vendor ? <ActionRow title="Bank transfer details" subtitle="Set the account players use to pay your venue" testID="profile-vendor-bank-details" onPress={() => navigation.navigate('VendorPaymentInstructions')} colors={colors} /> : null}
       {vendor ? <ActionRow title="Manage reviews" subtitle="Read feedback for your venues" testID="profile-reviews" onPress={() => navigation.navigate('VendorReviews')} colors={colors} /> : null}
       <ActionRow title="Settings" subtitle="Theme, about and demo session" testID="profile-settings" onPress={() => navigation.navigate('Settings')} colors={colors} last />
     </DesignCard>
@@ -141,8 +140,9 @@ function makeNotifications(user, bookings, reviews, conversations, roomNotificat
     return roomNotifications.filter(item => item.recipientId === user?.id).map(item => ({
       ...item,
       title: item.title || `New message in ${rooms.find(room => room.id === item.roomId)?.title || 'your PlaySpot chat'}`,
-      route: item.conversationId ? 'ChatConversation' : null,
-      params: item.conversationId ? { conversationId: item.conversationId } : undefined,
+      route: item.conversationId ? 'ChatConversation' : item.payload?.tournamentId ? 'TournamentDetails' : null,
+      params: item.conversationId ? { conversationId: item.conversationId }
+        : item.payload?.tournamentId ? { tournamentId: item.payload.tournamentId } : undefined,
     }));
   }
   const items = [];
@@ -177,6 +177,19 @@ export function NotificationsScreen({ navigation }) {
   const notifications = useMemo(() => makeNotifications(user, bookings, reviews, conversations, roomNotifications, rooms), [user, bookings, reviews, conversations, roomNotifications, rooms]);
   const [readIds, setReadIds] = useState([]);
   const [error, setError] = useState('');
+  useEffect(() => {
+    if (DEMO_MODE || !user?.id) return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const rows = await backendApi.notifications({ page: 1, limit: 50 });
+        if (active) dispatch(notificationsSynced(rows.map(item => ({ ...item, recipientId: item.userId, persisted: true }))));
+      } catch (requestError) { if (active) setError(requestError.message || 'Notifications could not be refreshed.'); }
+    };
+    void refresh();
+    const unsubscribe = navigation?.addListener?.('focus', refresh);
+    return () => { active = false; unsubscribe?.(); };
+  }, [dispatch, navigation, user?.id]);
   const openNotification = async item => {
     if (item.persisted) {
       try {
