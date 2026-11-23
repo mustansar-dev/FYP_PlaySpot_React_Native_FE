@@ -26,6 +26,7 @@ import VendorRegistrationScreen from '../screens/VendorRegistrationScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import { EditProfileScreen, NotificationsScreen, ProfileScreen, SettingsScreen, VendorReviewsScreen } from '../screens/AccountScreens';
 import VendorAnalyticsScreen from '../screens/VendorAnalyticsScreen';
+import VendorPaymentInstructionsScreen from '../screens/VendorPaymentInstructionsScreen';
 import {
   BookingDetailsScreen,
   BookingSuccessScreen,
@@ -170,6 +171,7 @@ export default function RootNavigator() {
             <Stack.Screen name="ChatConversation" component={ChatConversationScreen} />
             <Stack.Screen name="GameRoomDetails" component={GameRoomDetailsScreen} />
             <Stack.Screen name="VendorAnalytics" component={VendorAnalyticsScreen} />
+            <Stack.Screen name="VendorPaymentInstructions" component={VendorPaymentInstructionsScreen} />
             <Stack.Screen name="VendorReviews" component={VendorReviewsScreen} />
             <Stack.Screen name="VendorInventory" component={VendorInventoryScreen} />
             <Stack.Screen name="Tournaments" component={TournamentsScreen} />

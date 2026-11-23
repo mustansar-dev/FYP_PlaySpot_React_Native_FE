@@ -98,6 +98,8 @@ export default function VendorDashboardScreen({ navigation }) {
           </View>
         </View>
 
+        <AppButton title="Bank transfer details" variant="secondary" testID="vendor-bank-details-open" onPress={() => navigation.navigate('VendorPaymentInstructions')} />
+
         <Text style={[styles.footer, { color: colors.inkSoft }]}>Frontend demo · activity and venue records stay on this device.</Text>
       </ScrollView>
       <PlayerProfileDrawer

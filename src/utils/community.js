@@ -26,7 +26,10 @@ export function getTournamentTeamSizeLimits(sport) {
 }
 
 export function isTournamentRegistrationOpen(tournament) {
-  return tournament?.status === 'upcoming' && tournament.registrationOpen !== false;
+  if (tournament?.status !== 'upcoming' || tournament.registrationOpen === false) return false;
+  if (!tournament.startsAt) return true;
+  const startsAt = new Date(tournament.startsAt).getTime();
+  return !Number.isFinite(startsAt) || startsAt > Date.now();
 }
 
 export function getGameRoomCapacityLimit(sport) {

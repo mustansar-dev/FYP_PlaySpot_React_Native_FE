@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
+import AppButton from '../components/AppButton';
 import { DesignCard, InlineNotice } from '../components/DesignPrimitives';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
@@ -16,6 +17,11 @@ import {
   buildVendorAnalytics,
   calculateTodayAndUpcomingBookings,
 } from '../utils/vendorAnalytics';
+
+function pakistanDateKey(value) {
+  const local = new Date(value.getTime() + 5 * 60 * 60 * 1000);
+  return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}-${String(local.getUTCDate()).padStart(2, '0')}`;
+}
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
@@ -62,25 +68,51 @@ const styles = StyleSheet.create({
   },
 });
 
+function LiveDailyChart({ rows, valueKey, title, formatValue, colors }) {
+  const maxValue = Math.max(1, ...rows.map(row => Number(row[valueKey]) || 0));
+  return (
+    <DesignCard>
+      <Text style={[styles.cardTitle, { color: colors.ink }]}>{title}</Text>
+      {rows.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={[styles.chartRow, { minWidth: Math.max(320, rows.length * 48) }]}>
+          {rows.map(row => {
+            const value = Number(row[valueKey]) || 0;
+            const height = value > 0 ? Math.max(4, value / maxValue * 100) : 0;
+            return <View key={`${valueKey}-${row.date}`} style={[styles.chartColumn, { flex: 0, width: 43 }]}>
+              <Text numberOfLines={1} style={[styles.chartValue, { color: colors.inkSoft }]}>{formatValue(value)}</Text>
+              <View style={[styles.barTrack, { backgroundColor: colors.canvas }]}>
+                <View style={[styles.bar, { height: `${height}%`, backgroundColor: colors.primary }]} />
+              </View>
+              <Text style={[styles.month, { color: colors.inkSoft }]}>{row.date.slice(5)}</Text>
+            </View>;
+          })}
+        </View>
+      </ScrollView> : <Text style={[styles.legend, { color: colors.inkSoft }]}>No daily data is available for this period.</Text>}
+    </DesignCard>
+  );
+}
+
 export default function VendorAnalyticsScreen() {
   const { colors } = useTheme();
   const user = useSelector(state => state.auth.currentUser);
   const [remoteAnalytics, setRemoteAnalytics] = useState(null);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState('');
+  const [refreshCount, setRefreshCount] = useState(0);
   const [period, setPeriod] = useState(() => {
-    const now = new Date();
-    return { from: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`, to: now.toISOString().slice(0, 10) };
+    const today = pakistanDateKey(new Date());
+    return { from: `${today.slice(0, 8)}01`, to: today };
   });
   useEffect(() => {
     if (DEMO_MODE || user?.role !== 'vendor') return;
     let active = true;
     setRemoteLoading(true);
+    setRemoteError('');
     backendApi.vendorAnalytics(period).then(data => { if (active) setRemoteAnalytics(data); })
       .catch(error => { if (active) setRemoteError(error.message); })
       .finally(() => { if (active) setRemoteLoading(false); });
     return () => { active = false; };
-  }, [period, user?.id, user?.role]);
+  }, [period, refreshCount, user?.id, user?.role]);
   const venues = useSelector(state =>
     selectVenuesByOwnerId(state, user?.id || ''),
   );
@@ -128,7 +160,8 @@ export default function VendorAnalyticsScreen() {
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
         <ScrollView contentContainerStyle={styles.content}>
           <ScreenHeader title="Vendor analytics" subtitle="Verified booking totals for the current month" eyebrow="LIVE REPORT" />
-          <InlineNotice>These figures come from your backend bookings and court schedules. No historical fixture data is shown.</InlineNotice>
+          <AppButton title={remoteLoading ? 'Refreshing live charts…' : 'Refresh live charts'} variant="secondary" testID="vendor-analytics-refresh" loading={remoteLoading} disabled={remoteLoading} onPress={() => setRefreshCount(count => count + 1)} style={{ marginBottom: 12 }} />
+          <InlineNotice>Charts use your live bookings and verified payment data for this period.</InlineNotice>
           {remoteLoading ? <InlineNotice>Loading live analytics…</InlineNotice> : null}
           {remoteError ? <InlineNotice tone="danger">{remoteError}</InlineNotice> : null}
           {remoteAnalytics ? <>
@@ -147,6 +180,20 @@ export default function VendorAnalyticsScreen() {
               {Object.entries(remoteAnalytics.revenueByMethod || {}).map(([method, paisa]) => <View key={method} style={styles.occupancyRow}><Text style={{ color: colors.ink }}>{method.replace('Paisa', '').replace(/([A-Z])/g, ' $1').replaceAll('_', ' ')}</Text><Text style={{ color: colors.ink, fontWeight: '800' }}>{money(Number(paisa) / 100)}</Text></View>)}
               {!Object.values(remoteAnalytics.revenueByMethod || {}).some(Number) ? <Text style={[styles.legend, { color: colors.inkSoft }]}>No verified payments in this period.</Text> : null}
             </DesignCard>
+            <LiveDailyChart
+              rows={remoteAnalytics.daily || []}
+              valueKey="bookingCount"
+              title="Bookings by day"
+              formatValue={value => String(value)}
+              colors={colors}
+            />
+            <LiveDailyChart
+              rows={remoteAnalytics.daily || []}
+              valueKey="paidRevenuePKR"
+              title="Verified revenue by day"
+              formatValue={value => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)}
+              colors={colors}
+            />
           </> : !remoteLoading && !remoteError ? <InlineNotice>No analytics are available for this period yet.</InlineNotice> : null}
         </ScrollView>
       </SafeAreaView>

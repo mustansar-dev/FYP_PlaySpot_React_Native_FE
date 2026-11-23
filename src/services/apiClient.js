@@ -64,16 +64,17 @@ async function parseResponse(response) {
 async function rawRequest(path, { token, method = 'GET', body, headers = {}, timeout = API_TIMEOUT_MS } = {}) {
   const controller = typeof AbortController === 'undefined' ? null : new AbortController();
   const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
+  const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: {
         Accept: 'application/json',
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(body === undefined || isMultipart ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: isMultipart ? body : JSON.stringify(body) }),
       ...(controller ? { signal: controller.signal } : {}),
     });
     return parseResponse(response);

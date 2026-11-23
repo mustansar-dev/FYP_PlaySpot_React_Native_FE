@@ -1,23 +1,37 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import AppButton from '../components/AppButton';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { canReviewVenue, getVenueRating } from '../utils/venueDiscovery';
+import { DEMO_MODE } from '../config/backendApi';
+import { backendApi } from '../services/backendApi';
+import { reviewsSynced } from '../store/venueSlice';
 
 export default function VenueReviewsScreen({ navigation, route }) {
+  const dispatch = useDispatch();
+  const [loadError, setLoadError] = useState('');
   const { colors, radius } = useTheme();
   const venueId = route.params?.venueId;
   const { venues, reviews, bookings } = useSelector(state => state.venues);
   const currentUser = useSelector(state => state.auth.currentUser);
   const venue = venues.find(item => item.id === venueId);
+  useEffect(() => {
+    if (DEMO_MODE || !venueId) return undefined;
+    let active = true;
+    backendApi.reviews(venueId).then(result => {
+      if (active) dispatch(reviewsSynced({ venueId, reviews: Array.isArray(result) ? result : result?.items || [] }));
+    }).catch(error => { if (active) setLoadError(error.message); });
+    return () => { active = false; };
+  }, [dispatch, venueId]);
   const items = useMemo(() => reviews.filter(item => item.venueId === venueId).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [reviews, venueId]);
   const rating = getVenueRating(items);
   const canReview = canReviewVenue({ user: currentUser, bookings, venueId });
   const header = <View>
-    <ScreenHeader title={venue?.name || 'Venue reviews'} subtitle="Player feedback · fictional local demo" onBack={() => navigation.goBack()} />
+    <ScreenHeader title={venue?.name || 'Venue reviews'} subtitle={DEMO_MODE ? 'Player feedback · local demo' : 'Player feedback from completed bookings'} onBack={() => navigation.goBack()} />
+    {loadError ? <Text accessibilityRole="alert" style={{ color: colors.error, marginTop: 10 }}>{loadError}</Text> : null}
     <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.average, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>{rating.count} reviews</Text></View></View>
     {[5, 4, 3, 2, 1].map(stars => <View key={stars} style={styles.distribution}><Text style={[styles.distributionLabel, { color: colors.inkSoft }]}>{stars} ★</Text><View style={[styles.track, { backgroundColor: colors.border }]}><View style={[styles.fill, { backgroundColor: colors.orange, width: `${rating.count ? (rating.distribution[stars - 1] / rating.count) * 100 : 0}%` }]} /></View><Text style={[styles.distributionLabel, { color: colors.inkSoft }]}>{rating.distribution[stars - 1]}</Text></View>)}
     {canReview ? <AppButton title="Write a review" testID="reviews-add" onPress={() => navigation.navigate('AddReview', { venueId })} style={styles.addButton} /> : <Text testID="reviews-eligibility" style={[styles.subtitle, { color: colors.inkSoft, marginTop: 12, marginBottom: 10 }]}>Reviews are available after a completed booking and venue-confirmed attendance.</Text>}

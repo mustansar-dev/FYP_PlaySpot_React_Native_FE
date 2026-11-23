@@ -5,6 +5,7 @@ import {
   createRoomPaymentShares,
   getGameRoomCapacityLimit,
   getRoomOpenSpots,
+  isTournamentRegistrationOpen,
   validateGameRoomDraft,
   validateSplitShares,
 } from './community';
@@ -31,6 +32,11 @@ describe('local community rules and totals', () => {
     expect(canJoinTournament(tournament, 'player-1').ok).toBe(false);
     expect(canJoinTournament(tournament, 'player-2').ok).toBe(true);
     expect(canJoinTournament({ ...tournament, participants: [...tournament.participants, { userId: 'player-2' }] }, 'player-3').error).toMatch(/capacity/i);
+  });
+
+  test('persisted tournaments stop offering registration once their start time has passed', () => {
+    expect(isTournamentRegistrationOpen({ status: 'upcoming', registrationOpen: true, startsAt: new Date(Date.now() - 60_000).toISOString() })).toBe(false);
+    expect(isTournamentRegistrationOpen({ status: 'upcoming', registrationOpen: true, startsAt: new Date(Date.now() + 60_000).toISOString() })).toBe(true);
   });
 
   test('equal shares distribute indivisible PKR balances with an exact sum', () => {

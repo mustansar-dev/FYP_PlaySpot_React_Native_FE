@@ -70,6 +70,7 @@ export function ProfileScreen({ navigation }) {
     </DesignCard> : null}
     <DesignCard>
       <ActionRow title="Edit profile" subtitle="Update your name and contact details" testID="profile-edit" onPress={() => navigation.navigate('EditProfile')} colors={colors} />
+      {vendor ? <ActionRow title="Bank transfer details" subtitle="Set the account players use to pay your venue" testID="profile-vendor-bank-details" onPress={() => navigation.navigate('VendorPaymentInstructions')} colors={colors} /> : null}
       {vendor ? <ActionRow title="Manage reviews" subtitle="Read feedback for your venues" testID="profile-reviews" onPress={() => navigation.navigate('VendorReviews')} colors={colors} /> : null}
       <ActionRow title="Settings" subtitle="Theme, about and demo session" testID="profile-settings" onPress={() => navigation.navigate('Settings')} colors={colors} last />
     </DesignCard>

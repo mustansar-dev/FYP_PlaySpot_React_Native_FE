@@ -30,8 +30,8 @@ export default function VenueDetailsScreen({ navigation, route }) {
   useEffect(() => {
     if (DEMO_MODE || !venueId) return undefined;
     let active = true;
-    backendApi.reviews(venueId).then(rows => {
-      if (active) dispatch(reviewsSynced({ venueId, reviews: rows || [] }));
+    backendApi.reviews(venueId).then(result => {
+      if (active) dispatch(reviewsSynced({ venueId, reviews: Array.isArray(result) ? result : result?.items || [] }));
     }).catch(error => { if (active) setReviewLoadError(error.message); });
     return () => { active = false; };
   }, [dispatch, venueId]);
@@ -69,7 +69,21 @@ export default function VenueDetailsScreen({ navigation, route }) {
       <View style={[styles.ratingSummary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.bigRating, { color: colors.ink }]}>{rating.count ? rating.average.toFixed(1) : '—'}</Text><View style={{ flex: 1 }}><Text style={{ color: colors.orange }}>★★★★★</Text><Text style={[styles.small, { color: colors.inkSoft }]}>{rating.count} {DEMO_MODE ? 'local demo reviews' : 'server reviews'}</Text></View>{canReview ? <Pressable accessibilityRole="button" testID="venue-add-review" onPress={() => navigation.navigate('AddReview', { venueId })}><Text style={{ color: colors.primary, fontSize: 11, fontWeight: '900' }}>Write a review</Text></Pressable> : <Text testID="venue-review-eligibility" style={[styles.small, { color: colors.inkSoft, maxWidth: 95 }]}>Available after a completed booking</Text>}</View>
       {venueReviews.slice(0, 2).map(review => <View key={review.id} style={styles.reviewRow}><Text style={[styles.cardTitle, { color: colors.ink }]}>{review.playerName}  <Text style={{ color: colors.orange }}>★ {review.stars}</Text></Text><Text style={[styles.body, { color: colors.inkSoft }]}>{review.comment}</Text></View>)}
       <Text style={[styles.small, { color: colors.inkSoft, marginTop: 12 }]}>Approximate location: {venue.address}. {venue.demoLabel}</Text>
-      {currentUser?.role === 'player' && vendorProfile?.ownerUserId ? <AppButton title="Chat with vendor" testID="venue-chat-with-vendor" variant="secondary" onPress={() => {
+      {currentUser?.role === 'player' ? <AppButton title="Chat with vendor" testID="venue-chat-with-vendor" variant="secondary" onPress={async () => {
+        if (!DEMO_MODE) {
+          try {
+            const conversation = await backendApi.venueConversation(venueId);
+            dispatch(conversationCreated({
+              ...conversation, kind: 'venue-vendor', venueId, venueName: venue.name,
+              participantIds: (conversation.members || []).map(member => member.id),
+              lastMessage: conversation.lastMessage?.body || '',
+              lastAt: conversation.lastMessage?.createdAt || conversation.updatedAt,
+            }));
+            navigation.navigate('ChatConversation', { conversationId: conversation.id });
+          } catch (error) { setReviewLoadError(error.message || 'Could not open chat with this vendor.'); }
+          return;
+        }
+        if (!vendorProfile?.ownerUserId) return;
         const existing = findVenueVendorConversation(conversations, venueId, currentUser.id, vendorProfile.ownerUserId);
         if (existing) {
           navigation.navigate('ChatConversation', { conversationId: existing.id });

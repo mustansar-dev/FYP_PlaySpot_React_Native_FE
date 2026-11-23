@@ -63,6 +63,7 @@ import {
 } from '../utils/community';
 
 const SPORTS = ['Futsal', 'Football', 'Cricket', 'Padel', 'Badminton'];
+const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 
 function formatTimestamp(value) {
   const date = new Date(value);
@@ -485,7 +486,9 @@ export function CreateGameRoomScreen({ navigation, route }) {
         navigation.replace('GameRoomDetails', { roomId: roomRecord.id });
       }
     } catch (error) {
-      setErrors({ form: error.message || 'The game room could not be saved.' });
+      const message = error.message || 'The game room could not be saved.';
+      setErrors({ form: message });
+      Alert.alert('Could not create game room', message);
     } finally {
       setSaving(false);
     }
@@ -1152,7 +1155,23 @@ export function TournamentDetailsScreen({ navigation, route }) {
     }).catch(requestError => { if (active) setError(requestError.message); });
     return () => { active = false; };
   }, [currentUser?.role, route.params?.tournamentId]);
-  const conversation = useSelector(state => state.community.conversations.find(item => item.kind === 'tournament' && item.tournamentId === route.params?.tournamentId));
+  useEffect(() => {
+    if (DEMO_MODE || !tournament?.id || !currentUser?.id) return undefined;
+    let active = true;
+    backendApi.conversations().then(rows => {
+      if (!active) return;
+      const row = rows.find(item => item.tournament?.id === tournament.id);
+      if (!row) return;
+      dispatch(conversationCreated({
+        ...row, kind: 'tournament', tournamentId: tournament.id,
+        participantIds: (row.members || []).map(member => member.id),
+        lastMessage: row.lastMessage?.body || '', lastAt: row.lastMessage?.createdAt || row.updatedAt,
+      }));
+    }).catch(requestError => { if (active) setError(requestError.message || 'Could not load tournament chat.'); });
+    return () => { active = false; };
+  }, [currentUser?.id, dispatch, tournament?.id]);
+  const conversation = useSelector(state => state.community.conversations.find(item => item.kind === 'tournament'
+    && item.tournamentId === route.params?.tournamentId && isUuid(item.id)));
   const [error, setError] = useState('');
   const [teamName, setTeamName] = useState('');
   const [teammates, setTeammates] = useState('');

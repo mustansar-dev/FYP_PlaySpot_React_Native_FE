@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AppState,
   Alert,
+  Image,
   Linking,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -35,13 +37,15 @@ import {
   toLocalDateKey,
 } from '../utils/booking';
 import { bookingCancelled, confirmBookingAttendance, reserveBooking, refreshAvailability } from '../store/venueSlice';
-import { DEMO_MODE } from '../config/backendApi';
+import { API_BASE_URL, DEMO_MODE } from '../config/backendApi';
 import { backendApi } from '../services/backendApi';
+import { readStoredSession } from '../services/apiClient';
 import { normalizeBooking } from '../services/backendState';
-import { cancelGameRoom, recordWalkInCashRefund } from '../store/communitySlice';
+import { cancelGameRoom, conversationCreated, createCommunityId, recordWalkInCashRefund } from '../store/communitySlice';
 import { selectBookingsForUser, selectBookingsForVendor, selectGameRoomsForUser } from '../store/selectors/bookingSelectors';
 import { selectVenueById, selectGroundsByVenueId, selectEquipmentByVenueId, selectVenuesByOwnerId } from '../store/selectors/venueSelectors';
 import { getRoomOpenSpots } from '../utils/community';
+import { createVenueVendorConversation, findVenueVendorConversation } from '../utils/venueConversations';
 
 function PageShell({ navigation, title, subtitle, eyebrow, children, footer }) {
   const { colors } = useTheme();
@@ -256,7 +260,9 @@ export function EquipmentAddonsScreen({ navigation, route }) {
   const ground = grounds.find(item => item.id === groundId);
   const slot = slots.find(item => item.id === slotId);
   const available = Boolean(slot && getSlotAvailability({ slotId, slots, bookings }).available && isSlotInFuture(slot));
-  const items = equipment.filter(item => item.venueId === venueId && item.active !== false);
+  const items = equipment.filter(item => item.venueId === venueId && item.active !== false
+    && item.quantityAvailable > 0
+    && (!item.sport || item.sport.toLowerCase() === ground?.sport?.toLowerCase()));
   const [quantities, setQuantities] = useState({});
   const groundFee = calculateGroundFee(ground, slot);
   const selections = Object.entries(quantities).map(([equipmentId, quantity]) => ({ equipmentId, quantity }));
@@ -331,18 +337,40 @@ export function BookingCheckoutScreen({ navigation, route }) {
   const venue = venues.find(item => item.id === venueId);
   const ground = grounds.find(item => item.id === groundId);
   const slot = slots.find(item => item.id === slotId);
+  const matchingEquipment = equipment.filter(item => item.venueId === venueId && item.active !== false
+    && (!item.sport || item.sport.toLowerCase() === ground?.sport?.toLowerCase()));
   const selectedItems = addOns.map(selection => ({
     ...selection,
-    item: equipment.find(item => item.id === selection.equipmentId),
+    item: matchingEquipment.find(item => item.id === selection.equipmentId),
   }));
   const groundFee = calculateGroundFee(ground, slot);
-  const addOnsTotal = calculateEquipmentSubtotal(equipment.filter(item => item.venueId === venueId), addOns);
+  const addOnsTotal = calculateEquipmentSubtotal(matchingEquipment, addOns);
   const total = groundFee + addOnsTotal;
   const availability = slot ? getSlotAvailability({ slotId, slots, bookings }) : { available: false };
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [paymentMode, setPaymentMode] = useState('PAY_AT_VENUE');
+  const [bankInstructions, setBankInstructions] = useState(null);
+  const [bankInstructionsLoading, setBankInstructionsLoading] = useState(false);
+  const [reservedBankBookingId, setReservedBankBookingId] = useState('');
+  const [bankPaymentId, setBankPaymentId] = useState('');
+  const [receiptUploaded, setReceiptUploaded] = useState(false);
+  const bankIdempotencyKey = useRef(`mobile-bank-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
   const submitGuard = useRef(false);
+
+  useEffect(() => {
+    if (DEMO_MODE || paymentMode !== 'BANK_TRANSFER' || !venueId) {
+      setBankInstructions(null);
+      return undefined;
+    }
+    let active = true;
+    setBankInstructionsLoading(true);
+    backendApi.venuePaymentInstructions(venueId)
+      .then(result => { if (active) setBankInstructions(result); })
+      .catch(requestError => { if (active) { setBankInstructions(null); setError(requestError.message); } })
+      .finally(() => { if (active) setBankInstructionsLoading(false); });
+    return () => { active = false; };
+  }, [paymentMode, venueId]);
 
   const confirm = async () => {
     if (submitGuard.current || !availability.available || !slot) return;
@@ -350,6 +378,35 @@ export function BookingCheckoutScreen({ navigation, route }) {
     setSubmitting(true);
     setError('');
     try {
+      if (!DEMO_MODE && paymentMode === 'BANK_TRANSFER') {
+        if (reservedBankBookingId) {
+          if (!receiptUploaded) {
+            setError('Upload your bank transfer receipt before confirming this booking.');
+            return;
+          }
+          navigation.replace('MyBookings', { highlightBookingId: reservedBankBookingId });
+          return;
+        }
+        if (!bankInstructions) {
+          setError('The venue bank details are not available. Ask the vendor to add active bank transfer instructions.');
+          return;
+        }
+        const reservation = await dispatch(reserveBooking({
+          source: 'player', playerUserId: currentUser?.id, playerName: currentUser?.name,
+          venueId, groundId, slotId, addOns, paymentMode, paymentStatus: 'pending',
+          idempotencyKey: bankIdempotencyKey.current,
+        }));
+        if (!reservation.ok) { setError(reservation.error); return; }
+        const payments = [
+          ...(reservation.booking.payments || []), reservation.payment?.payment, reservation.payment,
+        ].filter(Boolean);
+        const transfer = payments.find(item => String(item.method || '').toUpperCase().replaceAll('-', '_') === 'BANK_TRANSFER');
+        if (!transfer?.id) throw new Error('The bank transfer payment was not created. Refresh your bookings before retrying.');
+        setReservedBankBookingId(reservation.booking.id);
+        setBankPaymentId(transfer.id);
+        setError('The slot is held while you upload your transfer receipt. The vendor will confirm the booking after reviewing it.');
+        return;
+      }
       const result = await dispatch(reserveBooking({
         source: 'player',
         playerUserId: currentUser?.id,
@@ -398,6 +455,37 @@ export function BookingCheckoutScreen({ navigation, route }) {
     }
   };
 
+  const uploadBankReceipt = async () => {
+    if (!bankPaymentId || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const { launchImageLibrary } = require('react-native-image-picker');
+      const pickerResult = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+      if (pickerResult.didCancel) return;
+      if (pickerResult.errorCode) throw new Error(pickerResult.errorMessage || 'The receipt image could not be selected.');
+      const asset = pickerResult.assets?.[0];
+      if (!asset?.uri) throw new Error('Choose a PNG or JPEG transfer receipt.');
+      const mimeType = String(asset.type || '').toLowerCase();
+      if (!['image/jpeg', 'image/png'].includes(mimeType)) throw new Error('Transfer receipts must be PNG or JPEG images.');
+      if (!Number.isInteger(asset.fileSize) || asset.fileSize <= 0 || asset.fileSize > 5 * 1024 * 1024) {
+        throw new Error('The receipt image must be smaller than 5 MB.');
+      }
+      const form = new FormData();
+      form.append('receipt', {
+        uri: asset.uri,
+        name: asset.fileName || `transfer-receipt.${mimeType === 'image/png' ? 'png' : 'jpg'}`,
+        type: mimeType,
+      });
+      await backendApi.uploadPaymentReceipt(bankPaymentId, form);
+      const fresh = await backendApi.booking(reservedBankBookingId);
+      dispatch({ type: 'venues/bookingServerSynced', payload: normalizeBooking(fresh.booking || fresh) });
+      setReceiptUploaded(true);
+      setError('Receipt submitted for vendor review. Press Confirm booking to return to your booking details.');
+    } catch (uploadError) { setError(uploadError.message || 'The transfer receipt could not be submitted.'); }
+    finally { setSubmitting(false); }
+  };
+
   return (
     <PageShell
       navigation={navigation}
@@ -406,11 +494,11 @@ export function BookingCheckoutScreen({ navigation, route }) {
       subtitle={DEMO_MODE ? 'Pay the demo total now to confirm your venue booking.' : 'Choose how you will pay. PlaySpot checks payment status with the server.'}
       footer={(
         <AppButton
-          title={submitting ? (DEMO_MODE ? 'Processing demo payment…' : 'Saving booking…') : DEMO_MODE ? `Pay ${formatPKR(total)} & book` : `Confirm booking · ${formatPKR(total)}`}
+          title={submitting ? (DEMO_MODE ? 'Processing demo payment…' : 'Saving booking…') : DEMO_MODE ? `Pay ${formatPKR(total)} & book` : paymentMode === 'BANK_TRANSFER' ? (receiptUploaded ? 'Confirm booking' : reservedBankBookingId ? 'Upload receipt to continue' : 'Reserve slot & continue to payment') : `Confirm booking · ${formatPKR(total)}`}
           testID="booking-confirm"
           onPress={confirm}
           loading={submitting}
-          disabled={!slot || !availability.available}
+          disabled={!slot || !availability.available || (paymentMode === 'BANK_TRANSFER' && (!bankInstructions || bankInstructionsLoading || (reservedBankBookingId && !receiptUploaded)))}
         />
       )}
     >
@@ -432,10 +520,26 @@ export function BookingCheckoutScreen({ navigation, route }) {
       <SectionHeading title="Payment" />
       {DEMO_MODE ? <InlineNotice testID="checkout-demo-payment">Demo payment is recorded before the booking is confirmed. No card details are collected and no money is transferred.</InlineNotice> : (
         <>
-          <ChoiceChips label="Payment method" options={['Pay at venue', 'Online checkout', 'Bank transfer']} selected={{ PAY_AT_VENUE: 'Pay at venue', ONLINE: 'Online checkout', BANK_TRANSFER: 'Bank transfer' }[paymentMode]} onSelect={label => setPaymentMode({ 'Pay at venue': 'PAY_AT_VENUE', 'Online checkout': 'ONLINE', 'Bank transfer': 'BANK_TRANSFER' }[label])} testID="booking-payment-method" />
+          {reservedBankBookingId ? <InlineNotice>Bank transfer is locked for this reservation. Upload the receipt and confirm to finish this checkout.</InlineNotice> : <ChoiceChips label="Payment method" options={['Pay at venue', 'Online checkout', 'Bank transfer']} selected={{ PAY_AT_VENUE: 'Pay at venue', ONLINE: 'Online checkout', BANK_TRANSFER: 'Bank transfer' }[paymentMode]} onSelect={label => setPaymentMode({ 'Pay at venue': 'PAY_AT_VENUE', 'Online checkout': 'ONLINE', 'Bank transfer': 'BANK_TRANSFER' }[label])} testID="booking-payment-method" />}
           <InlineNotice>{paymentMode === 'ONLINE' ? 'The server provides the checkout link. A return link alone never marks this booking paid.' : paymentMode === 'BANK_TRANSFER' ? 'Transfer instructions and proof review are handled by the venue after booking.' : 'Pay the venue directly. The booking remains due until the vendor confirms collection.'}</InlineNotice>
         </>
       )}
+      {!DEMO_MODE && paymentMode === 'BANK_TRANSFER' ? <>
+        <SectionHeading title="Vendor bank details" />
+        {bankInstructionsLoading ? <InlineNotice>Loading the vendor’s bank instructions…</InlineNotice> : null}
+        {bankInstructions ? <DesignCard testID="checkout-bank-instructions">
+          <Text style={[styles.cardTitle, { color: colors.ink }]}>{bankInstructions.bankName}</Text>
+          <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Account title · {bankInstructions.accountTitle}</Text>
+          {bankInstructions.iban ? <Text selectable style={[styles.cardCopy, { color: colors.inkSoft }]}>IBAN · {bankInstructions.iban}</Text> : null}
+          {bankInstructions.accountNumber ? <Text selectable style={[styles.cardCopy, { color: colors.inkSoft }]}>Account number · {bankInstructions.accountNumber}</Text> : null}
+          {bankInstructions.instructions ? <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{bankInstructions.instructions}</Text> : null}
+          <Text style={[styles.cardCopy, { color: colors.inkSoft, marginTop: 8 }]}>Transfer {formatPKR(total)} and keep the receipt. Your slot is reserved after the next step and remains pending until the vendor verifies the receipt.</Text>
+        </DesignCard> : !bankInstructionsLoading ? <InlineNotice tone="danger">{error || 'The vendor has not added active bank transfer details yet.'}</InlineNotice> : null}
+        {reservedBankBookingId && bankPaymentId ? <>
+          <InlineNotice testID="checkout-bank-transfer-pending">The slot is held for transfer review. Upload the receipt, then press Confirm booking. The venue confirms the reservation after verifying the transfer.</InlineNotice>
+          <AppButton title={submitting ? 'Uploading receipt…' : receiptUploaded ? 'Receipt submitted' : 'Upload transfer receipt'} variant="secondary" testID="checkout-upload-transfer-receipt" loading={submitting} disabled={submitting || receiptUploaded} onPress={uploadBankReceipt} style={styles.buttonGap} />
+        </> : null}
+      </> : null}
       <DesignCard>
         <Text style={[styles.cardTitle, { color: colors.ink }]}>Booking policy</Text>
         <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Cancel before the booked start for a full demo refund. Once the session starts, player cancellation is closed. If the venue cancels, the demo payment is fully refunded.</Text>
@@ -468,6 +572,7 @@ function BookingCard({ booking, onPress, testID, room, tournament }) {
           <StatusBadge label={status} tone={tone} />
         </View>
         <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{tournament ? `Tournament · ${booking.groundName}` : room ? `Game room · ${booking.venueName} · ${booking.groundName}` : `${booking.venueName} · ${booking.groundName}`} · {formatDateKey(booking.date)} · {formatTimeRange(booking.startTime, booking.endTime)}</Text>
+        {!tournament && !room && booking.source === 'player' && (booking.playerName || booking.customerName) ? <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>Player · {booking.playerName || booking.customerName}</Text> : null}
         <Text style={[styles.price, { color: colors.primary }]}>{formatPKR(booking.totalPKR)}</Text>
       </Pressable>
     </DesignCard>
@@ -632,9 +737,11 @@ export function BookingDetailsScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { currentUser } = useSelector(state => state.auth);
   const { venues, grounds, equipment, bookings } = useSelector(state => state.venues);
+  const conversations = useSelector(state => state.community.conversations);
   const booking = bookings.find(item => item.id === route.params?.bookingId);
   const [paymentMessage, setPaymentMessage] = useState('');
   const [paymentInstructions, setPaymentInstructions] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
   useEffect(() => {
     if (DEMO_MODE || !route.params?.bookingId) return undefined;
@@ -645,6 +752,7 @@ export function BookingDetailsScreen({ navigation, route }) {
     return () => { active = false; };
   }, [dispatch, route.params?.bookingId]);
   const venue = venues.find(item => item.id === booking?.venueId);
+  const vendorProfile = useSelector(state => state.venues.vendorProfiles.find(item => item.id === venue?.vendorId));
   const ground = grounds.find(item => item.id === booking?.groundId);
   const ownedVenues = useSelector(state => selectVenuesByOwnerId(state, currentUser?.id || ''));
   const isOwner = ownedVenues.some(item => item.id === booking?.venueId);
@@ -654,6 +762,40 @@ export function BookingDetailsScreen({ navigation, route }) {
   const myPayments = (booking?.payments || []).filter(payment => payment.userId === currentUser?.id);
   const venueDuePayments = (booking?.payments || []).filter(payment => payment.method === 'pay-at-venue' && payment.status === 'due-at-venue');
   const transferReviewPayments = (booking?.payments || []).filter(payment => payment.method === 'bank-transfer' && payment.status === 'proof-submitted');
+
+  const openVendorChat = async () => {
+    if (!venue || !currentUser?.id) return;
+    if (!DEMO_MODE) {
+      setPaymentBusy(true);
+      setPaymentMessage('');
+      try {
+        const row = await backendApi.venueConversation(venue.id);
+        dispatch(conversationCreated({
+          ...row, kind: 'venue-vendor', venueId: venue.id, venueName: venue.name,
+          participantIds: (row.members || []).map(member => member.id),
+          lastMessage: row.lastMessage?.body || '', lastAt: row.lastMessage?.createdAt || row.updatedAt,
+        }));
+        navigation.navigate('ChatConversation', { conversationId: row.id });
+      } catch (error) { setPaymentMessage(error.message || 'Could not open chat with this vendor.'); }
+      finally { setPaymentBusy(false); }
+      return;
+    }
+    if (!vendorProfile?.ownerUserId) {
+      setPaymentMessage('This venue has no vendor account available for chat.');
+      return;
+    }
+    const existing = findVenueVendorConversation(conversations, venue.id, currentUser.id, vendorProfile.ownerUserId);
+    if (existing) {
+      navigation.navigate('ChatConversation', { conversationId: existing.id });
+      return;
+    }
+    const conversation = createVenueVendorConversation({
+      id: createCommunityId('conversation'), currentUser, venue, vendorProfile,
+    });
+    if (!conversation) return;
+    dispatch(conversationCreated(conversation));
+    navigation.navigate('ChatConversation', { conversationId: conversation.id });
+  };
 
   const refreshBookingFromServer = async () => {
     const result = await backendApi.booking(booking.id);
@@ -740,7 +882,15 @@ export function BookingDetailsScreen({ navigation, route }) {
   const reviewTransferReceipt = async payment => {
     try {
       const result = await backendApi.paymentReceipt(payment.id);
-      await Linking.openURL(result.signedUrl);
+      if (result.receipt?.mimeType?.startsWith('image/')) {
+        const isPrivateRoute = result.signedUrl.startsWith('/');
+        const session = isPrivateRoute ? await readStoredSession() : null;
+        setReceiptPreview({
+          uri: isPrivateRoute ? `${API_BASE_URL}${result.signedUrl}` : result.signedUrl,
+          ...(session?.accessToken ? { headers: { Authorization: `Bearer ${session.accessToken}` } } : {}),
+        });
+      } else if (result.signedUrl.startsWith('http')) await Linking.openURL(result.signedUrl);
+      else setPaymentMessage('This receipt format cannot be previewed in the app. Ask the player to upload a PNG or JPEG image.');
     } catch (error) { setPaymentMessage(error.message || 'The transfer receipt could not be opened.'); }
   };
 
@@ -798,6 +948,14 @@ export function BookingDetailsScreen({ navigation, route }) {
 
   return (
     <PageShell navigation={navigation} eyebrow={booking.source === 'walk-in' ? 'VENDOR WALK-IN' : booking.source === 'tournament' ? 'TOURNAMENT BOOKING' : 'BOOKING'} title="Booking details" subtitle={DEMO_MODE ? 'Reservation details stored on this device.' : 'Reservation details from PlaySpot.'}>
+      <Modal visible={Boolean(receiptPreview)} transparent animationType="fade" onRequestClose={() => setReceiptPreview(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', justifyContent: 'center', padding: 18 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close receipt preview" testID="receipt-preview-close" onPress={() => setReceiptPreview(null)} style={{ alignSelf: 'flex-end', padding: 12 }}>
+            <Text style={{ color: '#fff', fontWeight: '900' }}>Close</Text>
+          </Pressable>
+          {receiptPreview ? <Image source={receiptPreview} resizeMode="contain" style={{ width: '100%', height: '82%' }} /> : null}
+        </View>
+      </Modal>
       <DesignCard>
         <View style={styles.rowBetween}><Text style={[styles.eyebrow, { color: colors.primary }]}>{booking.source === 'walk-in' ? 'SOURCE · WALK-IN' : booking.source === 'tournament' ? 'SOURCE · HOSTED TOURNAMENT' : 'SOURCE · PLAYER'}</Text><StatusBadge label={getBookingDisplayStatus(booking)} tone={active ? 'success' : booking.status === 'cancelled' ? 'danger' : 'neutral'} /></View>
         <Text style={[styles.cardTitle, styles.cardTop, { color: colors.ink }]}>{venue?.name || booking.venueName}</Text>
@@ -805,6 +963,11 @@ export function BookingDetailsScreen({ navigation, route }) {
         <Text style={[styles.cardCopy, { color: colors.inkSoft }]}>{formatDateKey(booking.date)} · {formatTimeRange(booking.startTime, booking.endTime)}</Text>
       </DesignCard>
       {booking.source === 'walk-in' ? <InlineNotice>Customer: {booking.customerName}{booking.customerContact ? ` · ${booking.customerContact}` : ''}</InlineNotice> : null}
+      {booking.source === 'player' && currentUser?.role === 'player' ? <AppButton
+        title={paymentBusy ? 'Opening chat…' : 'Chat with vendor'}
+        variant="secondary" testID="booking-chat-with-vendor"
+        loading={paymentBusy} disabled={paymentBusy} onPress={openVendorChat} style={styles.buttonGap}
+      /> : null}
       {booking.source === 'player' && booking.attendanceStatus === 'attended' ? <InlineNotice testID="booking-attendance-confirmed">Venue attendance confirmed. This player can now review the venue.</InlineNotice> : null}
       {booking.source === 'player' && isOwner && getBookingDisplayStatus(booking) === 'Completed' && (DEMO_MODE ? booking.attendanceStatus !== 'attended' : booking.status !== 'completed') ? <AppButton title={DEMO_MODE ? 'Confirm player attended' : 'Complete booking'} variant="secondary" testID="booking-confirm-attendance" onPress={async () => { const result = await dispatch(confirmBookingAttendance({ bookingId: booking.id })); if (!result.ok) Alert.alert('Could not complete booking', result.error); }} style={styles.buttonGap} /> : null}
       <SectionHeading title="Charges" />

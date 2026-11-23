@@ -274,6 +274,8 @@ export const leaveTournament = ({ tournamentId }) => (dispatch, getState) => {
 
 function syncTournamentConversation(state, tournament) {
   if (!tournament) return;
+  const isPersistedId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tournament.id);
+  if (!tournament.conversationId && isPersistedId) return;
   const participantIds = [...new Set([
     tournament.organizerUserId || tournament.createdBy,
     ...(tournament.participants || []).map(participant => participant.userId),
