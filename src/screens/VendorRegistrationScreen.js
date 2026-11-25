@@ -22,6 +22,7 @@ import { DEMO_MODE } from '../config/backendApi';
 import { DEFAULT_GROUND_DAYS, WEEK_DAYS } from '../utils/booking';
 import { registerAccount } from '../services/authRepository';
 import { createVendorResources } from '../services/vendorOnboardingApi';
+import { getDeviceLocation } from '../services/deviceLocation';
 import { accountRegistered } from '../store/authSlice';
 import { venueCreated } from '../store/venueSlice';
 import { createVendorVenueRecords } from '../services/vendorVenueFactory';
@@ -105,6 +106,9 @@ export default function VendorRegistrationScreen({ navigation }) {
   const [mediaError, setMediaError] = useState('');
   const [loading, setLoading] = useState(false);
   const [pickerBusy, setPickerBusy] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationNotice, setLocationNotice] = useState('');
+  const [locationError, setLocationError] = useState('');
   const ownerNameRef = useRef(null);
   const ownerEmailRef = useRef(null);
   const ownerPhoneRef = useRef(null);
@@ -115,6 +119,33 @@ export default function VendorRegistrationScreen({ navigation }) {
     setDraft(previous => ({ ...previous, [key]: value }));
     setErrors(previous => ({ ...previous, [key]: undefined }));
     setSubmitError('');
+    if (key === 'latitude' || key === 'longitude') {
+      setLocationNotice('');
+      setLocationError('');
+    }
+  };
+
+  const useDeviceLocation = async () => {
+    if (locationBusy) return;
+    setLocationBusy(true);
+    setLocationError('');
+    setLocationNotice('');
+    try {
+      const location = await getDeviceLocation();
+      setDraft(previous => ({
+        ...previous,
+        latitude: location.latitude.toFixed(6),
+        longitude: location.longitude.toFixed(6),
+      }));
+      setErrors(previous => ({ ...previous, latitude: undefined, longitude: undefined }));
+      setLocationNotice(location.accuracyMeters === null
+        ? 'Device coordinates filled. They will be saved with your venue.'
+        : `Device coordinates filled (about ±${Math.round(location.accuracyMeters)} m).`);
+    } catch (locationFailure) {
+      setLocationError(locationFailure.message || 'Could not read this device location.');
+    } finally {
+      setLocationBusy(false);
+    }
   };
 
   const updateGround = (index, key, value) => {
@@ -465,6 +496,9 @@ export default function VendorRegistrationScreen({ navigation }) {
           style={styles.column}
         />
       </View>
+      <AppButton title={locationBusy ? 'Getting device location…' : 'Use device location'} variant="secondary" testID="vendor-use-device-location" onPress={useDeviceLocation} loading={locationBusy} disabled={locationBusy} style={styles.locationButton} />
+      {locationNotice ? <Text accessibilityLiveRegion="polite" style={[styles.locationNotice, { color: colors.success }]}>{locationNotice}</Text> : null}
+      {locationError ? <Text accessibilityRole="alert" style={[styles.locationNotice, { color: colors.error }]}>{locationError}</Text> : null}
       <Text style={[styles.helper, { color: colors.inkSoft }]}>
         Coordinates are optional. Leave both blank to use your manually entered address and area. Sample locations are not verified.
       </Text>
@@ -912,6 +946,8 @@ const styles = StyleSheet.create({
   sectionCopy: { flex: 1 },
   sectionTitle: { fontSize: 15, fontWeight: '800' },
   helper: { fontSize: 12, lineHeight: 18 },
+  locationButton: { alignSelf: 'flex-start', marginTop: 8, marginBottom: 7 },
+  locationNotice: { fontSize: 11, lineHeight: 16, marginBottom: 8 },
   smallButton: { minHeight: 39, paddingHorizontal: 12 },
   smallButtonText: { fontSize: 11 },
   formCard: { borderWidth: 1, padding: 13, marginBottom: 12 },

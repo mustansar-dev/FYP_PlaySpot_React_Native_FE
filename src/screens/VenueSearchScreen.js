@@ -7,10 +7,11 @@ import VenueCard from '../components/VenueCard';
 import { useTheme } from '../context/ThemeContext';
 import { DEMO_MODE } from '../config/backendApi';
 import { backendApi } from '../services/backendApi';
+import { getDeviceLocation } from '../services/deviceLocation';
 import { filterAndSortVenues } from '../utils/venueDiscovery';
 
 const SPORTS = ['All', 'Futsal', 'Football', 'Cricket', 'Padel', 'Badminton'];
-const DEFAULT_ORIGIN = { latitude: 31.5204, longitude: 74.3587 };
+const DEFAULT_ORIGIN = { label: 'Lahore', latitude: 31.5204, longitude: 74.3587 };
 const priceFilters = ['Any', 'PKR 3k', 'PKR 5k', 'PKR 8k'];
 const distanceFilters = ['Any', '5 km', '10 km', '20 km'];
 const ratingFilters = ['Any', '3.5+', '4.0+', '4.5+'];
@@ -30,7 +31,28 @@ export default function VenueSearchScreen({ navigation, route }) {
   const [remoteVenues, setRemoteVenues] = useState([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState('');
-  const origin = initial.origin || DEFAULT_ORIGIN;
+  const [origin, setOrigin] = useState(() => initial.origin || DEFAULT_ORIGIN);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  useEffect(() => {
+    if (initial.origin && Number.isFinite(Number(initial.origin.latitude)) && Number.isFinite(Number(initial.origin.longitude))) {
+      setOrigin({ ...initial.origin, latitude: Number(initial.origin.latitude), longitude: Number(initial.origin.longitude) });
+    }
+  }, [initial.origin?.latitude, initial.origin?.longitude, initial.origin?.label]);
+
+  const useDeviceLocation = async () => {
+    if (locationBusy) return;
+    setLocationBusy(true);
+    setLocationError('');
+    try {
+      const coordinates = await getDeviceLocation();
+      setOrigin({ label: 'My location', latitude: coordinates.latitude, longitude: coordinates.longitude });
+    } catch (error) {
+      setLocationError(error.message || 'Could not read this device location. Check location permission and try again.');
+    } finally {
+      setLocationBusy(false);
+    }
+  };
   useEffect(() => {
     if (DEMO_MODE) return undefined;
     let active = true;
@@ -67,7 +89,19 @@ export default function VenueSearchScreen({ navigation, route }) {
 
   const header = (
     <View>
-      <View style={styles.titleRow}><View><Text style={[styles.title, { color: colors.ink }]}>Find a venue</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Browse fictional Lahore demo listings' : 'Available PlaySpot venues · approximate distance from Lahore'}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open offline venue map" testID="search-open-map" onPress={() => navigation.navigate('VenueMap', { origin })} style={[styles.mapButton, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={{ color: colors.primary, fontWeight: '800' }}>⌖ Map</Text></Pressable></View>
+      <View style={styles.titleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { color: colors.ink }]}>Find a venue</Text>
+          <Text style={[styles.subtitle, { color: colors.inkSoft }]}>{DEMO_MODE ? 'Browse fictional Lahore demo listings' : `Showing nearest venues to ${origin.label || 'your selected location'}`}</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Use this device location for nearby venues" testID="venue-search-use-device-location" disabled={locationBusy} onPress={useDeviceLocation} style={[styles.locationButton, { backgroundColor: colors.limePale, borderRadius: radius.md }]}>
+            {locationBusy ? <Text style={{ color: colors.primary, fontWeight: '800' }}>Locating…</Text> : <Text style={{ color: colors.primary, fontWeight: '800' }}>◎ Nearby</Text>}
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open interactive venue map" testID="search-open-map" onPress={() => navigation.navigate('VenueMap', { origin })} style={[styles.mapButton, { backgroundColor: colors.limePale, borderRadius: radius.md }]}><Text style={{ color: colors.primary, fontWeight: '800' }}>⌖ Map</Text></Pressable>
+        </View>
+      </View>
+      {locationError ? <Text accessibilityRole="alert" style={{ color: colors.error, fontSize: 11, marginBottom: 10 }}>{locationError}</Text> : null}
       <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={{ color: colors.inkSoft, fontSize: 18 }}>⌕</Text><TextInput accessibilityLabel="Search by venue, area or sport" testID="venue-search-input" value={query} onChangeText={setQuery} placeholder="Search sport, venue or area" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.ink }]} returnKeyType="search" /></View>
       <View style={styles.filterHead}>
         <Pressable accessibilityRole="button" accessibilityState={{ expanded: filtersOpen }} testID="venue-filters-toggle" onPress={() => setFiltersOpen(open => !open)} style={[styles.filterToggle, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
@@ -80,7 +114,7 @@ export default function VenueSearchScreen({ navigation, route }) {
         <ChoiceChips label="Sport" options={SPORTS} selected={sport} onSelect={setSport} testID="filter-sport" />
         <ChoiceChips label="Budget per hour" options={priceFilters} selected={budget} onSelect={setBudget} testID="filter-budget" />
         <ChoiceChips label="Minimum rating" options={ratingFilters} selected={rating} onSelect={setRating} testID="filter-rating" />
-        <ChoiceChips label="Approx. distance from Lahore" options={distanceFilters} selected={distance} onSelect={setDistance} testID="filter-distance" />
+        <ChoiceChips label={`Distance from ${origin.label || 'selected location'}`} options={distanceFilters} selected={distance} onSelect={setDistance} testID="filter-distance" />
         <ChoiceChips label="Venue type" options={['Any', 'Indoor', 'Outdoor']} selected={indoor} onSelect={setIndoor} testID="filter-indoor-outdoor" />
         <ChoiceChips label="Sort by" options={['Nearest', 'Rating', 'Price']} selected={sort} onSelect={setSort} testID="filter-sort" />
       </> : null}
@@ -90,12 +124,14 @@ export default function VenueSearchScreen({ navigation, route }) {
   );
 
   return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]} edges={['top']}>
-    <FlatList data={results} keyExtractor={item => item.id} renderItem={({ item }) => <VenueCard venue={item} onPress={() => navigation.navigate('VenueDetails', { venueId: item.id })} />} ListHeaderComponent={header} ListEmptyComponent={<View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.emptyTitle, { color: colors.ink }]}>No venues match those filters</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>Try a different sport, budget or distance.</Text><Pressable accessibilityRole="button" onPress={reset} style={styles.emptyButton}><Text style={{ color: colors.primary, fontWeight: '800' }}>Reset filters</Text></Pressable></View>} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" />
+    <FlatList data={results} keyExtractor={item => item.id} renderItem={({ item }) => <VenueCard venue={item} onPress={() => navigation.navigate('VenueDetails', { venueId: item.id, origin })} />} ListHeaderComponent={header} ListEmptyComponent={<View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}><Text style={[styles.emptyTitle, { color: colors.ink }]}>No venues match those filters</Text><Text style={[styles.subtitle, { color: colors.inkSoft }]}>Try a different sport, budget or distance.</Text><Pressable accessibilityRole="button" onPress={reset} style={styles.emptyButton}><Text style={{ color: colors.primary, fontWeight: '800' }}>Reset filters</Text></Pressable></View>} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" />
   </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({ safe: { flex: 1 }, content: { padding: 18, paddingBottom: 28 },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }, title: { fontSize: 24, fontWeight: '900' }, subtitle: { fontSize: 11, marginTop: 4 },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 16 }, title: { fontSize: 24, fontWeight: '900' }, subtitle: { fontSize: 11, marginTop: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  locationButton: { minHeight: 42, paddingHorizontal: 10, justifyContent: 'center', alignItems: 'center' },
   mapButton: { paddingHorizontal: 14, paddingVertical: 11 }, inputWrap: { height: 50, borderWidth: 1, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 }, input: { flex: 1, fontSize: 13 },
   filterHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, filterToggle: { minHeight: 44, borderWidth: 1, paddingHorizontal: 12, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginRight: 10 }, filterTitle: { fontSize: 13, fontWeight: '900' }, filterChevron: { fontSize: 20, fontWeight: '900' }, reset: { fontSize: 11, fontWeight: '800' }, resultCount: { fontSize: 11, fontWeight: '700', marginBottom: 12 },
   empty: { borderWidth: 1, padding: 18, marginTop: 8 }, emptyTitle: { fontSize: 15, fontWeight: '800' }, emptyButton: { alignSelf: 'flex-start', paddingVertical: 12 },

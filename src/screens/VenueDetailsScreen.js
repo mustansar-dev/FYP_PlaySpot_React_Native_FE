@@ -19,6 +19,7 @@ export default function VenueDetailsScreen({ navigation, route }) {
   const [reviewLoadError, setReviewLoadError] = useState('');
   const { colors, radius } = useTheme();
   const { venueId } = route.params || {};
+  const distanceOrigin = route.params?.origin || { latitude: 31.5204, longitude: 74.3587 };
   const { venues, grounds, equipment, reviews, bookings } = useSelector(state => state.venues);
   const currentUser = useSelector(state => state.auth.currentUser);
   const vendorProfile = useSelector(state => state.venues.vendorProfiles.find(item => item.id === venueVendorId(state, venueId)) || null);
@@ -37,7 +38,7 @@ export default function VenueDetailsScreen({ navigation, route }) {
   }, [dispatch, venueId]);
   const rating = getVenueRating(venueReviews);
   const canReview = canReviewVenue({ user: currentUser, bookings, venueId });
-  const distance = venue ? haversineDistanceKm({ latitude: 31.5204, longitude: 74.3587 }, venue) : null;
+  const distance = venue ? haversineDistanceKm(distanceOrigin, venue) : null;
   const photoUris = venue?.photoUris?.filter(uri => typeof uri === 'string' && uri.length > 0) || [];
 
   if (!venue) return <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}><View style={styles.missing}><Text style={[styles.title, { color: colors.ink }]}>Venue unavailable</Text><AppButton title="Back to search" onPress={() => navigation.navigate('VenueSearch')} /></View></SafeAreaView>;

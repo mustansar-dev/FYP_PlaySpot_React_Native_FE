@@ -53,7 +53,7 @@ The app uses JavaScript and JSX. `package.json` defines the React Native CLI app
 | Module | What to look for |
 | --- | --- |
 | `WelcomeScreen.js`, `RoleSelectionScreen.js`, `LoginScreen.js`, `ForgotPasswordScreen.js`, `PlayerRegistrationScreen.js`, `VendorRegistrationScreen.js`, `RegistrationSuccessScreen.js` | Guest entry, account forms and onboarding |
-| `PlayerHomeScreen.js`, `VenueSearchScreen.js`, `VenueMapScreen.js`, `VenueDetailsScreen.js`, `VenueReviewsScreen.js`, `AddReviewScreen.js` | Player discovery, local map, venue details and review eligibility |
+| `PlayerHomeScreen.js`, `VenueSearchScreen.js`, `VenueMapScreen.js`, `VenueDetailsScreen.js`, `VenueReviewsScreen.js`, `AddReviewScreen.js` | Player discovery, Geoapify map, venue details and review eligibility |
 | `BookingScreens.js` | Slot selection, add-ons, checkout, success, booking history/details, vendor availability and walk-ins |
 | `CommunityScreens.js` | Game room browse/create/detail, community chat, room split/payment UI, tournaments and leaderboards |
 | `VendorDashboardScreen.js`, `VendorVenueScreen.js`, `VendorVenueManagementScreen.js`, `VendorInventoryScreen.js`, `VendorAnalyticsScreen.js` | Vendor landing, venue edits, inventory and operational reports |
@@ -216,7 +216,7 @@ Vendor registration is a multi-step draft in `VendorRegistrationScreen.js`. It g
 
 ### Venue discovery
 
-Player Home → Venue Search, Map, or a venue card → Venue Details → venue reviews, vendor chat, or booking. Search behavior lives in `utils/venueDiscovery.js`: text, sport, price, rating, distance, indoor/outdoor filters and sort. Distance uses a haversine calculation over demo coordinates. `VenueMapScreen.js` is an offline schematic with manually selected demo centers, not a network map.
+Player Home → Venue Search, Map, or a venue card → Venue Details → venue reviews, vendor chat, or booking. Search behavior lives in `utils/venueDiscovery.js`: text, sport, price, rating, distance, indoor/outdoor filters and sort. Player Search's Nearby action requests the player's device position and sends that origin to PostGIS; client cards calculate and sort by haversine distance from the same origin. Vendor registration and venue details can also capture the venue coordinates after permission. `VenueMapScreen.js` renders MapLibre Native with Geoapify tiles, place search, map tap/pan selection, device location, PostGIS nearby venue markers and a visible Geoapify/OpenStreetMap attribution. The Geoapify key remains in the backend `.env` and map requests pass through the backend. Draft venues remain hidden until the vendor publishes them.
 
 ### Individual venue booking
 
@@ -303,7 +303,7 @@ Tournament browse/create/details and leaderboards are in `CommunityScreens.js`; 
 
 **Is the payment real?** No. Payment indicators and room shares are local demo state. No money is moved and there is no processor.
 
-**Is the map live?** No. It is an offline schematic using approximate fictional coordinates and manually chosen centers.
+**Is the map live?** Yes. The Android app loads Geoapify's `osm-carto` tiles through the backend, searches Pakistani locations through Geoapify geocoding, requests device location only after Android permission, and gets venue pins from PlaySpot's nearby-venue API. The location search and Lahore quick-area buttons still work if the user declines GPS permission. Venue pins only appear for listings with coordinates.
 
 **How would you add a new screen?** Build the screen, register it in the correct role branch in `RootNavigator.js`, pass stable IDs in route params, use shared UI/theme components, add a focused test, and confirm the target role can navigate to it.
 

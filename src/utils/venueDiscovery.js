@@ -4,14 +4,18 @@ import { DEMO_MODE } from '../config/backendApi';
 const EARTH_RADIUS_KM = 6371;
 
 export function haversineDistanceKm(from, to) {
-  if (!from || !to || ![from.latitude, from.longitude, to.latitude, to.longitude].every(Number.isFinite)) {
-    return null;
-  }
+  if (!from || !to) return null;
+  const [fromLatitude, fromLongitude, toLatitude, toLongitude] = [
+    from.latitude, from.longitude, to.latitude, to.longitude,
+  ].map(value => value === null || value === undefined || value === '' ? NaN : Number(value));
+  if (![fromLatitude, fromLongitude, toLatitude, toLongitude].every(Number.isFinite)
+      || Math.abs(fromLatitude) > 90 || Math.abs(toLatitude) > 90
+      || Math.abs(fromLongitude) > 180 || Math.abs(toLongitude) > 180) return null;
   const radians = degrees => (degrees * Math.PI) / 180;
-  const latitudeDelta = radians(to.latitude - from.latitude);
-  const longitudeDelta = radians(to.longitude - from.longitude);
+  const latitudeDelta = radians(toLatitude - fromLatitude);
+  const longitudeDelta = radians(toLongitude - fromLongitude);
   const a = Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) *
+    Math.cos(radians(fromLatitude)) * Math.cos(radians(toLatitude)) *
     Math.sin(longitudeDelta / 2) ** 2;
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

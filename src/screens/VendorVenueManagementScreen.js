@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { DEMO_MODE } from '../config/backendApi';
 import { backendApi } from '../services/backendApi';
 import { normalizeVenue } from '../services/backendState';
+import { getDeviceLocation } from '../services/deviceLocation';
 import AppButton from '../components/AppButton';
 import ChoiceChips from '../components/ChoiceChips';
 import FormField from '../components/FormField';
@@ -72,12 +73,19 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
   const [pickerBusy, setPickerBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationNotice, setLocationNotice] = useState('');
+  const [locationError, setLocationError] = useState('');
   const [groundAddedNotice, setGroundAddedNotice] = useState('');
 
   const setField = (key, value) => {
     setDraft(previous => ({ ...previous, [key]: value }));
     setSaved(false);
     setError('');
+    if (key === 'latitude' || key === 'longitude') {
+      setLocationNotice('');
+      setLocationError('');
+    }
   };
   const updateListItem = (collection, index, key, value) => {
     setDraft(previous => ({
@@ -207,6 +215,29 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
       setError(publishError.message || 'Venue visibility could not be changed.');
     } finally {
       setSaving(false);
+    }
+  };
+  const useDeviceLocation = async () => {
+    if (locationBusy) return;
+    setLocationBusy(true);
+    setLocationError('');
+    setLocationNotice('');
+    try {
+      const location = await getDeviceLocation();
+      setDraft(previous => ({
+        ...previous,
+        latitude: location.latitude.toFixed(6),
+        longitude: location.longitude.toFixed(6),
+      }));
+      setSaved(false);
+      setError('');
+      setLocationNotice(location.accuracyMeters === null
+        ? `Device coordinates filled. Save venue details${venue.published ? ' to refresh player distances' : ' and publish the venue to make it discoverable'}.`
+        : `Device coordinates filled (about ±${Math.round(location.accuracyMeters)} m). Save venue details${venue.published ? ' to refresh player distances' : ' and publish the venue to make it discoverable'}.`);
+    } catch (locationFailure) {
+      setLocationError(locationFailure.message || 'Could not read this device location.');
+    } finally {
+      setLocationBusy(false);
     }
   };
   const coordsError = useMemo(() => {
@@ -341,7 +372,13 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
         setSaved(true);
         setError('');
         navigation.goBack();
-        Alert.alert('Saved successfully', `${section === 'grounds' ? 'Courts and booking hours' : section === 'facilities' ? 'Facilities and parking' : 'Venue details'} were saved to PlaySpot.`);
+        Alert.alert('Saved successfully', section === 'grounds'
+          ? 'Courts and booking hours were saved to PlaySpot.'
+          : section === 'facilities'
+            ? 'Facilities and parking were saved to PlaySpot.'
+            : venue.published
+              ? 'Venue details were saved to PlaySpot. Player search will use the updated coordinates.'
+              : 'Venue details were saved to PlaySpot. This draft stays hidden from player search until you publish it.');
       } catch (saveError) {
         if (persistedGrounds.length) setDraft(previous => ({ ...previous, grounds: persistedGrounds }));
         setError(saveError.message || 'Changes could not be saved to PlaySpot.');
@@ -389,7 +426,11 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
     setSaved(true);
     setError('');
     navigation.goBack();
-    Alert.alert('Saved successfully', `${section === 'details' ? 'Venue details' : section === 'grounds' ? 'Grounds and availability' : section === 'facilities' ? 'Facilities and parking' : 'Venue photos'} have been saved.`);
+    Alert.alert('Saved successfully', section === 'details'
+      ? venue.published ? 'Venue details were saved.' : 'Venue details were saved. This draft stays hidden from player search until you publish it.'
+      : section === 'grounds' ? 'Grounds and availability have been saved.'
+        : section === 'facilities' ? 'Facilities and parking have been saved.'
+          : 'Venue photos have been saved.');
   };
 
   if (!ready) {
@@ -424,7 +465,11 @@ export default function VendorVenueManagementScreen({ navigation, route }) {
             <FormField label="Latitude" value={draft.latitude} onChangeText={value => setField('latitude', value)} keyboardType="decimal-pad" style={styles.column} testID="manage-venue-latitude" />
             <FormField label="Longitude" value={draft.longitude} onChangeText={value => setField('longitude', value)} keyboardType="decimal-pad" style={styles.column} testID="manage-venue-longitude" />
           </View>
+          <AppButton title={locationBusy ? 'Getting device location…' : 'Use device location'} variant="secondary" testID="manage-venue-use-device-location" onPress={useDeviceLocation} loading={locationBusy} disabled={locationBusy} style={styles.locationButton} />
+          {locationNotice ? <Text accessibilityLiveRegion="polite" style={[styles.locationNotice, { color: colors.success }]}>{locationNotice}</Text> : null}
+          {locationError ? <Text accessibilityRole="alert" style={[styles.locationNotice, { color: colors.error }]}>{locationError}</Text> : null}
           <Text style={[styles.hint, { color: colors.inkSoft }]}>Leave both coordinates blank to continue using the manual address fallback.</Text>
+          {!venue.published ? <Text style={[styles.locationNotice, { color: colors.orange }]}>This venue is hidden from player search until you publish it below.</Text> : null}
           <ChoiceChips label="Sports offered" options={['Futsal', 'Football', 'Cricket', 'Padel', 'Badminton']} selected={draft.sports} onSelect={value => toggleListValue('sports', value)} multiple testID="manage-venue-sport" />
           </> : null}
 
@@ -537,6 +582,8 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 14, paddingBottom: 28 },
   row: { flexDirection: 'row', gap: 10 },
   column: { flex: 1 },
+  locationButton: { alignSelf: 'flex-start', marginBottom: 6 },
+  locationNotice: { fontSize: 11, lineHeight: 16, marginBottom: 7 },
   hint: { fontSize: 12, lineHeight: 18, marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '800', marginTop: 10, marginBottom: 10 },
   card: { padding: 13, borderWidth: 1, marginBottom: 12 },

@@ -8,7 +8,8 @@ PlaySpot PK is a React Native sports venue discovery, booking, and player matchm
 - The backend owns availability, slot conflicts, prices, booking state, payment state and private chat membership. A network error is shown to the user; the app does not silently load mock records.
 - Booking checkout supports online, pay-at-venue, and bank transfer receipt upload/review. Tournament entry supports online checkout and pay-at-venue confirmation. Safepay Sandbox requires issued credentials; without them the local backend provides an explicitly labelled development simulation. No live payment or payout is claimed.
 - Court-hosted game rooms and tournaments reserve backend court time. Tournament entry and room shares use server payment records, but room share cash collection is still managed through the backend vendor payment API rather than a dedicated room payment screen. Tournament bank transfer, prize payouts and automatic refunds are not exposed as complete mobile workflows.
-- Venue photos/videos remain on the device until binary venue-media upload is connected. The offline map has no GPS or tile provider.
+- Venue photos/videos remain on the device until binary venue-media upload is connected. Venue Map now uses MapLibre with Geoapify tiles and live PlaySpot venue markers; the Geoapify key stays in the backend `.env`.
+- Vendor registration and venue editing can request foreground location permission and fill the venue coordinates from the device. Player Venue Search has a **Nearby** action that uses the player's current coordinates for the backend radius query and nearest-first distance ordering.
 - Backend and database setup are documented in the sibling backend root README. Run `npm run setup` in each repository; start the backend before using live frontend flows.
 - In live mode, editing venue details, facilities and courts sends changes to the backend. New courts receive server UUIDs before the frontend refreshes. Open Venue details and choose **Publish venue for players** to list the venue in player discovery; local development permits vendor self-publishing, while production still requires approval.
 
@@ -101,6 +102,10 @@ npm run android
 ```
 
 `npm run setup` creates the ignored `.env` from `.env.example` when missing, installs the exact lockfile dependencies with `npm ci`, and configures Metro to inline the public API URL. The default URL is `http://10.0.2.2:4000/api/v1` for an Android Emulator. For a physical Android phone, set `PLAYSPOT_API_BASE_URL` in `.env` to the development computer's reachable LAN/tunnel address and restart Metro with `npm start -- --reset-cache`. For the iOS simulator, set `http://localhost:4000/api/v1`. The backend must be running and reachable before using live flows.
+
+### Map setup
+
+The interactive map uses MapLibre Native and Geoapify raster tiles. Keep `GEOAPIFY_API_KEY` in the backend repository's `.env`; the backend proxies tile and geocoding requests so the key is not bundled into the app. Vendor registration/details and player **Nearby** actions ask Android for foreground location permission and use the device coordinates only after permission is granted. If permission is denied, vendors can enter coordinates and players can search a place or choose an area on the map. After installing the updated frontend dependencies, rebuild the native Android app with `npm run android`—a Metro reload alone cannot add the native modules. For a physical phone, the backend URL must point to the development computer's reachable LAN address.
 
 For a physical Android phone, the backend must listen on a reachable host interface and any computer firewall must allow the API port. Native requests do not use browser CORS; if you run a browser-based client, set backend `APP_ORIGINS` to that origin. Keep backend secrets only in the backend `.env`.
 

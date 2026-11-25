@@ -16,7 +16,7 @@ export default function VenueCard({ venue, onPress, compact = false }) {
         <Text numberOfLines={1} style={[styles.sub, { color: colors.inkSoft }]}>{venue.locationNote || venue.city} · {venue.sports?.join(', ')}</Text>
         <View style={styles.meta}>
           <Text style={[styles.rating, { color: colors.orange }]}>★ {venue.rating?.count ? venue.rating.average.toFixed(1) : 'New'}</Text>
-          <Text style={[styles.metaText, { color: colors.inkSoft }]}>{venue.distance === null ? 'Approx. Lahore area' : `${venue.distance.toFixed(1)} km`}</Text>
+          <Text style={[styles.metaText, { color: colors.inkSoft }]}>{Number.isFinite(venue.distance) ? `${venue.distance.toFixed(1)} km away` : 'Distance unavailable'}</Text>
           <Text style={[styles.price, { color: colors.primary }]}>{venue.price ? `PKR ${venue.price.toLocaleString()}/hr` : 'Price on request'}</Text>
         </View>
         <Text style={[styles.availability, { color: colors.primary }]}>Available to explore today</Text>
